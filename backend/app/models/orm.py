@@ -95,7 +95,11 @@ class LedgerEntry(Base):
     transaction = relationship("Transaction", back_populates="ledger_entries")
 
 # Engine and Session setup
-engine = create_engine(settings.SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+_engine_args = {}
+if settings.SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    _engine_args["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(settings.SQLALCHEMY_DATABASE_URL, **_engine_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
