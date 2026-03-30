@@ -169,7 +169,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
         setDownloading(true);
         try {
             // Backend generate_report modified to support project_id
-            await accountingApi.generateReport(projectId, projectName, "Full", selectedPhaseIds, null, {
+            await accountingApi.generateReport(projectId, projectName, "Full", selectedPhaseIds.length > 0 ? selectedPhaseIds.join(',') : null, {
                 custom_header: config.customHeader,
                 sub_headers: config.subHeaders.map(sh => ({ text: sh.text, font_size: parseInt(sh.fontSize || 12) })),
                 footer_note: config.footerNote,

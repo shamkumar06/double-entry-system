@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 // Configure Axios with a 30-second timeout for large data sets
 axios.defaults.timeout = 30000;
@@ -119,7 +119,7 @@ export const accountingApi = {
     // Generate and download a Word Document Report
     generateReport: async (projectId, projectName, reportType, phaseId = null, params = {}) => {
         const response = await axios.post(`${API_BASE_URL}/reports/generate`, {
-            project_id: projectId,
+            project_id: parseInt(projectId),
             project_name: projectName,
             report_type: reportType,
             phase_id: phaseId || null,
