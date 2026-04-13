@@ -16,18 +16,40 @@ const app = express();
 // ── Security Middleware ────────────────────────────────────────────────────
 app.use(helmet());
 
+// Robust CORS with Dynamic Origin Handling
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:3000'
+];
+
+// Add FRONTEND_URL from env if it exists (removing any trailing slashes)
+if (process.env.FRONTEND_URL) {
+  const cleanUrl = process.env.FRONTEND_URL.replace(/\/$/, "");
+  allowedOrigins.push(cleanUrl);
+}
+
 app.use(
   cors({
-    origin: [
-      process.env.FRONTEND_URL || 'http://localhost:5173',
-      'http://localhost:4173'
-    ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      
+      const cleanOrigin = origin.replace(/\/$/, "");
+      
+      if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log(`⚠️ CORS Blocked for origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['set-cookie']
   })
 );
-
 
 
 // ── Body Parsing ───────────────────────────────────────────────────────────
