@@ -16,41 +16,43 @@ const app = express();
 // ── Security Middleware ────────────────────────────────────────────────────
 app.use(helmet());
 
-// Robust CORS with Dynamic Origin Handling
+// Flexible CORS for Vercel Monorepo Deployment
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
   'http://localhost:3000'
 ];
 
-// Add FRONTEND_URL from env if it exists (removing any trailing slashes)
+// Dynamically add frontend URL from environment
 if (process.env.FRONTEND_URL) {
-  const cleanUrl = process.env.FRONTEND_URL.replace(/\/$/, "");
-  allowedOrigins.push(cleanUrl);
+  allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ""));
 }
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl)
+      // Allow requests with no origin (like mobile apps)
       if (!origin) return callback(null, true);
       
       const cleanOrigin = origin.replace(/\/$/, "");
       
-      if (allowedOrigins.includes(cleanOrigin) || allowedOrigins.includes(origin)) {
+      // Allow specific origins or any vercel.app subdomain for this project
+      const isVercel = cleanOrigin.endsWith('.vercel.app') && cleanOrigin.includes('double-entry-system');
+      
+      if (allowedOrigins.includes(cleanOrigin) || isVercel) {
         callback(null, true);
       } else {
-        console.log(`⚠️ CORS Blocked for origin: ${origin}`);
-        callback(new Error('Not allowed by CORS'));
+        console.warn(`CORS attempt from unauthorized origin: ${origin}`);
+        callback(null, false); // Return false instead of Error to avoid crashing the response headers
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-    exposedHeaders: ['set-cookie']
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
   })
 );
-
 
 // ── Body Parsing ───────────────────────────────────────────────────────────
 app.use(express.json({ limit: '5mb' }));
