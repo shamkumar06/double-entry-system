@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum EntryType {
+  DEBIT
+  CREDIT
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         Role     @default(VIEWER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@map("users")
+}
+
+model SystemSettings {
+  id                 String    @id @default(uuid())
+  baseCurrency       String    @default("INR")
+  exchangeRateApiKey String?
+  cachedRates        Json?
+  ratesCachedAt      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("system_settings")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  totalFunds  Decimal  @default(0) @db.Decimal(15, 2)
+  logoUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  phases       Phase[]
+  transactions Transaction[]
+
+  @@index([name])
+  @@map("projects")
+}
+
+model Phase {
+  id              String   @id @default(uuid())
+  projectId       String
+  name            String
+  description     String?
+  estimatedBudget Decimal  @default(0) @db.Decimal(15, 2)
+  isSettled       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("phases")
+}
+
+model AccountCategory {
+  id          String      @id @default(uuid())
+  code        Int         @unique
+  name        String      @unique
+  type        AccountType
+  description String?
+  isSystem    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  transactionLines TransactionLine[]
+
+  @@index([type])
+  @@index([code])
+  @@map("account_categories")
+}
+
+model Transaction {
+  id            String    @id @default(uuid())
+  projectId     String
+  phaseId       String?
+  date          DateTime
+  description   String
+  fromEntity    String?
+  toEntity      String?
+  paymentMode   String?
+  reference     String?
+  attachmentUrl String?
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  project Project           @relation(fields: [projectId], references: [id])
+  phase   Phase?            @relation(fields: [phaseId], references: [id])
+  lines   TransactionLine[]
+
+  @@index([projectId])
+  @@index([phaseId])
+  @@index([isDeleted])
+  @@index([date])
+  @@map("transactions")
+}
+
+model TransactionLine {
+  id            String    @id @default(uuid())
+  transactionId String
+  accountId     String
+  type          EntryType
+  amount        Decimal   @db.Decimal(15, 2)
+  createdAt     DateTime  @default(now())
+
+  transaction Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  account     AccountCategory @relation(fields: [accountId], references: [id])
+
+  @@index([transactionId])
+  @@index([accountId])
+  @@map("transaction_lines")
+}

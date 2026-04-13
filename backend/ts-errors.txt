@@ -1,0 +1,40 @@
+src/controllers/auth.controller.ts(45,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ email: string; password: string; name?: string | undefined; }>'.
+src/controllers/auth.controller.ts(59,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ email: string; password: string; }>'.
+src/controllers/auth.controller.ts(83,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ email: string; password: string; role: "ADMIN" | "VIEWER"; name?: string | undefined; }>'.
+src/controllers/auth.controller.ts(94,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ role: "ADMIN" | "VIEWER"; }>'.
+src/controllers/auth.controller.ts(97,37): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/accounting.routes.ts(51,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ projectId: string; date: string; description: string; lines: { accountId: string; type: "DEBIT" | "CREDIT"; amount: number; }[]; phaseId?: string | undefined; attachmentUrl?: string | undefined; }>'.
+src/routes/accounting.routes.ts(104,31): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/project.routes.ts(35,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/project.routes.ts(48,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ name: string; description?: string | undefined; totalFunds?: number | undefined; logoUrl?: string | undefined; }>'.
+src/routes/project.routes.ts(58,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ name?: string | undefined; description?: string | undefined; totalFunds?: number | undefined; logoUrl?: string | undefined; }>'.
+src/routes/project.routes.ts(62,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/project.routes.ts(70,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/project.routes.ts(79,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | StringFilter<"Phase"> | undefined'.
+  Type 'string[]' is not assignable to type 'string | StringFilter<"Phase"> | undefined'.
+src/routes/project.routes.ts(88,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ name: string; description?: string | undefined; estimatedBudget?: number | undefined; }>'.
+src/routes/project.routes.ts(92,62): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/project.routes.ts(96,29): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/project.routes.ts(104,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ name?: string | undefined; description?: string | undefined; estimatedBudget?: number | undefined; }>'.
+src/routes/project.routes.ts(108,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/project.routes.ts(115,40): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/system.routes.ts(32,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ code: number; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; description?: string | undefined; }>'.
+src/routes/system.routes.ts(40,71): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/system.routes.ts(46,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ code?: number | undefined; name?: string | undefined; type?: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | undefined; description?: string | undefined; }>'.
+src/routes/system.routes.ts(50,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/system.routes.ts(57,71): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/system.routes.ts(61,50): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/system.routes.ts(78,64): error TS2339: Property 'errors' does not exist on type 'ZodError<{ baseCurrency?: string | undefined; exchangeRateApiKey?: string | undefined; }>'.
