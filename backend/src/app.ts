@@ -70,10 +70,24 @@ app.get('/', (_req, res) => {
 });
 
 // ── Health Check ───────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => {
+app.get('/health', async (_req, res) => {
+  let dbStatus = 'connecting';
+  let dbError = null;
+
+  try {
+    // Simple ping to check DB connectivity
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = 'online';
+  } catch (err: any) {
+    dbStatus = 'offline';
+    dbError = err.message;
+  }
+
   res.json({
     success: true,
     status: 'online',
+    database: dbStatus,
+    error: dbError,
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV,
   });
