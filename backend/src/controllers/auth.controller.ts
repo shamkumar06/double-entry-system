@@ -12,10 +12,10 @@ import {
 } from '../services/auth.service';
 
 const COOKIE_OPTIONS = {
-  httpOnly: true,      // prevents JS access — XSS protection
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+  httpOnly: true,
+  secure: true, // Always true for cross-site 'none' cookies
+  sameSite: 'none' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
 // ── Validation Schemas ─────────────────────────────────────────────────────
