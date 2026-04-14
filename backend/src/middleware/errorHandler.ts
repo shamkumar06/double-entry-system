@@ -41,6 +41,7 @@ export const errorHandler = (
   res.status(statusCode).json({
     success: false,
     error: message,
+    actualError: err.message, // PROD DEBUG ONLY: Show the real reason DB is failing
     ...(process.env.NODE_ENV === 'development' && { 
       stack: err.stack,
       name: err.name,
