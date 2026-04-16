@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { prisma } from './lib/prisma';
 
 import { errorHandler, notFound } from './middleware/errorHandler';
 
@@ -75,12 +76,19 @@ app.get('/health', async (_req, res) => {
   let dbError = null;
 
   try {
+    // Explicitly use the imported prisma instance
     // Simple ping to check DB connectivity
     await prisma.$queryRaw`SELECT 1`;
     dbStatus = 'online';
   } catch (err: any) {
+    console.error('Database Health Check Failed:', err);
     dbStatus = 'offline';
-    dbError = err.message;
+    dbError = err.message || 'Unknown database error';
+    
+    // Check if the error is actually because the client wasn't initialized
+    if (dbError.includes('prisma') && dbError.includes('not defined')) {
+      dbError = 'Prisma Client initialization failed. Check server logs for startup errors.';
+    }
   }
 
   res.json({
