@@ -17,9 +17,7 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset"
   },
-  "prisma": {
-    "seed": "ts-node -O \"{\\\"rootDir\\\":\\\".\\\"}\" prisma/seed.ts"
-  },
+
   "keywords": [
     "accounting",
     "double-entry",
@@ -30,6 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^6.19.3",
     "@supabase/supabase-js": "^2.101.1",
     "axios": "^1.14.0",
