@@ -5,7 +5,7 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
     provider: "postgresql",
-    url: process.env.DATABASE_URL,
+    url: process.env.DATABASE_URL as string,
   },
   migrations: {
     path: "prisma/migrations",
