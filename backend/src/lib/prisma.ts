@@ -21,10 +21,17 @@ export const getPrismaClient = (): PrismaClient => {
   const pool = new Pool({ 
     connectionString: url,
     // Optimal serverless settings
-    max: 10,
+    max: 5, // Lowered for Supabase Transaction mode
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 10000, // Increased to 10s for Vercel cold starts
+    ssl: { rejectUnauthorized: false } // Required for some hosted DBs
   });
+
+  // Log connection success (sanitized) to help debug production
+  if (process.env.NODE_ENV === 'production') {
+    const sanitizedUrl = url.replace(/:.*@/, ':****@');
+    console.log(`📡 Connecting to database with pooler URL: ${sanitizedUrl.substring(0, 50)}...`);
+  }
 
   const adapter = new PrismaPg(pool);
 
