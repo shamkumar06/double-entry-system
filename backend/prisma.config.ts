@@ -9,7 +9,4 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
-  seed: {
-    command: "ts-node -O \"{\\\"rootDir\\\":\\\".\\\"}\" prisma/seed.ts",
-  },
 });
