@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import { prisma } from './lib/prisma';
 
 import { errorHandler, notFound } from './middleware/errorHandler';
@@ -56,6 +57,32 @@ app.use(
 );
 
 // ── Body Parsing ───────────────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, '../uploads')));
+
+// ── EMERGENCY DIAGNOSTICS (TOP PRIORITY) ───────────────────────────────────
+app.get('/api/health', async (_req, res) => {
+  let dbStatus = 'connecting';
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = 'online';
+  } catch (err) {
+    dbStatus = 'offline';
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      status: dbStatus,
+      message: dbStatus === 'online' ? '✅ System Healthy' : '⚠️ Database Offline',
+      diagnostics: {
+        env_db_url_present: !!process.env.DATABASE_URL,
+        env_db_url_length: process.env.DATABASE_URL?.length || 0,
+        node_env: process.env.NODE_ENV,
+        node_version: process.version
+      }
+    }
+  });
+});
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -67,42 +94,6 @@ app.get('/', (_req, res) => {
     message: 'Double Entry Accounting Server is online.',
     docs: '/api',
     health: '/health'
-  });
-});
-
-// ── Health Check ───────────────────────────────────────────────────────────
-app.get('/api/health', async (_req, res) => {
-  let dbStatus = 'connecting';
-  let dbError = null;
-
-  try {
-    // Explicitly use the imported prisma instance
-    // Simple ping to check DB connectivity
-    await prisma.$queryRaw`SELECT 1`;
-    dbStatus = 'online';
-  } catch (err: any) {
-    console.error('Database Health Check Failed:', err);
-    dbStatus = 'offline';
-    dbError = err.message || 'Unknown database error';
-    
-    // Check if the error is actually because the client wasn't initialized
-    if (dbError.includes('prisma') && dbError.includes('not defined')) {
-      dbError = 'Prisma Client initialization failed. Check server logs for startup errors.';
-    }
-  }
-
-  res.status(200).json({
-    success: true,
-    data: {
-      status: dbStatus,
-      message: dbStatus === 'online' ? '✅ All systems operational' : '⚠️ Database connection failed. Running in Maintenance Mode.',
-      timestamp: new Date().toISOString(),
-      diagnostics: process.env.NODE_ENV === 'production' ? {
-        env_db_url_present: !!process.env.DATABASE_URL,
-        env_db_url_length: process.env.DATABASE_URL?.length || 0,
-        env_node_version: process.version
-      } : undefined
-    }
   });
 });
 
