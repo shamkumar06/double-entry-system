@@ -15,6 +15,20 @@ import systemRoutes from './routes/system.routes';
 
 const app = express();
 
+// ── TOP-LEVEL DIAGNOSTICS (Bypasses everything) ──────────────────────────
+app.get(['/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: '🚀 Diagnostics Active',
+    diagnostics: {
+      db_url_present: !!process.env.DATABASE_URL,
+      db_url_length: process.env.DATABASE_URL?.length || 0,
+      env: process.env.NODE_ENV,
+      url: req.originalUrl
+    }
+  });
+});
+
 // ── Security Middleware ────────────────────────────────────────────────────
 app.use(helmet());
 
