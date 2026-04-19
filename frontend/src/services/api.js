@@ -4,16 +4,32 @@ const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true, // Needed for HTTP-only cookies
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Add a request interceptor to attach the token if it exists in localStorage
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Setup an interceptor to extract the standard { success, data } payloads
 api.interceptors.response.use(
   (response) => {
-    // If the backend returned { success: true, data: [...] }, unwrap it automatically!
+    // If the response contains a new token (login/register), save it!
+    if (response.data && response.data.data && response.data.data.token) {
+      localStorage.setItem('token', response.data.data.token);
+    }
+
     if (response.data && response.data.success !== undefined && response.data.data !== undefined) {
       return response.data.data;
     }
@@ -21,7 +37,8 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Optional: Handle unauthorized state (covered by App.jsx)
+      // If unauthorized, clear the token as it's likely invalid
+      localStorage.removeItem('token');
     }
     return Promise.reject(error.response?.data || error);
   }
@@ -31,7 +48,10 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   register: (email, password, name) => api.post('/auth/register', { email, password, name }),
-  logout: () => api.post('/auth/logout'),
+  logout: () => {
+    localStorage.removeItem('token');
+    return api.post('/auth/logout');
+  },
   getMe: () => api.get('/auth/me'),
 
   // Admin user management
