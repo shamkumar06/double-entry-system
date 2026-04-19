@@ -71,7 +71,7 @@ app.get('/', (_req, res) => {
 });
 
 // ── Health Check ───────────────────────────────────────────────────────────
-app.get('/health', async (_req, res) => {
+app.get('/api/health', async (_req, res) => {
   let dbStatus = 'connecting';
   let dbError = null;
 
