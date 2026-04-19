@@ -91,13 +91,18 @@ app.get('/health', async (_req, res) => {
     }
   }
 
-  res.json({
+  res.status(200).json({
     success: true,
-    status: 'online',
-    database: dbStatus,
-    error: dbError,
-    timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV,
+    data: {
+      status: dbStatus,
+      message: dbStatus === 'online' ? '✅ All systems operational' : '⚠️ Database connection failed. Running in Maintenance Mode.',
+      timestamp: new Date().toISOString(),
+      diagnostics: process.env.NODE_ENV === 'production' ? {
+        env_db_url_present: !!process.env.DATABASE_URL,
+        env_db_url_length: process.env.DATABASE_URL?.length || 0,
+        env_node_version: process.version
+      } : undefined
+    }
   });
 });
 
