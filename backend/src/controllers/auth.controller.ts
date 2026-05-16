@@ -55,28 +55,28 @@ export const adminCreateUser = async (req: Request, res: Response, next: NextFun
 
 export const changeUserRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await authService.changeUserRole(req.params.userI as string, req.body.role);
+    const user = await authService.changeUserRole(req.params.userId as string, req.body.role);
     res.json({ success: true, data: user });
   } catch (err) { next(err); }
 };
 
 export const resetPassword = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await authService.resetPassword(req.params.userI as string, req.body.password);
+    await authService.resetPassword(req.params.userId as string, req.body.password);
     res.json({ success: true, message: 'Password reset successfully.' });
   } catch (err) { next(err); }
 };
 
 export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await authService.updateUser(req.params.userI as string, req.body);
+    const user = await authService.updateUser(req.params.userId as string, req.body);
     res.json({ success: true, data: user });
   } catch (err) { next(err); }
 };
 
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await authService.deleteUser(req.params.userI as string);
+    await authService.deleteUser(req.params.userId as string);
     res.json({ success: true, message: 'User deleted.' });
   } catch (err) { next(err); }
 };

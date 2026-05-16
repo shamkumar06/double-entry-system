@@ -224,8 +224,8 @@ function AppInner() {
                 ) : (
                     <FolderOpen color="var(--primary)" size={24} />
                 )}
-                <div style={{ overflow: 'hidden' }}>
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.1, whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{activeProject.name}</h2>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.3, wordBreak: 'break-word' }}>{activeProject.name}</h2>
                     <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '1px' }}>{activeProject.description || 'Accounting'}</p>
                 </div>
             </div>

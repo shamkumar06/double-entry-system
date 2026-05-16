@@ -173,7 +173,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                         <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{formatCurrency(ph.spent)}</span> / {formatCurrency(ph.allocated)}
                                     </span>
                                 </div>
-                                <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                <div style={{ height: '8px', borderRadius: '4px', background: 'var(--progress-track)', overflow: 'hidden', border: '1px solid var(--border)' }}>
                                     <div style={{
                                         height: '100%',
                                         width: `${ph.pct}%`,

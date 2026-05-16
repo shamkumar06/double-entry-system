@@ -75,6 +75,30 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
         return formatCurrency(amt);
     };
 
+    const [downloadingId, setDownloadingId] = useState(null);
+
+    const handleDownload = async (url, filename) => {
+        setDownloadingId(url);
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = filename || 'download';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (error) {
+            console.error('Download failed', error);
+            // Fallback to opening in new tab
+            window.open(url, '_blank');
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
     const current = lightboxIndex !== null ? filtered[lightboxIndex] : null;
 
     return (
@@ -335,24 +359,29 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                 <div style={{ color: '#a78bfa', fontWeight: 700, fontSize: '0.95rem' }}>{current.phaseName}</div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                                <a href={current.url} download target="_blank" rel="noopener noreferrer"
+                                <button
+                                    onClick={() => handleDownload(current.url, `${current.description || 'Receipt'}.${current.isPdf ? 'pdf' : 'png'}`)}
+                                    disabled={downloadingId === current.url}
                                     style={{
                                         display: 'inline-flex', alignItems: 'center', gap: '0.6rem',
                                         background: 'var(--primary)', color: 'white',
                                         borderRadius: '10px', padding: '0.75rem 1.25rem',
-                                        fontSize: '0.9rem', fontWeight: 700, textDecoration: 'none',
+                                        fontSize: '0.9rem', fontWeight: 700, border: 'none',
                                         transition: 'all 0.2s ease',
-                                        width: '100%', justifyContent: 'center',
+                                        width: '100%', justifyContent: 'center', cursor: 'pointer',
+                                        opacity: downloadingId === current.url ? 0.7 : 1,
                                     }}
                                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
                                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
-                                    <Download size={16} /> Download File
-                                </a>
+                                    <Download size={16} className={downloadingId === current.url ? 'spin' : ''} />
+                                    {downloadingId === current.url ? 'Downloading...' : 'Download File'}
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
+
         </div>
     );
 }

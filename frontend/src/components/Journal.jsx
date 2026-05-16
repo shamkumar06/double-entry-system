@@ -186,9 +186,31 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                             )}
                                             {tx.attachmentUrl && (
                                                 <div>
-                                                    <a href={getImageUrl(tx.attachmentUrl)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textDecoration: 'none', background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const url = getImageUrl(tx.attachmentUrl);
+                                                            const filename = `${tx.description || 'Receipt'}.${url.toLowerCase().endsWith('.pdf') ? 'pdf' : 'png'}`;
+                                                            const link = document.createElement('a');
+                                                            fetch(url).then(res => res.blob()).then(blob => {
+                                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                                link.href = blobUrl;
+                                                                link.download = filename;
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                                window.URL.revokeObjectURL(blobUrl);
+                                                            }).catch(() => window.open(url, '_blank'));
+                                                        }}
+                                                        style={{ 
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.3rem', 
+                                                            fontSize: '0.7rem', fontWeight: 700, color: 'var(--primary)', 
+                                                            textTransform: 'uppercase', background: 'var(--surface-hover)', 
+                                                            border: '1px solid var(--border)', padding: '0.25rem 0.6rem', 
+                                                            borderRadius: '6px', cursor: 'pointer' 
+                                                        }}
+                                                    >
                                                         <FileText size={11} /> Receipt Attached
-                                                    </a>
+                                                    </button>
                                                 </div>
                                             )}
                                         </td>
