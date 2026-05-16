@@ -226,7 +226,7 @@ function AppInner() {
           <h2 style={{ fontSize: '0.9rem', fontWeight: 800 }}>{activeProject.name}</h2>
         </div>
         <button onClick={() => setActivePhase(undefined)} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem' }}>
-          {activePhase.name}
+          {activePhase?.name || 'All Phases'}
         </button>
       </div>
 
