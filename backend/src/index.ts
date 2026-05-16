@@ -5,6 +5,8 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
 
+import helmet from 'helmet';
+
 import authRoutes from './routes/auth.routes';
 import projectRoutes from './routes/project.routes';
 import accountingRoutes from './routes/accounting.routes';
@@ -21,6 +23,9 @@ const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // --- Middleware ---
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" } // Allow images from backend to be seen on frontend
+}));
 app.use(cors({
   origin: FRONTEND_URL,
   credentials: true,
