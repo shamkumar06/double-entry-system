@@ -512,10 +512,10 @@ input:focus, select:focus, textarea:focus {
     left: 0;
     width: 100%;
     background: var(--glass-bg);
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(40px) saturate(200%);
     border-bottom: 1px solid var(--border);
-    z-index: 998;
-    height: 60px;
+    z-index: 1000;
+    height: 50px; /* More compact */
     padding: 0 1rem;
     align-items: center;
     justify-content: space-between;
@@ -523,8 +523,12 @@ input:focus, select:focus, textarea:focus {
 
   .main-content {
     padding: 1rem;
-    padding-top: 70px; /* Space for mobile header */
-    padding-bottom: 80px; /* Space for bottom nav */
+    padding-top: 60px; /* Space for compact mobile header */
+    padding-bottom: 70px; /* Space for compact bottom nav */
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    width: 100%;
   }
 
   .dashboard-hero {
@@ -599,16 +603,16 @@ input:focus, select:focus, textarea:focus {
     bottom: 0;
     left: 0;
     width: 100% !important;
-    height: 72px;
+    height: 60px; /* More compact */
     background: var(--glass-bg);
-    backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: blur(40px) saturate(200%);
     border-top: 1px solid var(--border);
-    z-index: 999;
-    padding: 0 0.5rem; /* Reduced horizontal padding */
+    z-index: 1000;
+    padding: 0 0.5rem;
     justify-content: space-around;
     align-items: center;
-    box-shadow: 0 -8px 30px rgba(0,0,0,0.08);
-    box-sizing: border-box; /* Ensure padding doesn't add to width */
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.1);
+    box-sizing: border-box;
   }
 
   .mobile-nav-item {

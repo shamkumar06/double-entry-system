@@ -404,7 +404,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                 {settings.reportSections.journal && (
                                     <div style={{ marginBottom: '1cm' }}>
                                          <h2 style={{ fontSize: '18pt', fontWeight: 800, borderBottom: '2.5pt solid #000', paddingBottom: '0.1cm', marginBottom: '0.6cm' }}>{getHeadingParams()}JOURNAL ENTRIES</h2>
-                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+                                         <div className="table-container" style={{ overflowX: 'auto', marginBottom: '0.5cm' }}>
+                                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
                                 <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.journal || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
                                 <tbody>
                                     {journalData.length > 0 ? journalData.map((tx, idx) => {
@@ -468,7 +469,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
 
                                                 return (
                                                     <div style={{ marginBottom: '1cm' }}>
-                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+                                                        <div className="table-container" style={{ overflowX: 'auto' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
                                                             <thead><tr style={{ background: '#f8fafc' }}>{combinedColumns.map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
                                                             <tbody>
                                                                 {allEntries.map((e, eidx) => (
@@ -487,13 +489,15 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                                                 ))}
                                                             </tbody>
                                                         </table>
+                                                        </div>
                                                     </div>
                                                 );
                                             } else {
                                                 return Object.entries(ledgerData).map(([acc, entries], idx) => (
                                                     <div key={acc} style={{ marginBottom: '1cm' }}>
                                                         <h3 style={{ fontSize: '14pt', fontWeight: 800, marginBottom: '0.4cm', color: 'var(--text-main)' }}>ACCOUNT: {acc}</h3>
-                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+                                                        <div className="table-container" style={{ overflowX: 'auto' }}>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
                                                             <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.ledger || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
                                                             <tbody>
                                                                 {entries.map((e, eidx) => (
@@ -511,6 +515,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                                                 ))}
                                                             </tbody>
                                                         </table>
+                                                        </div>
                                                     </div>
                                                 ));
                                             }
@@ -521,7 +526,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                 {settings.reportSections.trialBalance && trialBalanceData && (
                                     <div style={{ marginBottom: '1cm' }}>
                                         <h2 style={{ fontSize: '18pt', fontWeight: 800, borderBottom: '2.5pt solid #000', paddingBottom: '0.1cm', marginBottom: '0.6cm' }}>{getHeadingParams()}TRIAL BALANCE</h2>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+                                        <div className="table-container" style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
                                             <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.trialBalance || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
                                             <tbody>
                                                 {Object.values(trialBalanceData.accounts || {}).map(acc => (
@@ -547,6 +553,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                                 </tr>
                                             </tbody>
                                         </table>
+                                        </div>
                                     </div>
                                 )}
                             </>
