@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Home, ChevronLeft, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User } from 'lucide-react';
+import { Download, Home, ChevronLeft, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Menu, X } from 'lucide-react';
 import Journal from './components/Journal';
 import Ledger from './components/Ledger';
 import TrialBalance from './components/TrialBalance';
@@ -30,6 +30,7 @@ function AppInner() {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const phasesList = Array.isArray(contextProject?.phases) ? contextProject.phases : Object.values(contextProject?.phases || activeProject?.phases || {});
 
@@ -216,7 +217,23 @@ function AppInner() {
     // Project dashboard
     return (
     <div className="app-container">
-      <nav className="sidebar glass-panel" style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0 }}>
+      {/* Mobile Header */}
+      <div className="mobile-header" style={{ display: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button onClick={() => setIsSidebarOpen(true)} className="btn-circle-glass" style={{ width: '36px', height: '36px' }}>
+            <Menu size={20} />
+          </button>
+          <h2 style={{ fontSize: '0.9rem', fontWeight: 800 }}>{activeProject.name}</h2>
+        </div>
+        <button onClick={() => setActivePhase(undefined)} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem' }}>
+          {activePhase.name}
+        </button>
+      </div>
+
+      <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0 }}>
+        <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'none' }} className="mobile-close-btn">
+           <button onClick={() => setIsSidebarOpen(false)}><X size={24} /></button>
+        </div>
         <div className="sidebar-nav-content">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
                 {activeProject.logoUrl ? (
@@ -264,18 +281,18 @@ function AppInner() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '1.25rem' }}>
-            <button style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); }}><Activity size={18} /> Overview</button>
-            <button style={navActive('Journal')} onClick={() => setActiveTab('Journal')}><Book size={18} /> Journal</button>
-            <button style={navActive('Ledger')} onClick={() => setActiveTab('Ledger')}><Layers size={18} /> Ledger</button>
-            <button style={navActive('Trial Balance')} onClick={() => setActiveTab('Trial Balance')}><Scale size={18} /> Trial Balance</button>
-            <button style={navActive('Reports')} onClick={() => setActiveTab('Reports')}><FileText size={18} /> Reports</button>
-            <button style={navActive('Receipts')} onClick={() => setActiveTab('Receipts')}><Image size={18} /> Receipts</button>
+            <button style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); setIsSidebarOpen(false); }}><Activity size={18} /> Overview</button>
+            <button style={navActive('Journal')} onClick={() => { setActiveTab('Journal'); setIsSidebarOpen(false); }}><Book size={18} /> Journal</button>
+            <button style={navActive('Ledger')} onClick={() => { setActiveTab('Ledger'); setIsSidebarOpen(false); }}><Layers size={18} /> Ledger</button>
+            <button style={navActive('Trial Balance')} onClick={() => { setActiveTab('Trial Balance'); setIsSidebarOpen(false); }}><Scale size={18} /> Trial Balance</button>
+            <button style={navActive('Reports')} onClick={() => { setActiveTab('Reports'); setIsSidebarOpen(false); }}><FileText size={18} /> Reports</button>
+            <button style={navActive('Receipts')} onClick={() => { setActiveTab('Receipts'); setIsSidebarOpen(false); }}><Image size={18} /> Receipts</button>
             
             <div style={{ height: '1px', background: 'var(--border)', margin: '1rem 0.5rem' }} />
             <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 1rem 0.4rem' }}>Management</p>
             
-            <button style={navActive('Categories')} onClick={() => setActiveTab('Categories')}><SettingsIcon size={18} /> Categories</button>
-            <button style={navActive('Settings')} onClick={() => setActiveTab('Settings')}><User size={18} /> Settings</button>
+            <button style={navActive('Categories')} onClick={() => { setActiveTab('Categories'); setIsSidebarOpen(false); }}><SettingsIcon size={18} /> Categories</button>
+            <button style={navActive('Settings')} onClick={() => { setActiveTab('Settings'); setIsSidebarOpen(false); }}><User size={18} /> Settings</button>
           </div>
         </div>
         

@@ -95,12 +95,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                     label="Utilization"
                 />
                 
-                <div style={{ 
-                    flex: 1, 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: '1.5rem'
-                }}>
+                <div className="hero-stats-content">
                     <div className="stat-card-premium">
                         <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--primary)' }}>
                             <Target size={20} />

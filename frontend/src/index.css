@@ -211,6 +211,8 @@ input:focus, select:focus, textarea:focus {
   overflow: hidden;
   background: var(--glass-bg);
   backdrop-filter: blur(30px) saturate(150%);
+  z-index: 100;
+  transition: transform 0.3s ease;
 }
 
 .sidebar-nav-content {
@@ -225,10 +227,11 @@ input:focus, select:focus, textarea:focus {
   flex: 1;
   padding: 2rem 3rem;
   max-width: 1600px;
-  margin: 0 auto;
+  margin: 0;
   min-height: 100vh;
   scrollbar-gutter: stable;
   animation: fadeIn 0.4s ease-out;
+  width: 100%;
 }
 
 @keyframes fadeIn {
@@ -414,13 +417,142 @@ input:focus, select:focus, textarea:focus {
   background: var(--surface-hover) !important;
 }
 
-@media (max-width: 900px) {
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile Responsiveness Overhaul */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 240px;
+    min-width: 240px;
+  }
+  .main-content {
+    padding: 1.5rem 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: -100%;
+    width: 85%;
+    height: 100%;
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    transform: translateX(100%);
+    box-shadow: 0 0 100px rgba(0,0,0,0.5);
+  }
+
+  .mobile-close-btn {
+    display: block !important;
+  }
+
+  .mobile-header {
+    display: flex !important;
+  }
+
+  .main-content {
+    padding: 1rem;
+    padding-bottom: 5rem; /* Space for bottom nav */
+  }
+
   .dashboard-hero {
     flex-direction: column;
-    padding: 2rem;
-    gap: 2rem;
+    padding: 1.25rem;
+    gap: 1.25rem;
+    border-radius: 20px;
+    align-items: center;
+    text-align: center;
   }
-  .hero-stats-content { width: 100%; }
+
+  .hero-stats-content {
+    grid-template-columns: 1fr !important;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .hero-stat-value {
+    font-size: 1.4rem;
+  }
+
+  .usage-circle-percent {
+    font-size: 1.6rem;
+  }
+
+  .stat-card-premium {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  /* Bottom Navigation for Mobile */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    z-index: 999;
+    padding: 0 1rem;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--primary);
+  }
+
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 998;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-stat-value {
+    font-size: 1.3rem;
+  }
+  
+  .btn-primary {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9rem;
+  }
 }
 
 /* Custom Modern Scrollbar */

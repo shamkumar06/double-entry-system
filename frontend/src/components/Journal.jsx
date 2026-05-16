@@ -117,7 +117,7 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
             </div>
 
             <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, overflowX: 'auto' }}>
+                <div className="table-container">
                     {loading ? (
                         <p style={{ color: 'var(--text-muted)' }}>Loading entries...</p>
                     ) : (
