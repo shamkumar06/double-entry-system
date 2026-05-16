@@ -443,7 +443,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                     }) : <tr><td colSpan={config.selectedColumns.journal.length} style={{ border: '1px solid #000', padding: '20pt', textAlign: 'center', fontStyle: 'italic', color: 'var(--text-muted)' }}>Select dates or phases to see data.</td></tr>}
                                 </tbody>
                              </table>
-                        </div>
+                         </div>
+                    </div>
                                 )}
 
                                 {settings.reportSections.ledger && (
