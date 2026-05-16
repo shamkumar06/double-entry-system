@@ -56,7 +56,11 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             reference: initialRef,
             description: initialDesc,
             receipt_url: initialData.attachmentUrl || initialData.receipt_url || '',
-            material_image_url: initialData.material_image_url || ''
+            material_image_url: initialData.material_image_url || '',
+            cgst: initialData.cgst || '',
+            sgst: initialData.sgst || '',
+            igst: initialData.igst || '',
+            discount: initialData.discount || ''
         } : {
             project_id: projectId,
             phaseId: phaseId || '',
@@ -72,7 +76,11 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             reference: '',
             description: '',
             receipt_url: '',
-            material_image_url: ''
+            material_image_url: '',
+            cgst: '',
+            sgst: '',
+            igst: '',
+            discount: ''
         }
     );
     const [loading, setLoading] = useState(false);
@@ -167,9 +175,6 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
 
             const finalReference = formData.payment_mode === 'Cash' ? '' : formData.reference;
 
-            // Construct the enriched description from legacy python fields
-            const enrichedDescription = `${formData.description} | From: ${formData.from_name} To: ${formData.to_name} | Mode: ${finalPaymentMode} Ref: ${finalReference}`;
-
             // Try to find a Cash/Bank account to use as the offsetting balance.
             const cashAccount = categories.find(c => c.name.toLowerCase().includes('cash') || c.name.toLowerCase().includes('bank')) || categories[0];
             const primaryAccountId = formData.category_id;
@@ -190,8 +195,16 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             const payload = {
                 projectId: formData.project_id,
                 date: formData.date.split('T')[0], // YYYY-MM-DD
-                description: enrichedDescription,
+                description: formData.description,
+                fromEntity: formData.from_name,
+                toEntity: formData.to_name,
+                paymentMode: finalPaymentMode,
+                reference: finalReference,
                 attachmentUrl: formData.receipt_url || formData.material_image_url || undefined,
+                cgst: formData.cgst ? Number(formData.cgst) : undefined,
+                sgst: formData.sgst ? Number(formData.sgst) : undefined,
+                igst: formData.igst ? Number(formData.igst) : undefined,
+                discount: formData.discount ? Number(formData.discount) : undefined,
                 lines: lines
             };
 
@@ -215,42 +228,41 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             setLoading(false);
         }
     };
+    const selectedCatType = categories.find(c => c.id === formData.category_id)?.type;
 
     return (
-        <div style={{
+        <div className="animate-in" style={{
             position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(10, 15, 30, 0.75)',
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(15, 23, 42, 0.3)',
+            backdropFilter: 'blur(8px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: '1rem'
         }}>
-            <div style={{
+            <div className="glass-panel" style={{
                 width: '100%', maxWidth: '660px',
                 maxHeight: '92vh', overflowY: 'auto',
-                background: 'linear-gradient(145deg, #0f172a 0%, #1e293b 100%)',
-                borderRadius: '24px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                boxShadow: '0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
-                color: '#f1f5f9'
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(40px) saturate(200%)',
+                color: 'var(--text-main)'
             }}>
                 {/* Modal Header */}
                 <div style={{
                     padding: '2rem 2rem 1.5rem',
-                    borderBottom: '1px solid rgba(255,255,255,0.07)',
+                    borderBottom: '1px solid var(--border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                 }}>
                     <div>
-                        <h3 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#f1f5f9' }}>
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-main)' }}>
                             {initialData ? '✏️ Edit Transaction' : '+ New Transaction'}
                         </h3>
-                        <p style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.25rem' }}>
+                        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                             All amounts in {currency}. Double-entry will be auto-applied.
                         </p>
                     </div>
                     <button onClick={onCancel} style={{
                         width: '36px', height: '36px', borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-                        color: '#94a3b8', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'var(--background)', border: '1px solid var(--border)',
+                        color: 'var(--text-muted)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: 'pointer', transition: 'all 0.2s'
                     }}>✕</button>
                 </div>
@@ -265,7 +277,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                 type="number" step="0.01" value={formData.amount}
                                 onChange={e => setFormData({...formData, amount: e.target.value})}
                                 required placeholder="0.00"
-                                style={{...inputStyle, fontSize: '1.3rem', fontWeight: 700, letterSpacing: '-0.01em', color: '#f1f5f9'}}
+                                style={{ fontSize: '1.3rem', fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--primary)'}}
                             />
                         </div>
                         <div>
@@ -277,7 +289,6 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                     const cat = categories.find(c => c.id === uuid);
                                     setFormData({...formData, category_id: uuid, category_name: cat?.name || ''})
                                 }}
-                                style={selectStyle}
                             >
                                 {categories.length === 0 && <option disabled>Loading...</option>}
                                 {['EXPENSE', 'REVENUE', 'ASSET', 'LIABILITY', 'EQUITY'].map(type => {
@@ -305,7 +316,6 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                 const ph = phases.find(p => p.id === ph_id);
                                 setFormData({...formData, phaseId: ph_id, phase_name: ph?.name || ''})
                             }}
-                            style={selectStyle}
                         >
                             <option value="">— No Phase (Whole Project) —</option>
                             {phases.map(ph => (
@@ -320,7 +330,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                         border: '1px solid rgba(255,255,255,0.07)',
                         borderRadius: '16px', padding: '1.25rem'
                     }}>
-                        <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#475569', marginBottom: '1rem' }}>
+                        <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                             Transaction Details
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -328,13 +338,12 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                 <label style={labelStyle}>Date &amp; Time</label>
                                 <input type="datetime-local" value={formData.date}
                                     onChange={e => setFormData({...formData, date: e.target.value})}
-                                    required style={inputStyle} />
+                                    required />
                             </div>
                             <div>
                                 <label style={labelStyle}>Payment Mode</label>
                                 <select value={formData.payment_mode}
-                                    onChange={e => setFormData({...formData, payment_mode: e.target.value})}
-                                    style={selectStyle}>
+                                    onChange={e => setFormData({...formData, payment_mode: e.target.value})}>
                                     <option value="Cash">💵 Cash</option>
                                     <option value="UPI">📱 UPI</option>
                                     <option value="Bank Transfer">🏦 Bank Transfer</option>
@@ -345,8 +354,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                 <div>
                                     <label style={labelStyle}>UPI App</label>
                                     <select value={formData.upi_app}
-                                        onChange={e => setFormData({...formData, upi_app: e.target.value})}
-                                        style={selectStyle}>
+                                        onChange={e => setFormData({...formData, upi_app: e.target.value})}>
                                         <option value="GPay">Google Pay (GPay)</option>
                                         <option value="PhonePe">PhonePe</option>
                                         <option value="Paytm">Paytm</option>
@@ -361,7 +369,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                     <label style={labelStyle}>Reference / Txn ID</label>
                                     <input type="text" value={formData.reference}
                                         onChange={e => setFormData({...formData, reference: e.target.value})}
-                                        placeholder="Optional" style={inputStyle} />
+                                        placeholder="Optional" />
                                 </div>
                             )}
                         </div>
@@ -377,31 +385,31 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         <div style={{
                             padding: '1.25rem', borderRadius: '16px',
-                            background: 'rgba(239,68,68,0.06)',
-                            border: '1px solid rgba(239,68,68,0.2)'
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            boxShadow: 'var(--shadow-sm)'
                         }}>
-                            <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#ef4444', marginBottom: '0.75rem' }}>
-                                ↑ Sender (From)
+                            <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ color: 'var(--danger)' }}>↑</span> Sender (From)
                             </p>
                             <label style={labelStyle}>Name / Entity</label>
                             <input type="text" list="entity-suggestions" value={formData.from_name}
                                 onChange={e => setFormData({...formData, from_name: e.target.value})}
-                                required placeholder="e.g. John / Bank"
-                                style={{...inputStyle, borderColor: 'rgba(239,68,68,0.25)'}} />
+                                required placeholder="e.g. John / Bank" />
                         </div>
                         <div style={{
                             padding: '1.25rem', borderRadius: '16px',
-                            background: 'rgba(16,185,129,0.06)',
-                            border: '1px solid rgba(16,185,129,0.2)'
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            boxShadow: 'var(--shadow-sm)'
                         }}>
-                            <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#10b981', marginBottom: '0.75rem' }}>
-                                ↓ Receiver (To)
+                            <p style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ color: 'var(--success)' }}>↓</span> Receiver (To)
                             </p>
                             <label style={labelStyle}>Name / Entity</label>
                             <input type="text" list="entity-suggestions" value={formData.to_name}
                                 onChange={e => setFormData({...formData, to_name: e.target.value})}
-                                required placeholder="e.g. Vendor / Jane"
-                                style={{...inputStyle, borderColor: 'rgba(16,185,129,0.25)'}} />
+                                required placeholder="e.g. Vendor / Jane" />
                         </div>
                     </div>
 
@@ -411,8 +419,45 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                         <textarea rows="2" value={formData.description}
                             onChange={e => setFormData({...formData, description: e.target.value})}
                             placeholder="What was this transaction for?"
-                            style={{...inputStyle, resize: 'vertical', minHeight: '70px', lineHeight: 1.6}} />
+                            style={{ resize: 'vertical', minHeight: '70px', lineHeight: 1.6 }} />
                     </div>
+
+                    {/* GST and Discount (Only for Expense/Asset) */}
+                    {(selectedCatType === 'EXPENSE' || selectedCatType === 'ASSET') && (
+                        <div style={{
+                            padding: '1.25rem', borderRadius: '16px',
+                            background: 'var(--surface)', border: '1px solid var(--border)',
+                            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'
+                        }}>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 0.5rem 0' }}>Tax & Discount Details (Optional)</p>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>CGST Amount</label>
+                                <input type="number" step="0.01" value={formData.cgst}
+                                    onChange={e => setFormData({...formData, cgst: e.target.value})}
+                                    placeholder="e.g. 18.00" />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>SGST Amount</label>
+                                <input type="number" step="0.01" value={formData.sgst}
+                                    onChange={e => setFormData({...formData, sgst: e.target.value})}
+                                    placeholder="e.g. 18.00" />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>IGST Amount</label>
+                                <input type="number" step="0.01" value={formData.igst}
+                                    onChange={e => setFormData({...formData, igst: e.target.value})}
+                                    placeholder="e.g. 36.00" />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Discount Amount</label>
+                                <input type="number" step="0.01" value={formData.discount}
+                                    onChange={e => setFormData({...formData, discount: e.target.value})}
+                                    placeholder="e.g. 100.00" />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Uploads */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -449,7 +494,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                             padding: '0.8rem 1.5rem', borderRadius: '12px',
                             background: 'rgba(255,255,255,0.05)',
                             border: '1px solid rgba(255,255,255,0.1)',
-                            color: '#94a3b8', fontWeight: 600, cursor: 'pointer'
+                            color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer'
                         }}>Cancel</button>
                         <button type="submit" disabled={loading || uploadingReceipt || uploadingMaterial} style={{
                             padding: '0.8rem 2rem', borderRadius: '12px',
@@ -473,36 +518,14 @@ const labelStyle = {
     display: 'block', marginBottom: '0.4rem',
     fontSize: '0.75rem', fontWeight: 600,
     textTransform: 'uppercase', letterSpacing: '0.07em',
-    color: '#475569'
-};
-
-const inputStyle = {
-    width: '100%', padding: '0.7rem 0.9rem',
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '10px', color: '#e2e8f0',
-    fontSize: '0.92rem', outline: 'none',
-    transition: 'border-color 0.2s',
-    fontFamily: 'inherit'
-};
-
-const selectStyle = {
-    width: '100%', padding: '0.7rem 0.9rem',
-    background: '#1e293b',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '10px', color: '#e2e8f0',
-    fontSize: '0.92rem', outline: 'none',
-    transition: 'border-color 0.2s',
-    fontFamily: 'inherit',
-    cursor: 'pointer',
-    appearance: 'auto'
+    color: 'var(--text-muted)'
 };
 
 const uploadLabelStyle = {
     display: 'block', padding: '0.7rem 1rem',
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px dashed rgba(255,255,255,0.15)',
-    borderRadius: '10px', color: '#64748b',
+    background: 'var(--background)',
+    border: '1px dashed var(--border)',
+    borderRadius: '10px', color: 'var(--text-muted)',
     fontSize: '0.85rem', fontWeight: 500,
     cursor: 'pointer', textAlign: 'center',
     transition: 'all 0.2s'

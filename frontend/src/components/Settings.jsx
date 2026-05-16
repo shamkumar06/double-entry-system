@@ -401,7 +401,14 @@ export default function Settings({ activeProject, onUpdate, user }) {
       {/* ── Display Preferences ── */}
       <div className="glass-panel" style={{ padding: '2rem' }}>
         <SectionHeader icon={<Calendar size={20} />} color="var(--secondary)" bg="rgba(16,185,129,0.1)" title="Display Preferences" />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Theme</label>
+            <select value={settings.theme || 'light'} onChange={e => updateSettings({ theme: e.target.value })}>
+              <option value="light">Light Mode</option>
+              <option value="dark">Dark Mode</option>
+            </select>
+          </div>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Date Format</label>
             <select value={settings.dateFormat} onChange={e => updateSettings({ dateFormat: e.target.value })}>

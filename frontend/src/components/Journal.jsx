@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { accountingApi } from '../services/api';
+import { accountingApi, getImageUrl } from '../services/api';
 import { FileText, Trash2, Edit2, Search } from 'lucide-react';
 import { useFormatting } from '../context/SettingsContext';
 import RecycleBin from './RecycleBin';
@@ -138,28 +138,27 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                     let primaryAccount = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || 'Unknown';
                                     let txAmount = tx.lines?.[0]?.amount || 0;
                                     
-                                    // Disassemble enriched description back into legacy atoms
-                                    let pureDesc = tx.description;
-                                    let fromName = '-';
-                                    let toName = '-';
-                                    let paymentMode = '-';
-                                    let refId = '';
-                                    
-                                    if (tx.description?.includes('| From:')) {
-                                        const parts = tx.description.split('|');
-                                        pureDesc = parts[0]?.trim();
+                                    // Read fields directly from the database schema
+                                    let pureDesc = tx.description || '-';
+                                    let fromName = tx.fromEntity || '-';
+                                    let toName = tx.toEntity || '-';
+                                    let paymentMode = tx.paymentMode || '-';
+                                    let refId = tx.reference || '';
+
+                                    // Fallback for legacy transactions that stored metadata in the description string
+                                    if (!tx.fromEntity && tx.description && tx.description.includes('| From:')) {
+                                        const descString = tx.description;
+                                        pureDesc = descString.split('|')[0].trim();
                                         
-                                        const fromToMatch = parts[1]?.match(/From: (.*?) To: (.*)/);
-                                        if (fromToMatch) {
-                                            fromName = fromToMatch[1]?.trim();
-                                            toName = fromToMatch[2]?.trim();
-                                        }
-                                        
-                                        const modeRefMatch = parts[2]?.match(/Mode: (.*?) Ref: (.*)/);
-                                        if (modeRefMatch) {
-                                            paymentMode = modeRefMatch[1]?.trim();
-                                            refId = modeRefMatch[2]?.trim();
-                                        }
+                                        const fromMatch = descString.match(/From:\s*(.*?)\s*To:/);
+                                        const toMatch = descString.match(/To:\s*(.*?)\s*(?:\||$)/);
+                                        const modeMatch = descString.match(/Mode:\s*(.*?)\s*(?:Ref:|$)/);
+                                        const refMatch = descString.match(/Ref:\s*(.*)/);
+
+                                        fromName = fromMatch ? fromMatch[1].trim() : '-';
+                                        toName = toMatch ? toMatch[1].trim() : '-';
+                                        paymentMode = modeMatch ? modeMatch[1].trim() : '-';
+                                        refId = refMatch ? refMatch[1].trim() : '';
                                     }
 
                                     return (
@@ -176,10 +175,18 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                         </td>
                                         <td style={{ padding: '1rem', color: 'var(--text-main)' }}>{primaryAccount}</td>
                                         <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
-                                            {pureDesc}
+                                            <div style={{ marginBottom: '0.4rem' }}>{pureDesc}</div>
+                                            {(tx.cgst || tx.sgst || tx.igst || tx.discount) && (
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                                                    {tx.cgst > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>CGST: {formatCurrency(tx.cgst)}</span>}
+                                                    {tx.sgst > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>SGST: {formatCurrency(tx.sgst)}</span>}
+                                                    {tx.igst > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>IGST: {formatCurrency(tx.igst)}</span>}
+                                                    {tx.discount > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>Discount: {formatCurrency(tx.discount)}</span>}
+                                                </div>
+                                            )}
                                             {tx.attachmentUrl && (
-                                                <div style={{ marginTop: '0.6rem' }}>
-                                                    <a href={tx.attachmentUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textDecoration: 'none', background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
+                                                <div>
+                                                    <a href={getImageUrl(tx.attachmentUrl)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase', textDecoration: 'none', background: 'var(--surface-hover)', border: '1px solid var(--border)', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
                                                         <FileText size={11} /> Receipt Attached
                                                     </a>
                                                 </div>

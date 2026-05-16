@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingApi } from '../services/api';
+import { accountingApi, getImageUrl } from '../services/api';
 import { FolderOpen, Plus, Trash2, ArrowRight, Edit2 } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
 
@@ -186,7 +186,7 @@ export default function HomeScreen({ onSelectProject }) {
                                             </div>
                                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                                 {editData.logoUrl ? (
-                                                    <img src={editData.logoUrl} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }} />
+                                                    <img src={getImageUrl(editData.logoUrl)} alt="Logo" style={{ width: '32px', height: '32px', objectFit: 'contain', borderRadius: '4px' }} />
                                                 ) : (
                                                     <div style={{ width: '32px', height: '32px', background: 'var(--surface-hover)', borderRadius: '4px' }} />
                                                 )}
@@ -235,7 +235,7 @@ export default function HomeScreen({ onSelectProject }) {
 
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '0.75rem' }}>
                                         {project.logoUrl ? (
-                                            <img src={project.logoUrl} alt="Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', borderRadius: '8px' }} />
+                                            <img src={getImageUrl(project.logoUrl)} alt="Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', borderRadius: '8px' }} />
                                         ) : (
                                             <FolderOpen color="var(--primary)" size={48} />
                                         )}
@@ -283,7 +283,7 @@ export default function HomeScreen({ onSelectProject }) {
                                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Project Logo</label>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                         {newProject.logoUrl ? (
-                                            <img src={newProject.logoUrl} alt="Logo" style={{ width: '36px', height: '36px', objectFit: 'contain', borderRadius: '6px', background: 'var(--surface)', border: '1px solid var(--border)' }} />
+                                            <img src={getImageUrl(newProject.logoUrl)} alt="Logo" style={{ width: '36px', height: '36px', objectFit: 'contain', borderRadius: '6px', background: 'var(--surface)', border: '1px solid var(--border)' }} />
                                         ) : (
                                             <div style={{ width: '36px', height: '36px', background: 'var(--surface-hover)', borderRadius: '6px', border: '1px solid var(--border)' }} />
                                         )}

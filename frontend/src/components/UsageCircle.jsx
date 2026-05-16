@@ -58,7 +58,7 @@ const UsageCircle = ({ percent = 0, size = 180, strokeWidth = 6, label = "Utiliz
         <foreignObject x="0" y="0" width="120" height="120">
           <div className="usage-circle-content" style={{ padding: '0.5rem' }}>
             <span className="usage-circle-percent" style={{ 
-                color: 'var(--primary)', 
+                color: 'var(--text-main)', 
                 fontSize: percent < 10 ? '1.5rem' : '1.8rem',
                 letterSpacing: '-0.03em'
             }}>

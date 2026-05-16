@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const STORAGE_KEY = 'des_settings';
 
 const defaultSettings = {
+    theme: 'light', // Options: 'light', 'dark'
     currency: 'INR',
     dateFormat: 'YYYY-MM-DD', // Options: 'YYYY-MM-DD', 'DD/MM/YYYY'
     sortOrder: 'Descending',  // Options: 'Ascending', 'Descending'
@@ -55,9 +56,16 @@ export function SettingsProvider({ children }) {
         }
     });
 
-    // Persist to localStorage every time settings change
+    // Persist to localStorage and apply theme every time settings change
     useEffect(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+        
+        // Apply theme to body
+        if (settings.theme === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+        } else {
+            document.body.removeAttribute('data-theme');
+        }
     }, [settings]);
 
     const updateSettings = (partial) => {

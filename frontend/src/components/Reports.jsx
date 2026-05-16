@@ -6,7 +6,7 @@ import { parseDescription } from '../utils/descriptionParser';
 
 const STUDIO_STYLES = `
     .studio-section {
-        background: white;
+        background: var(--surface);
         border-radius: 12px;
         padding: 0.5rem 0;
         transition: all 0.2s;
@@ -15,16 +15,18 @@ const STUDIO_STYLES = `
         width: 210mm;
         min-height: 297mm;
         height: auto;
+        display: flex;
+        flex-direction: column;
         background: white;
-        margin-bottom: 25px;
-        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.1);
+        margin-bottom: 50px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         border: 1px solid #d1d5db;
-        border-radius: 2px;
-        padding: 20mm;
+        border-radius: 4px;
+        padding: 25mm 20mm;
         font-family: "'Inter', 'Segoe UI', sans-serif";
         color: #000;
         position: relative;
-        transition: all 0.3s;
+        flex-shrink: 0;
     }
     .sheet-label {
         position: absolute;
@@ -36,8 +38,8 @@ const STUDIO_STYLES = `
         text-transform: uppercase;
     }
     .studio-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
+        background: var(--background);
+        border: 1px solid var(--border);
         border-radius: 14px;
         padding: 1.25rem;
         margin-bottom: 1rem;
@@ -48,14 +50,14 @@ const STUDIO_STYLES = `
     }
     .context-settings-active {
         border-left: 4px solid var(--primary);
-        background: white;
+        background: var(--surface);
     }
 `;
 
 export default function Reports({ projectId, projectName, phasesList }) {
     const { settings, updateSettings } = useSettings();
     const { formatCurrency } = useFormatting();
-    const config = settings.reportConfig || {
+    const config = {
         customHeader: projectName || '',
         headerFontSize: 26,
         showTitleLine: true,
@@ -66,12 +68,14 @@ export default function Reports({ projectId, projectName, phasesList }) {
         combineLedgerAccounts: false,
         footerNote: 'Financial report generated automatically.',
         subHeaders: [],
+        ledgerAccounts: [],
+        ...(settings.reportConfig || {}),
         selectedColumns: {
             journal: ["Date", "Phase", "Category", "Description", "Amount"],
             ledger: ["Date", "Phase", "Debit", "Credit", "Running Balance"],
-            trialBalance: ["Account Name", "Debit Balance", "Credit Balance"]
-        },
-        ledgerAccounts: []
+            trialBalance: ["Account Name", "Debit Balance", "Credit Balance"],
+            ...(settings.reportConfig?.selectedColumns || {})
+        }
     };
     
     const [downloading, setDownloading] = useState(false);
@@ -191,18 +195,24 @@ export default function Reports({ projectId, projectName, phasesList }) {
     };
 
     return (
-        <div style={{ display: 'flex', height: '100vh', background: '#f1f5f9', overflow: 'hidden', margin: '-1.5rem' }}>
+        <div style={{ display: 'flex', height: 'calc(100vh - 10rem)', background: 'var(--background)', borderRadius: '24px', border: '1px solid var(--border)', overflow: 'hidden' }}>
             <style>{STUDIO_STYLES}</style>
             
-            {/* ── LEFT SIDEBAR: ORDERLY STUDIO ── */}
-            <div style={{ width: '420px', background: 'white', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+            {/* LEFT SIDE: STUDIO CONTROLS */}
+            <div style={{ width: '380px', minWidth: '380px', flexShrink: 0, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
                 {/* STUDIO HEADER */}
-                <div style={{ padding: '1.5rem', borderBottom: '1px solid #f1f5f9', background: 'white' }}>
+                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
                         <div style={{ background: 'var(--primary)', color: 'white', padding: '0.6rem', borderRadius: '12px' }}><SettingsIcon size={20} /></div>
                         <div>
-                            <h3 style={{ fontWeight: 800, fontSize: '1.1rem', color: '#1e293b' }}>Report Studio</h3>
-                            <p style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>IDENTITY POWERED • V2.0</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <h3 style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-main)' }}>Report Studio</h3>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '20px' }}>
+                                    <div style={{ width: '6px', height: '6px', background: 'var(--success)', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                                    <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--success)' }}>LIVE</span>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>IDENTITY POWERED • V2.0</p>
                         </div>
                     </div>
                     <button onClick={handleDownload} disabled={downloading} className="btn-primary" style={{ width: '100%', gap: '0.5rem', padding: '0.85rem' }}>
@@ -230,12 +240,12 @@ export default function Reports({ projectId, projectName, phasesList }) {
                     
                     {/* SECTION 1: TITLE & BRANDING */}
                     <div className="studio-section">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>1. Title & Branding</label>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>1. Title & Branding</label>
                         <div className="studio-card">
                             <input 
                                 type="text" value={config.customHeader} onChange={e => updateConfig({ customHeader: e.target.value })} 
                                 placeholder="Main Report Title..." 
-                                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0', fontWeight: 700, fontSize: '1rem', marginBottom: '1rem' }} 
+                                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontWeight: 700, fontSize: '1rem', marginBottom: '1rem' }} 
                             />
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                 <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Font Size</span>
@@ -248,7 +258,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                 Show line below title
                             </label>
 
-                            <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0' }}>
+                            <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
                                     <input type="checkbox" checked={config.showDateCorner} onChange={e => updateConfig({ showDateCorner: e.target.checked })} />
                                     Show Date in Top Corner
@@ -258,7 +268,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                         type="date" 
                                         value={config.reportDate} 
                                         onChange={e => updateConfig({ reportDate: e.target.value })} 
-                                        style={{ width: '100%', marginTop: '0.75rem', padding: '0.5rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }} 
+                                        style={{ width: '100%', marginTop: '0.75rem', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem' }} 
                                     />
                                 )}
                             </div>
@@ -268,13 +278,13 @@ export default function Reports({ projectId, projectName, phasesList }) {
                     {/* SECTION 2: SUB-HEADINGS */}
                     <div className="studio-section">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                             <label style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>2. Sub-headings</label>
+                             <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>2. Sub-headings</label>
                              <button onClick={() => updateConfig({ subHeaders: [...(config.subHeaders || []), { text: "", fontSize: 12 }] })} style={{ color: 'var(--primary)', background: 'none', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>+ Add Line</button>
                         </div>
                         {(config.subHeaders || []).map((sh, idx) => (
                             <div key={idx} className="studio-card" style={{ padding: '1rem' }}>
                                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                    <input type="text" value={sh.text} onChange={e => handleUpdateSubHeader(idx, 'text', e.target.value)} placeholder="Sub-heading text..." style={{ flex: 1, border: 'none', background: 'transparent', fontWeight: 500, fontSize: '0.9rem', borderBottom: '1px solid #cbd5e1' }} />
+                                    <input type="text" value={sh.text} onChange={e => handleUpdateSubHeader(idx, 'text', e.target.value)} placeholder="Sub-heading text..." style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text-main)', fontWeight: 500, fontSize: '0.9rem', borderBottom: '1px solid var(--border)' }} />
                                     <button onClick={() => updateConfig({ subHeaders: config.subHeaders.filter((_, i) => i !== idx) })} style={{ color: '#ef4444', background: 'none', border: 'none' }}><Trash2 size={14} /></button>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -287,16 +297,16 @@ export default function Reports({ projectId, projectName, phasesList }) {
 
                     {/* SECTION 3: DATA RANGE */}
                     <div className="studio-section">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>3. Data Range & Phases</label>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>3. Data Range & Phases</label>
                         <div className="studio-card">
                             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }} />
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.8rem' }} />
+                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem' }} />
+                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem' }} />
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                <button onClick={() => setSelectedPhaseIds([])} style={{ width: '100%', textAlign: 'left', padding: '0.6rem', borderRadius: '8px', border: 'none', background: selectedPhaseIds.length === 0 ? '#1e293b' : '#f1f5f9', color: selectedPhaseIds.length === 0 ? 'white' : '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>Whole Project</button>
+                                <button onClick={() => setSelectedPhaseIds([])} style={{ width: '100%', textAlign: 'left', padding: '0.6rem', borderRadius: '8px', border: 'none', background: selectedPhaseIds.length === 0 ? 'var(--primary)' : 'var(--background)', color: selectedPhaseIds.length === 0 ? 'white' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>Whole Project</button>
                                 {localPhases.map(ph => (
-                                    <button key={ph.id} onClick={(e) => e.shiftKey ? setSelectedPhaseIds(p => p.includes(ph.id) ? p.filter(id => id !== ph.id) : [...p, ph.id]) : setSelectedPhaseIds([ph.id]) } style={{ width: '100%', textAlign: 'left', padding: '0.6rem', borderRadius: '8px', border: 'none', background: selectedPhaseIds.includes(ph.id) ? 'var(--secondary)' : '#f1f5f9', color: selectedPhaseIds.includes(ph.id) ? 'white' : '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>{ph.name}</button>
+                                    <button key={ph.id} onClick={(e) => e.shiftKey ? setSelectedPhaseIds(p => p.includes(ph.id) ? p.filter(id => id !== ph.id) : [...p, ph.id]) : setSelectedPhaseIds([ph.id]) } style={{ width: '100%', textAlign: 'left', padding: '0.6rem', borderRadius: '8px', border: 'none', background: selectedPhaseIds.includes(ph.id) ? 'var(--secondary)' : 'var(--background)', color: selectedPhaseIds.includes(ph.id) ? 'white' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>{ph.name}</button>
                                 ))}
                             </div>
                         </div>
@@ -304,7 +314,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
 
                     {/* SECTION 4: TABLE LAB */}
                     <div className="studio-section">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>4. Structure & Tables</label>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>4. Structure & Tables</label>
                         
                         <div className={`studio-card ${settings.reportSections.journal ? 'context-settings-active' : ''}`}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => updateSettings({ reportSections: { ...settings.reportSections, journal: !settings.reportSections.journal } })}>
@@ -333,13 +343,13 @@ export default function Reports({ projectId, projectName, phasesList }) {
                             </div>
                             {expandedSections.ledger && settings.reportSections.ledger && (
                                 <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.4rem' }}>COLUMNS</p>
+                                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>COLUMNS</p>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
                                         {["Date", "Phase", "Debit", "Credit", "Running Balance"].map(col => (
                                             <button key={col} onClick={() => toggleColumn('ledger', col)} style={{ fontSize: '0.65rem', padding: '0.35rem 0.65rem', borderRadius: '6px', background: config.selectedColumns.ledger.includes(col) ? 'rgba(79,70,229,0.1)' : 'white', color: config.selectedColumns.ledger.includes(col) ? 'var(--primary)' : '#94a3b8', border: '1px solid #e2e8f0' }}>{col}</button>
                                         ))}
                                     </div>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.4rem' }}>ACCOUNTS</p>
+                                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>ACCOUNTS</p>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '100px', overflowY: 'auto' }}>
                                         {allAccounts.map(acc => (
                                             <button key={acc.id} onClick={() => updateConfig({ ledgerAccounts: config.ledgerAccounts.includes(acc.name) ? config.ledgerAccounts.filter(a => a !== acc.name) : [...config.ledgerAccounts, acc.name] })} style={{ fontSize: '0.6rem', padding: '0.3rem 0.5rem', borderRadius: '6px', background: config.ledgerAccounts.includes(acc.name) ? 'var(--primary)' : 'white', color: config.ledgerAccounts.includes(acc.name) ? 'white' : '#64748b', border: '1px solid #e2e8f0' }}>{acc.name}</button>
@@ -368,20 +378,16 @@ export default function Reports({ projectId, projectName, phasesList }) {
                     </div>
                 </div>
             </div>
-
-            <div style={{ flex: 1, overflow: 'auto', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ position: 'absolute', top: '2rem', left: '2rem', display: 'flex', alignItems: 'center', gap: '0.6rem', background: 'white', padding: '0.5rem 1rem', borderRadius: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                    <div style={{ width: '8px', height: '8px', background: 'var(--success)', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#334155' }}>LIVE STUDIO PREVIEW • SHEET VIEW</span>
-                </div>
+            {/* RIGHT SIDE: LIVE PREVIEW */}
+            <div style={{ flex: 1, background: 'var(--background)', padding: '3rem 1.5rem', overflowY: 'auto', overflowX: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
                 <div className="report-sheet">
                     <span className="sheet-label">LIVE PREVIEW</span>
-                    {config.showDateCorner && <div style={{ textAlign: 'right', fontSize: '10pt', color: '#64748b', marginBottom: '0.5cm' }}>{config.reportDate ? new Date(config.reportDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}</div>}
+                    {config.showDateCorner && <div style={{ textAlign: 'right', fontSize: '10pt', color: 'var(--text-muted)', marginBottom: '0.5cm' }}>{config.reportDate ? new Date(config.reportDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}</div>}
                     <div style={{ textAlign: 'center', marginBottom: '1.2cm' }}>
                         <h1 style={{ fontSize: `${config.headerFontSize || 26}pt`, fontWeight: 800, marginBottom: '0.4cm', color: '#000', textTransform: 'uppercase' }}>{config.customHeader || projectName}</h1>
                         {config.showTitleLine && <div style={{ height: '3px', width: '80%', background: '#000', margin: '0 auto 0.5cm' }}></div>}
-                        {(config.subHeaders || []).map((sh, idx) => <p key={idx} style={{ fontSize: `${sh.fontSize || 12}pt`, fontWeight: 600, color: '#334155', margin: '0.1cm 0' }}>{sh.text}</p>)}
+                        {(config.subHeaders || []).map((sh, idx) => <p key={idx} style={{ fontSize: `${sh.fontSize || 12}pt`, fontWeight: 600, color: 'var(--text-main)', margin: '0.1cm 0' }}>{sh.text}</p>)}
                     </div>
 
                     {(() => {
@@ -433,7 +439,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                             })}
                                         </tr>
                                         );
-                                    }) : <tr><td colSpan={config.selectedColumns.journal.length} style={{ border: '1px solid #000', padding: '20pt', textAlign: 'center', fontStyle: 'italic', color: '#94a3b8' }}>Select dates or phases to see data.</td></tr>}
+                                    }) : <tr><td colSpan={config.selectedColumns.journal.length} style={{ border: '1px solid #000', padding: '20pt', textAlign: 'center', fontStyle: 'italic', color: 'var(--text-muted)' }}>Select dates or phases to see data.</td></tr>}
                                 </tbody>
                              </table>
                         </div>
@@ -443,67 +449,72 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                     <div style={{ marginBottom: '1cm' }}>
                                         <h2 style={{ fontSize: '18pt', fontWeight: 800, borderBottom: '2.5pt solid #000', paddingBottom: '0.1cm', marginBottom: '0.8cm' }}>{getHeadingParams()}GENERAL LEDGER</h2>
                                         
-                                        {config.combineLedgerAccounts ? (() => {
+                                        {(() => {
                                             const getDrCr = (amt, type) => {
                                                 const val = parseFloat(amt);
                                                 const isNormalDebit = ['ASSET', 'EXPENSE'].includes(type);
                                                 if (isNormalDebit) return val >= 0 ? 'Dr' : 'Cr';
                                                 return val >= 0 ? 'Cr' : 'Dr';
                                             };
-                                            const allEntries = [];
-                                            Object.entries(ledgerData).forEach(([acc, entries]) => {
-                                                entries.forEach(e => allEntries.push({ ...e, accountName: acc }));
-                                            });
-                                            allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+                                            
+                                            if (config.combineLedgerAccounts) {
+                                                const allEntries = [];
+                                                Object.entries(ledgerData).forEach(([acc, entries]) => {
+                                                    entries.forEach(e => allEntries.push({ ...e, accountName: acc }));
+                                                });
+                                                allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-                                            const combinedColumns = ["Date", "Phase", "Account Name", "Debit", "Credit", "Running Balance"].filter(c => config.selectedColumns.ledger.includes(c) || c === "Account Name");
+                                                const combinedColumns = ["Date", "Phase", "Account Name", "Debit", "Credit", "Running Balance"].filter(c => config.selectedColumns.ledger.includes(c) || c === "Account Name");
 
-                                            return (
-                                                <div style={{ marginBottom: '1cm' }}>
-                                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
-                                                        <thead><tr style={{ background: '#f8fafc' }}>{combinedColumns.map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
-                                                        <tbody>
-                                                            {allEntries.map((e, eidx) => (
-                                                                <tr key={eidx}>
-                                                                    {combinedColumns.map(col => {
-                                                                        let val = "-";
-                                                                        if (col === "Date") val = e.date ? formatDate(e.date) : '-';
-                                                                        if (col === "Phase") val = e.phaseName || 'Project';
-                                                                        if (col === "Account Name") val = e.accountName;
-                                                                        if (col === "Debit") val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
-                                                                        if (col === "Credit") val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
-                                                                        if (col === "Running Balance") val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
-                                                                        return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
-                                                                    })}
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            );
-                                        })() : Object.entries(ledgerData).map(([acc, entries], idx) => (
-                                            <div key={acc} style={{ marginBottom: '1cm' }}>
-                                                <h3 style={{ fontSize: '14pt', fontWeight: 800, marginBottom: '0.4cm', color: '#334155' }}>ACCOUNT: {acc}</h3>
-                                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
-                                                    <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.ledger || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
-                                                    <tbody>
-                                                        {entries.map((e, eidx) => (
-                                                            <tr key={eidx}>
-                                                                {config.selectedColumns.ledger.map(col => {
-                                                                    let val = "-";
-                                                                    if (col === "Date") val = e.date ? new Date(e.date).toLocaleDateString('en-GB') : '-';
-                                                                    if (col === "Phase") val = e.phaseName || 'Project';
-                                                                    if (col === "Debit") val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
-                                                                    if (col === "Credit") val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
-                                                                    if (col === "Running Balance") val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
-                                                                    return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
-                                                                })}
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        ))}
+                                                return (
+                                                    <div style={{ marginBottom: '1cm' }}>
+                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+                                                            <thead><tr style={{ background: '#f8fafc' }}>{combinedColumns.map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
+                                                            <tbody>
+                                                                {allEntries.map((e, eidx) => (
+                                                                    <tr key={eidx}>
+                                                                        {combinedColumns.map(col => {
+                                                                            let val = "-";
+                                                                            if (col === "Date") val = e.date ? formatDate(e.date) : '-';
+                                                                            if (col === "Phase") val = e.phaseName || 'Project';
+                                                                            if (col === "Account Name") val = e.accountName;
+                                                                            if (col === "Debit") val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
+                                                                            if (col === "Credit") val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
+                                                                            if (col === "Running Balance") val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+                                                                            return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
+                                                                        })}
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                );
+                                            } else {
+                                                return Object.entries(ledgerData).map(([acc, entries], idx) => (
+                                                    <div key={acc} style={{ marginBottom: '1cm' }}>
+                                                        <h3 style={{ fontSize: '14pt', fontWeight: 800, marginBottom: '0.4cm', color: 'var(--text-main)' }}>ACCOUNT: {acc}</h3>
+                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
+                                                            <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.ledger || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
+                                                            <tbody>
+                                                                {entries.map((e, eidx) => (
+                                                                    <tr key={eidx}>
+                                                                        {config.selectedColumns.ledger.map(col => {
+                                                                            let val = "-";
+                                                                            if (col === "Date") val = e.date ? formatDate(e.date) : '-';
+                                                                            if (col === "Phase") val = e.phaseName || 'Project';
+                                                                            if (col === "Debit") val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
+                                                                            if (col === "Credit") val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
+                                                                            if (col === "Running Balance") val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+                                                                            return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
+                                                                        })}
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                ));
+                                            }
+                                        })()}
                                     </div>
                                 )}
 
@@ -513,12 +524,12 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
                                             <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.trialBalance || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
                                             <tbody>
-                                                {Object.values(trialBalanceData.accounts).map(acc => (
-                                                    <tr key={acc.name}>
+                                                {Object.values(trialBalanceData.accounts || {}).map(acc => (
+                                                    <tr key={acc.name || Math.random()}>
                                                         {config.selectedColumns.trialBalance.map(col => {
                                                             let val = "-";
-                                                            const balanceVal = parseFloat(acc.balance);
-                                                            if (col === "Account Name") val = acc.name;
+                                                            const balanceVal = parseFloat(acc.balance || 0);
+                                                            if (col === "Account Name") val = acc.name || 'Unknown';
                                                             if (col === "Debit Balance") val = balanceVal > 0 ? formatCurrency(balanceVal) : '0.00';
                                                             if (col === "Credit Balance") val = balanceVal < 0 ? formatCurrency(Math.abs(balanceVal)) : '0.00';
                                                             return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
@@ -529,8 +540,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                                     {config.selectedColumns.trialBalance.map(col => {
                                                         let val = "";
                                                         if (col === "Account Name") val = "TOTAL";
-                                                        if (col === "Debit Balance") val = formatCurrency(trialBalanceData.totals.totalDebits);
-                                                        if (col === "Credit Balance") val = formatCurrency(trialBalanceData.totals.totalCredits);
+                                                        if (col === "Debit Balance") val = formatCurrency(trialBalanceData.totals?.totalDebits || 0);
+                                                        if (col === "Credit Balance") val = formatCurrency(trialBalanceData.totals?.totalCredits || 0);
                                                         return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
                                                     })}
                                                 </tr>

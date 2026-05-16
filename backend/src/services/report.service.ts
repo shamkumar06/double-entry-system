@@ -1,297 +1,447 @@
 import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
-  AlignmentType,
-  HeadingLevel,
-  BorderStyle,
+  Document, Packer, Paragraph, Table, TableRow, TableCell,
+  TextRun, WidthType, AlignmentType, HeadingLevel,
+  BorderStyle, ShadingType, convertInchesToTwip,
 } from 'docx';
-import { getJournal, getTrialBalance, getLedger } from './accounting.service';
-import { prisma } from '../lib/prisma';
-import { ApiError } from '../middleware/errorHandler';
+import * as accountingService from './accounting.service';
+import prisma from '../lib/prisma';
 
-type ReportType = 'journal' | 'trial-balance' | 'ledger';
+// ── Formatting helpers (match frontend) ────────────────────
+const fmt = (n: number) =>
+  `₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const formatDate = (date: Date | string) =>
-  new Date(date).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+const fmtDate = (d: Date | string) =>
+  new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-const formatCurrency = (amount: any) => {
-  return new Intl.NumberFormat('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.abs(Number(amount?.toString() || amount || 0)));
-};
+// ── Parse description to extract From / To (matches frontend Reports.jsx logic) ──
+function parseDescription(description: string | null | undefined) {
+  let pureDesc = description || '';
+  let fromName = '-';
+  let toName = '-';
 
-const getDrCr = (amount: number | string, accountType: string) => {
-  const val = Number(amount);
+  if (description?.includes('| From:')) {
+    const parts = description.split('|');
+    pureDesc = parts[0]?.trim() || '';
+    const fromToMatch = parts[1]?.match(/From: (.*?) To: (.*)/);
+    if (fromToMatch) {
+      fromName = fromToMatch[1]?.trim() || '-';
+      toName = fromToMatch[2]?.trim() || '-';
+    }
+  }
+  return { pureDesc, fromName, toName };
+}
+
+// ── Dr / Cr label (matches frontend getDrCr) ──────────────
+function getDrCr(amt: number, accountType: string): string {
   const isNormalDebit = ['ASSET', 'EXPENSE'].includes(accountType);
-  if (isNormalDebit) {
-    return val >= 0 ? 'Dr' : 'Cr';
-  } else {
-    return val >= 0 ? 'Cr' : 'Dr';
-  }
-};
+  if (isNormalDebit) return amt >= 0 ? 'Dr' : 'Cr';
+  return amt >= 0 ? 'Cr' : 'Dr';
+}
 
-const makeHeader = (text: string, fontSize: number = 26) =>
-  new Paragraph({
-    children: [new TextRun({ text, bold: true, size: fontSize * 2, color: '000000', font: 'Arial' })],
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 300 },
+// ── Styling constants ──────────────────────────────────────
+const HEADING_COLOR = '1e293b';          // section heading text
+const TABLE_HEADER_BG = 'f8fafc';        // light gray — matches preview
+const BORDER_COLOR = '000000';           // black borders — matches preview
+const CELL_PADDING = { top: 60, bottom: 60, left: 80, right: 80 }; // ~4pt padding
+
+function makeBorders(color = BORDER_COLOR) {
+  const b = { style: BorderStyle.SINGLE, size: 4, color };
+  return { top: b, bottom: b, left: b, right: b };
+}
+
+function headerCell(text: string, width?: number): TableCell {
+  return new TableCell({
+    shading: { type: ShadingType.SOLID, color: TABLE_HEADER_BG },
+    borders: makeBorders(),
+    margins: CELL_PADDING,
+    ...(width ? { width: { size: width, type: WidthType.DXA } } : {}),
+    children: [new Paragraph({
+      alignment: AlignmentType.LEFT,
+      children: [new TextRun({ text, bold: true, color: '000000', size: 18 })],
+    })],
   });
+}
 
-const makeSubHeader = (text: string) =>
-  new Paragraph({
-    children: [new TextRun({ text, bold: true, size: 28, color: '000000', font: 'Arial' })],
-    spacing: { before: 400, after: 200 },
-    border: { bottom: { color: "000000", space: 1, style: BorderStyle.SINGLE, size: 10 } }
+function dataCell(text: string, _shaded = false, right = false): TableCell {
+  return new TableCell({
+    borders: makeBorders(),
+    margins: CELL_PADDING,
+    children: [new Paragraph({
+      alignment: right ? AlignmentType.RIGHT : AlignmentType.LEFT,
+      children: [new TextRun({ text, size: 18 })],
+    })],
   });
+}
 
-const tableCell = (text: string, isHeader = false) =>
-  new TableCell({
-    children: [
-      new Paragraph({
-        children: [new TextRun({ text: String(text), bold: isHeader, size: 19, color: '000000', font: 'Arial' })],
-      }),
-    ],
-    margins: { top: 100, bottom: 100, left: 100, right: 100 },
-    shading: isHeader ? { fill: 'f8fafc' } : undefined,
-    borders: {
-      top: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      bottom: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      left: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-      right: { style: BorderStyle.SINGLE, size: 1, color: '000000' },
-    },
+function sectionHeading(text: string, fontSize = 28): Paragraph {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 300, after: 150 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: HEADING_COLOR } },
+    children: [new TextRun({ text: text.toUpperCase(), bold: true, size: fontSize, color: HEADING_COLOR })],
   });
+}
 
-// ── Generate Word Report ───────────────────────────────────────────────────
-export const generateReport = async (
-  projectId: string,
-  reportType: ReportType | 'Full',
-  phaseIds?: string[],
-  params?: any
-): Promise<Buffer> => {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { name: true },
-  });
-  if (!project) throw new ApiError(404, 'Project not found.');
-
-  const phaseLabel =
-    phaseIds && phaseIds.length > 0
-      ? `(Phases: ${phaseIds.join(', ')})`
-      : '(All Phases)';
-
-  const headerText = params?.custom_header || `${project.name} — ${reportType.toUpperCase()} REPORT`;
-
-  const sections: (Paragraph | Table)[] = [];
-  
-  if (params?.show_date_corner) {
-      const cornerDate = params.report_date 
-        ? formatDate(new Date(params.report_date)) 
-        : formatDate(new Date());
-        
-      sections.push(new Paragraph({
-         text: cornerDate,
-         alignment: AlignmentType.RIGHT,
-         spacing: { after: 400 }
-      }));
-  }
-
-  sections.push(makeHeader(headerText, params?.header_font_size || 26));
-  
-  if (params?.sub_headers) {
-      params.sub_headers.forEach((sh: any) => {
-          sections.push(new Paragraph({ children: [new TextRun({ text: sh.text, bold: true, size: (sh.font_size || 12) * 2, color: '334155', font: 'Arial' })], spacing: { after: 200 }, alignment: AlignmentType.CENTER }));
-      });
-  } else {
-      sections.push(makeSubHeader(`Generated: ${formatDate(new Date())}  ${phaseLabel}`));
-  }
-
-  // Determine sections to show
-  const showJournal = reportType === 'journal' || (reportType === 'Full' && params?.sections?.journal);
-  const showTrialBalance = reportType === 'trial-balance' || (reportType === 'Full' && params?.sections?.trialBalance);
-  const showLedger = reportType === 'ledger' || (reportType === 'Full' && params?.sections?.ledger);
-
-  let sectionCounter = 1;
-  const getSectionNum = () => {
-    if (params?.use_roman_numerals === false) return `${sectionCounter++}. `;
-    const romans = ["I", "II", "III", "IV", "V", "VI", "VII"];
-    return `${romans[sectionCounter++ - 1] || sectionCounter}. `;
+// ── Types ──────────────────────────────────────────────────
+interface ReportParams {
+  projectId: string;
+  projectName?: string;
+  phaseIds?: string[];
+  params?: {
+    custom_header?: string;
+    sub_headers?: Array<{ text: string; font_size?: number }>;
+    show_date_corner?: boolean;
+    report_date?: string;
+    show_title_line?: boolean;
+    footer_note?: string;
+    show_footer_note?: boolean;
+    columns?: {
+      journal?: string[];
+      ledger?: string[];
+      trialBalance?: string[];
+    };
+    start_date?: string;
+    end_date?: string;
+    sections?: {
+      journal?: boolean;
+      ledger?: boolean;
+      trialBalance?: boolean;
+    };
+    use_roman_numerals?: boolean;
+    combine_ledger_accounts?: boolean;
+    header_font_size?: number;
+    ledger_accounts?: string[];
   };
+}
 
-  if (showJournal) {
-    sections.push(makeSubHeader(getSectionNum() + "JOURNAL ENTRIES"));
-    const entries = await getJournal(projectId, phaseIds);
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+let sectionCounter = 0;
 
-    const colHeaders = ['Date', 'Phase', 'From', 'To', 'Category', 'Amount', 'Description'];
-    const headerRow = new TableRow({
-      children: colHeaders.map(h => tableCell(h, true)),
-    });
+function nextHeadingNum(useRoman: boolean) {
+  sectionCounter++;
+  return useRoman ? (ROMAN[sectionCounter] || String(sectionCounter)) : String(sectionCounter);
+}
 
-    const dataRows = entries.map(entry => {
-      // Prefer new DB columns; fall back to parsing description for legacy entries
-      let fromEntity = entry.fromEntity || '';
-      let toEntity = entry.toEntity || '';
-      if (!fromEntity && entry.description?.includes('| From:')) {
-        const parts = entry.description.split('|');
-        const m = parts[1]?.match(/From: (.*?) To: (.*)/);
-        if (m) { fromEntity = m[1]?.trim() || ''; toEntity = m[2]?.trim() || ''; }
-      }
-      let pureDesc = entry.description || '';
-      if (pureDesc.includes('| From:')) {
-        pureDesc = pureDesc.split('|')[0]?.trim() || '';
-      }
+// ══════════════════════════════════════════════════════════
+//  MAIN EXPORT
+// ══════════════════════════════════════════════════════════
+export async function generateReportBuffer(opts: ReportParams): Promise<Buffer> {
+  const { projectId, projectName, phaseIds, params = {} } = opts;
+  const useRoman = params.use_roman_numerals !== false;
+  sectionCounter = 0;
 
-      const debitLine = entry.lines.find((l: any) => l.type === 'DEBIT');
-      const categoryName = debitLine?.account?.name || '';
-      const amount = debitLine ? `₹${formatCurrency(debitLine.amount)}` : '₹0.00';
+  const sections = params.sections || { journal: true, ledger: false, trialBalance: true };
+  const columns = params.columns || {};
 
-      return new TableRow({
-        children: [
-          tableCell(formatDate(entry.date)),
-          tableCell(entry.phase?.name || 'Project'),
-          tableCell(fromEntity || '-'),
-          tableCell(toEntity || '-'),
-          tableCell(categoryName || '-'),
-          tableCell(amount),
-          tableCell(pureDesc || '-'),
-        ],
-      });
-    });
+  // ── Fetch data ───────────────────────────────────────────
+  const [journalData, trialBalanceData, allAccounts] = await Promise.all([
+    sections.journal
+      ? accountingService.getJournal(projectId, phaseIds?.length ? phaseIds : undefined)
+      : Promise.resolve([]),
+    sections.trialBalance
+      ? accountingService.getTrialBalance(projectId, phaseIds?.length ? phaseIds : undefined)
+      : Promise.resolve(null),
+    sections.ledger
+      ? prisma.accountCategory.findMany({ orderBy: { code: 'asc' } })
+      : Promise.resolve([]),
+  ]);
 
-    sections.push(new Table({
-      rows: [headerRow, ...dataRows],
-      width: { size: 100, type: WidthType.PERCENTAGE },
-    }));
-    sections.push(new Paragraph({ text: '', spacing: { after: 300 } }));
-  }
+  // Date range filtering
+  const startDate = params.start_date ? new Date(params.start_date) : null;
+  const endDate = params.end_date ? new Date(params.end_date) : null;
 
-  if (showLedger) {
-    sections.push(makeSubHeader(getSectionNum() + "GENERAL LEDGER"));
-    
-    // Get all accounts to find which ones have activity
-    const tb = await getTrialBalance(projectId, phaseIds);
-    // Find active accounts (non-zero debit or credit sum)
-    let activeAccounts = tb.accounts.filter(a => a.debits !== "0.00" || a.credits !== "0.00");
-
-    // If specific accounts were selected in UI, filter them here
-    if (params?.ledger_accounts && Array.isArray(params.ledger_accounts) && params.ledger_accounts.length > 0) {
-        activeAccounts = activeAccounts.filter(a => params.ledger_accounts.includes(a.name));
-    }
-
-    if (params?.combine_ledger_accounts) {
-      let combinedEntries: any[] = [];
-      
-      // Fetch all entries for active accounts
-      for (const acc of activeAccounts) {
-        const entries = await getLedger(projectId, acc.id, phaseIds);
-        entries.forEach(e => combinedEntries.push({ ...e, accountName: acc.name }));
-      }
-      
-      // Sort chronologically
-      combinedEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      
-      const ledgerHeaders = ['Date', 'Phase', 'Account Name', 'Debit', 'Credit', 'Running Balance'];
-      const headerRow = new TableRow({ children: ledgerHeaders.map(h => tableCell(h, true)) });
-
-      const dataRows = combinedEntries.map(e => new TableRow({
-        children: [
-          tableCell(formatDate(e.date)),
-          tableCell(e.phaseName || 'Project'),
-          tableCell(e.accountName),
-          tableCell(e.type === 'DEBIT' ? `₹${formatCurrency(e.amount)}` : '-'),
-          tableCell(e.type === 'CREDIT' ? `₹${formatCurrency(e.amount)}` : '-'),
-          tableCell(`₹${formatCurrency(e.runningBalance)} ${getDrCr(e.runningBalance, e.accountType)}`)
-        ]
-      }));
-
-      sections.push(new Table({
-        rows: [headerRow, ...dataRows],
-        width: { size: 100, type: WidthType.PERCENTAGE }
-      }));
-      sections.push(new Paragraph({ text: '', spacing: { after: 300 } }));
-
-    } else {
-      for (const acc of activeAccounts) {
-        sections.push(new Paragraph({
-          children: [new TextRun({ text: `ACCOUNT: ${acc.name}`, bold: true, size: 24, color: '334155', font: 'Arial' })],
-          spacing: { before: 200, after: 200 }
-        }));
-
-        const entries = await getLedger(projectId, acc.id, phaseIds);
-        const ledgerHeaders = ['Date', 'Phase', 'Debit', 'Credit', 'Running Balance'];
-        const headerRow = new TableRow({ children: ledgerHeaders.map(h => tableCell(h, true)) });
-
-        const dataRows = entries.map(e => new TableRow({
-          children: [
-            tableCell(formatDate(e.date)),
-            tableCell(e.phaseName || 'Project'),
-            tableCell(e.type === 'DEBIT' ? `₹${formatCurrency(e.amount)}` : '-'),
-            tableCell(e.type === 'CREDIT' ? `₹${formatCurrency(e.amount)}` : '-'),
-            tableCell(`₹${formatCurrency(e.runningBalance)} ${getDrCr(e.runningBalance, e.accountType)}`)
-          ]
-        }));
-
-        sections.push(new Table({
-          rows: [headerRow, ...dataRows],
-          width: { size: 100, type: WidthType.PERCENTAGE }
-        }));
-        sections.push(new Paragraph({ text: '', spacing: { after: 300 } }));
-      }
-    }
-  }
-
-  if (showTrialBalance) {
-    sections.push(makeSubHeader(getSectionNum() + "TRIAL BALANCE"));
-    const tb = await getTrialBalance(projectId, phaseIds);
-
-    const rows = [
-      new TableRow({
-        children: [
-          tableCell('Account', true),
-          tableCell('Type', true),
-          tableCell('Debit Balance (₹)', true),
-          tableCell('Credit Balance (₹)', true),
-        ],
-      }),
-      ...Object.values(tb.accounts).map((acc: any) => {
-        const balanceVal = parseFloat(acc.balance);
-        return new TableRow({
-          children: [
-            tableCell(acc.name),
-            tableCell(acc.type),
-            tableCell(balanceVal > 0 ? formatCurrency(balanceVal) : '0.00'),
-            tableCell(balanceVal < 0 ? formatCurrency(Math.abs(balanceVal)) : '0.00'),
-          ],
-        });
-      }),
-      new TableRow({
-        children: [
-          tableCell('TOTAL', true),
-          tableCell(''),
-          tableCell(formatCurrency(tb.totals.totalDebits), true),
-          tableCell(formatCurrency(tb.totals.totalCredits), true),
-        ],
-      }),
-    ];
-
-    sections.push(new Table({ rows, width: { size: 100, type: WidthType.PERCENTAGE } }));
-  }
-
-  const doc = new Document({
-    sections: [{ children: sections }],
-    creator: 'Double Entry System',
-    title: headerText,
+  const filteredJournal = (journalData as any[]).filter((tx: any) => {
+    const d = new Date(tx.date);
+    if (startDate && d < startDate) return false;
+    if (endDate && d > endDate) return false;
+    return true;
   });
 
-  return Packer.toBuffer(doc);
-};
+  // ── Build document children ──────────────────────────────
+  const children: (Paragraph | Table)[] = [];
+
+  // Title
+  const titleText = params.custom_header || projectName || 'Accounting Report';
+  children.push(new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 100 },
+    children: [new TextRun({
+      text: titleText,
+      bold: true,
+      size: (params.header_font_size || 26) * 2,
+      color: HEADING_COLOR,
+    })],
+  }));
+
+  // Title underline
+  if (params.show_title_line !== false) {
+    children.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' } },
+      children: [],
+    }));
+  }
+
+  // Sub-headings
+  (params.sub_headers || []).forEach(sh => {
+    if (!sh.text?.trim()) return;
+    children.push(new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [new TextRun({ text: sh.text, size: (sh.font_size || 12) * 2, italics: true, color: '475569' })],
+    }));
+  });
+
+  // Date corner
+  if (params.show_date_corner) {
+    const dateStr = params.report_date
+      ? new Date(params.report_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : fmtDate(new Date());
+    children.push(new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 200 },
+      children: [new TextRun({ text: dateStr, size: 18, color: '64748b' })],
+    }));
+  }
+
+  // Divider
+  children.push(new Paragraph({
+    spacing: { after: 200 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: HEADING_COLOR } },
+    children: [],
+  }));
+
+  // ══════════════════════════════════════════════════════════
+  //  JOURNAL — one row per TRANSACTION (matches frontend preview)
+  // ══════════════════════════════════════════════════════════
+  if (sections.journal && filteredJournal.length > 0) {
+    const journalCols: string[] = columns.journal?.length
+      ? columns.journal
+      : ['Date', 'Phase', 'From', 'To', 'Category', 'Description', 'Amount'];
+
+    children.push(sectionHeading(`${nextHeadingNum(useRoman)}. Journal Entries`));
+
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: journalCols.map(c => headerCell(c)),
+    });
+
+    const dataRows: TableRow[] = filteredJournal.map((tx: any, txIdx: number) => {
+      const shaded = txIdx % 2 === 0;
+      const lines: any[] = tx.lines || [];
+
+      // ── Match frontend Reports.jsx logic exactly ──
+      const primaryAccount = lines.find((l: any) => l.type === 'DEBIT')?.account?.name || '-';
+      const txAmount = Number(lines[0]?.amount || 0);
+      const { pureDesc, fromName, toName } = parseDescription(tx.description);
+
+      // Use tx.fromEntity / toEntity as fallback
+      const resolvedFrom = fromName !== '-' ? fromName : (tx.fromEntity || '-');
+      const resolvedTo = toName !== '-' ? toName : (tx.toEntity || '-');
+
+      const cells = journalCols.map(col => {
+        if (col === 'Date') return dataCell(fmtDate(tx.date), shaded);
+        if (col === 'Phase') return dataCell(tx.phase?.name || 'Project', shaded);
+        if (col === 'From') return dataCell(resolvedFrom, shaded);
+        if (col === 'To') return dataCell(resolvedTo, shaded);
+        if (col === 'Category') return dataCell(primaryAccount, shaded);
+        if (col === 'Description') return dataCell(pureDesc || '-', shaded);
+        if (col === 'Amount') return dataCell(fmt(txAmount), shaded, true);
+        if (col === 'Reference') return dataCell(tx.reference || '-', shaded);
+        return dataCell('', shaded);
+      });
+
+      return new TableRow({ children: cells });
+    });
+
+    children.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [headerRow, ...dataRows],
+    }));
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  LEDGER (matches frontend — separate or combined mode)
+  // ══════════════════════════════════════════════════════════
+  if (sections.ledger && allAccounts.length > 0) {
+    children.push(sectionHeading(`${nextHeadingNum(useRoman)}. General Ledger`));
+
+    const ledgerCols: string[] = columns.ledger?.length
+      ? columns.ledger
+      : ['Date', 'Phase', 'Debit', 'Credit', 'Running Balance'];
+
+    // Filter to specific accounts if requested
+    const filterAccounts = (params.ledger_accounts?.length)
+      ? (allAccounts as any[]).filter((a: any) => params.ledger_accounts!.includes(a.name))
+      : allAccounts as any[];
+
+    // Fetch ledger entries per account
+    const ledgerMap: Record<string, any[]> = {};
+    for (const account of filterAccounts) {
+      const entries = await accountingService.getLedger(
+        projectId, account.id,
+        phaseIds?.length ? phaseIds : undefined,
+      ).catch(() => []);
+
+      const filtered = entries.filter((e: any) => {
+        const d = new Date(e.date);
+        if (startDate && d < startDate) return false;
+        if (endDate && d > endDate) return false;
+        return true;
+      });
+
+      if (filtered.length > 0) {
+        ledgerMap[account.name] = filtered;
+      }
+    }
+
+    if (params.combine_ledger_accounts) {
+      // ── Combined: single table with "Account Name" column ──
+      const allEntries: any[] = [];
+      Object.entries(ledgerMap).forEach(([acc, entries]) => {
+        entries.forEach(e => allEntries.push({ ...e, accountName: acc }));
+      });
+      allEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      const combinedCols = ['Date', 'Phase', 'Account Name', 'Debit', 'Credit', 'Running Balance']
+        .filter(c => ledgerCols.includes(c) || c === 'Account Name');
+
+      if (allEntries.length > 0) {
+        const hRow = new TableRow({ tableHeader: true, children: combinedCols.map(c => headerCell(c)) });
+        const dRows = allEntries.map((e, i) => {
+          const sh = i % 2 === 0;
+          const balStr = `${fmt(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+          const cells = combinedCols.map(col => {
+            if (col === 'Date') return dataCell(fmtDate(e.date), sh);
+            if (col === 'Phase') return dataCell(e.phaseName || 'Project', sh);
+            if (col === 'Account Name') return dataCell(e.accountName, sh);
+            if (col === 'Debit') return dataCell(e.type === 'DEBIT' ? fmt(e.amount) : '-', sh, true);
+            if (col === 'Credit') return dataCell(e.type === 'CREDIT' ? fmt(e.amount) : '-', sh, true);
+            if (col === 'Running Balance') return dataCell(balStr, sh, true);
+            return dataCell('', sh);
+          });
+          return new TableRow({ children: cells });
+        });
+        children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [hRow, ...dRows] }));
+      }
+    } else {
+      // ── Separate table per account ──
+      for (const [accName, entries] of Object.entries(ledgerMap)) {
+        children.push(new Paragraph({
+          spacing: { before: 200, after: 80 },
+          children: [new TextRun({ text: `ACCOUNT: ${accName}`, bold: true, size: 22, color: '0f172a' })],
+        }));
+
+        const hRow = new TableRow({ tableHeader: true, children: ledgerCols.map(c => headerCell(c)) });
+        const dRows = entries.map((e: any, i: number) => {
+          const sh = i % 2 === 0;
+          const balStr = `${fmt(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+          const cells = ledgerCols.map(col => {
+            if (col === 'Date') return dataCell(fmtDate(e.date), sh);
+            if (col === 'Phase') return dataCell(e.phaseName || 'Project', sh);
+            if (col === 'Debit') return dataCell(e.type === 'DEBIT' ? fmt(e.amount) : '-', sh, true);
+            if (col === 'Credit') return dataCell(e.type === 'CREDIT' ? fmt(e.amount) : '-', sh, true);
+            if (col === 'Running Balance') return dataCell(balStr, sh, true);
+            return dataCell('', sh);
+          });
+          return new TableRow({ children: cells });
+        });
+
+        children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [hRow, ...dRows] }));
+        children.push(new Paragraph({ spacing: { after: 100 }, children: [] }));
+      }
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  TRIAL BALANCE
+  // ══════════════════════════════════════════════════════════
+  if (sections.trialBalance && trialBalanceData) {
+    children.push(sectionHeading(`${nextHeadingNum(useRoman)}. Trial Balance`));
+
+    const tbCols: string[] = columns.trialBalance?.length
+      ? columns.trialBalance
+      : ['Account Name', 'Debit Balance', 'Credit Balance'];
+
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: tbCols.map(c => headerCell(c)),
+    });
+
+    const tbAccounts = Array.isArray((trialBalanceData as any).accounts)
+      ? (trialBalanceData as any).accounts
+      : Object.values((trialBalanceData as any).accounts || {});
+
+    const dataRows: TableRow[] = (tbAccounts as any[]).map((acc: any, i: number) => {
+      const shaded = i % 2 === 0;
+      const bal = parseFloat(acc.balance || 0);
+      const cells = tbCols.map(col => {
+        if (col === 'Account Name') return dataCell(acc.name || '', shaded);
+        if (col === 'Debit Balance') return dataCell(bal > 0 ? fmt(bal) : '0.00', shaded, true);
+        if (col === 'Credit Balance') return dataCell(bal < 0 ? fmt(Math.abs(bal)) : '0.00', shaded, true);
+        return dataCell('', shaded);
+      });
+      return new TableRow({ children: cells });
+    });
+
+    // Totals row
+    const totals = (trialBalanceData as any).totals || {};
+    const totalRow = new TableRow({
+      children: tbCols.map(col => new TableCell({
+        shading: { type: ShadingType.SOLID, color: 'e2e8f0' },
+        borders: makeBorders(),
+        children: [new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [new TextRun({
+            bold: true, size: 18,
+            text: col === 'Account Name' ? 'TOTAL'
+              : col === 'Debit Balance' ? fmt(totals.totalDebits || 0)
+              : col === 'Credit Balance' ? fmt(totals.totalCredits || 0)
+              : '',
+          })],
+        })],
+      })),
+    });
+
+    children.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [headerRow, ...dataRows, totalRow],
+    }));
+  }
+
+  // ── Footer note ──────────────────────────────────────────
+  if (params.show_footer_note && params.footer_note) {
+    children.push(new Paragraph({
+      spacing: { before: 400 },
+      border: { top: { style: BorderStyle.SINGLE, size: 4, color: BORDER_COLOR } },
+      children: [new TextRun({ text: params.footer_note, size: 16, italics: true, color: '64748b' })],
+    }));
+  }
+
+  // ── Assemble & pack ──────────────────────────────────────
+  const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: { font: 'Calibri', size: 20 },
+        },
+      },
+    },
+    sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: convertInchesToTwip(0.75),
+            bottom: convertInchesToTwip(0.75),
+            left: convertInchesToTwip(0.9),
+            right: convertInchesToTwip(0.9),
+          },
+        },
+      },
+      children,
+    }],
+  });
+
+  return Buffer.from(await Packer.toBuffer(doc));
+}

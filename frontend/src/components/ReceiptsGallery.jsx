@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ZoomIn, FileText, Calendar, Tag, DollarSign, ChevronLeft, ChevronRight, Download } from 'lucide-react';
-import { accountingApi } from '../services/api';
+import { accountingApi, getImageUrl } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
 
 export default function ReceiptsGallery({ projectId, phaseId }) {
@@ -33,7 +33,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                             if (m) { fromName = m[1]?.trim(); toName = m[2]?.trim(); }
                         }
 
-                        const url = tx.attachmentUrl;
+                        const url = getImageUrl(tx.attachmentUrl);
                         const isPdf = url?.toLowerCase().endsWith('.pdf');
 
                         return {
