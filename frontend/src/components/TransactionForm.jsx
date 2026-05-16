@@ -231,20 +231,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     const selectedCatType = categories.find(c => c.id === formData.category_id)?.type;
 
     return (
-        <div className="animate-in" style={{
-            position: 'fixed', inset: 0, zIndex: 1000,
-            background: 'rgba(15, 23, 42, 0.3)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '1rem'
-        }}>
-            <div className="glass-panel" style={{
-                width: '100%', maxWidth: '660px',
-                maxHeight: '92vh', overflowY: 'auto',
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(40px) saturate(200%)',
-                color: 'var(--text-main)'
-            }}>
+        <div className="modal-overlay animate-in">
+            <div className="glass-panel modal-content">
                 {/* Modal Header */}
                 <div style={{
                     padding: '2rem 2rem 1.5rem',
@@ -270,7 +258,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                 <form onSubmit={handleSubmit} style={{ padding: '1.75rem 2rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     
                     {/* Row 1: Amount + Account */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                         <div>
                             <label style={labelStyle}>Amount ({currency})</label>
                             <input
@@ -333,7 +321,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                         <p style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                             Transaction Details
                         </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                             <div>
                                 <label style={labelStyle}>Date &amp; Time</label>
                                 <input type="datetime-local" value={formData.date}
@@ -382,7 +370,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                         <option value="Vendor" /><option value="Client" />
                         <option value="Staff / Employee" />
                     </datalist>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                         <div style={{
                             padding: '1.25rem', borderRadius: '16px',
                             background: 'var(--surface)',
@@ -460,7 +448,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                     )}
 
                     {/* Uploads */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                         <div>
                             <label style={labelStyle}>Receipt / Bill (Optional)</label>
                             <label style={uploadLabelStyle}>

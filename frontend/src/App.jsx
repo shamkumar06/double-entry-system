@@ -217,15 +217,15 @@ function AppInner() {
     // Project dashboard
     return (
     <div className="app-container">
-      {/* Mobile Header */}
-      <div className="mobile-header" style={{ display: 'none' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button onClick={() => setIsSidebarOpen(true)} className="btn-circle-glass" style={{ width: '36px', height: '36px' }}>
-            <Menu size={20} />
+      {/* Mobile Top Bar */}
+      <div className="mobile-header mobile-only">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button onClick={() => setIsSidebarOpen(true)} className="btn-circle-glass" style={{ border: 'none', background: 'none' }}>
+            <Menu size={24} />
           </button>
-          <h2 style={{ fontSize: '0.9rem', fontWeight: 800 }}>{activeProject.name}</h2>
+          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--primary)' }}>{activeProject.name}</span>
         </div>
-        <button onClick={() => setActivePhase(undefined)} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.7rem' }}>
+        <button onClick={() => setActivePhase(undefined)} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderRadius: '20px' }}>
           {activePhase?.name || 'All Phases'}
         </button>
       </div>
@@ -457,25 +457,43 @@ function AppInner() {
           />
         )}
 
-        {/* Floating Action Button for Journal */}
-        {activeTab === 'Journal' && !isPhaseSettled && (
-          <button
+      {/* Mobile Bottom Navigation */}
+      <div className="mobile-bottom-nav mobile-only">
+        <button className={`mobile-nav-item ${activeTab === 'Overview' ? 'active' : ''}`} onClick={() => setActiveTab('Overview')}>
+          <Home size={22} />
+          <span>Home</span>
+        </button>
+        <button className={`mobile-nav-item ${activeTab === 'Journal' ? 'active' : ''}`} onClick={() => setActiveTab('Journal')}>
+          <Book size={22} />
+          <span>Journal</span>
+        </button>
+        
+        {/* Floating Quick Action */}
+        {!isPhaseSettled && activeTab === 'Journal' && (
+          <button 
             onClick={() => { setEditingTransaction(null); setShowTransactionForm(true); }}
-            style={{
-              position: 'fixed', bottom: '2rem', right: '2rem', zIndex: 100,
-              width: '56px', height: '56px', borderRadius: '50%',
-              background: 'var(--primary)', color: 'white',
+            style={{ 
+              width: '56px', height: '56px', borderRadius: '28px', 
+              background: 'var(--primary)', color: 'white', 
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(79,70,229,0.3)', cursor: 'pointer',
-              border: 'none', transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+              boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)',
+              transform: 'translateY(-20px)',
+              border: 'none'
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(79,70,229,0.4)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(79,70,229,0.3)'; }}
-            title="New Transaction (Alt+N)"
           >
-            <Plus size={24} />
+            <Plus size={28} />
           </button>
         )}
+
+        <button className={`mobile-nav-item ${activeTab === 'Ledger' ? 'active' : ''}`} onClick={() => setActiveTab('Ledger')}>
+          <Layers size={22} />
+          <span>Ledger</span>
+        </button>
+        <button className={`mobile-nav-item ${activeTab === 'Reports' ? 'active' : ''}`} onClick={() => setActiveTab('Reports')}>
+          <FileText size={22} />
+          <span>Reports</span>
+        </button>
+      </div>
       </main>
     </div>
   );

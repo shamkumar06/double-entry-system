@@ -116,8 +116,8 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
-                <div className="table-container">
+            <div className="journal-layout" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+                <div className="table-container desktop-only">
                     {loading ? (
                         <p style={{ color: 'var(--text-muted)' }}>Loading entries...</p>
                     ) : (
@@ -244,7 +244,44 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                     )}
                 </div>
 
-                <div style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {/* Mobile View Card List */}
+                <div className="mobile-only" style={{ width: '100%' }}>
+                    {loading ? (
+                        <p style={{ color: 'var(--text-muted)' }}>Loading entries...</p>
+                    ) : (
+                        <div className="mobile-card-list">
+                            {filtered.map(tx => {
+                                const primaryAccount = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || 'Unknown';
+                                const txAmount = tx.lines?.[0]?.amount || 0;
+                                const isExpense = tx.lines?.some(l => l.account?.type === 'EXPENSE');
+
+                                return (
+                                    <div key={tx.id} className="mobile-card premium-hover" onClick={() => onEdit(tx)}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <div className="mobile-card-icon" style={{ background: isExpense ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: isExpense ? 'var(--danger)' : 'var(--success)' }}>
+                                                <FileText size={20} />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{tx.description || 'No Description'}</div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(tx.date)} • {primaryAccount}</div>
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontWeight: 800, color: isExpense ? 'var(--danger)' : 'var(--success)' }}>
+                                                {isExpense ? '-' : '+'}{formatCurrency(txAmount)}
+                                            </div>
+                                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{tx.paymentMode}</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {filtered.length === 0 && <p style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>No transactions found.</p>}
+                        </div>
+                    )}
+                </div>
+
+                {/* Sidebar Filter for Desktop */}
+                <div className="desktop-only" style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>
                         Phase Filter
                     </span>
@@ -281,6 +318,35 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                         )
                     })}
                 </div>
+            </div>
+
+            {/* Mobile Phase Bar - Sticky at top below header */}
+            <div className="mobile-only" style={{ overflowX: 'auto', display: 'flex', gap: '0.5rem', padding: '0.5rem 0', marginBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
+                <button 
+                    onClick={() => setSelectedPhaseId(null)}
+                    style={{ 
+                        whiteSpace: 'nowrap', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem',
+                        background: !selectedPhaseId ? 'var(--primary)' : 'var(--surface)',
+                        color: !selectedPhaseId ? '#fff' : 'var(--text-main)',
+                        border: '1px solid var(--border)'
+                    }}
+                >
+                    All
+                </button>
+                {phases.map(ph => (
+                    <button 
+                        key={ph.id}
+                        onClick={() => setSelectedPhaseId(String(ph.id))}
+                        style={{ 
+                            whiteSpace: 'nowrap', padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.75rem',
+                            background: selectedPhasesSet.has(String(ph.id)) ? 'var(--secondary)' : 'var(--surface)',
+                            color: selectedPhasesSet.has(String(ph.id)) ? '#fff' : 'var(--text-main)',
+                            border: '1px solid var(--border)'
+                        }}
+                    >
+                        {ph.name}
+                    </button>
+                ))}
             </div>
 
             {showRecycleBin && (

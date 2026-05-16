@@ -417,6 +417,14 @@ input:focus, select:focus, textarea:focus {
   background: var(--surface-hover) !important;
 }
 
+/* Visibility Utilities */
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+
 .responsive-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -427,6 +435,34 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile Card View */
+.mobile-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mobile-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.mobile-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Mobile Responsiveness Overhaul */
@@ -464,11 +500,24 @@ input:focus, select:focus, textarea:focus {
 
   .mobile-header {
     display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    z-index: 998;
+    height: 60px;
+    padding: 0 1rem;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .main-content {
     padding: 1rem;
-    padding-bottom: 5rem; /* Space for bottom nav */
+    padding-top: 70px; /* Space for mobile header */
+    padding-bottom: 80px; /* Space for bottom nav */
   }
 
   .dashboard-hero {
@@ -478,25 +527,27 @@ input:focus, select:focus, textarea:focus {
     border-radius: 20px;
     align-items: center;
     text-align: center;
+    margin-bottom: 1.5rem;
   }
 
   .hero-stats-content {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     width: 100%;
     gap: 0.75rem;
   }
 
   .hero-stat-value {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
   }
 
   .usage-circle-percent {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
   }
 
   .stat-card-premium {
     padding: 1rem;
     border-radius: 16px;
+    text-align: left;
   }
 
   /* Bottom Navigation for Mobile */
@@ -514,7 +565,52 @@ input:focus, select:focus, textarea:focus {
     padding: 0 1rem;
     justify-content: space-around;
     align-items: center;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
   }
+
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    flex: 1;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--primary);
+    transform: translateY(-2px);
+  }
+
+  /* Bottom Sheet Modal */
+  .modal-overlay {
+    background: rgba(0,0,0,0.4) !important;
+    display: flex;
+    align-items: flex-end !important; /* Bottom aligned */
+    justify-content: center;
+  }
+
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 24px 24px 0 0 !important;
+    margin: 0 !important;
+    height: 92vh !important;
+    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-y: auto;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+}
 
   .mobile-nav-item {
     display: flex;
