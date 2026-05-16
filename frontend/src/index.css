@@ -530,10 +530,45 @@ input:focus, select:focus, textarea:focus {
     margin-bottom: 1.5rem;
   }
 
+  /* Dashboard Stats Grid */
   .hero-stats-content {
     grid-template-columns: repeat(2, 1fr) !important;
     width: 100%;
     gap: 0.75rem;
+    padding-bottom: 2rem; /* Add some space within the grid */
+  }
+
+  /* Global Content Safety Padding for Bottom Nav */
+  main {
+    padding-bottom: 100px !important; /* Ensure content clears the fixed bottom nav */
+  }
+
+  /* Reports / Studio Mobile Optimization */
+  .report-studio-container {
+    flex-direction: column !important;
+    height: auto !important;
+    border-radius: 0 !important;
+  }
+  
+  .report-studio-controls {
+    width: 100% !important;
+    min-width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .report-preview-pane {
+    padding: 1rem !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+  }
+  
+  .report-sheet {
+    width: 100% !important;
+    min-width: 320px;
+    padding: 15mm 10mm !important;
+    transform: scale(0.95);
+    transform-origin: top center;
   }
 
   .hero-stat-value {

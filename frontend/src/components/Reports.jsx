@@ -195,11 +195,11 @@ export default function Reports({ projectId, projectName, phasesList }) {
     };
 
     return (
-        <div style={{ display: 'flex', height: 'calc(100vh - 10rem)', background: 'var(--background)', borderRadius: '24px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+        <div className="report-studio-container" style={{ display: 'flex', height: 'calc(100vh - 10rem)', background: 'var(--background)', borderRadius: '24px', border: '1px solid var(--border)', overflow: 'hidden' }}>
             <style>{STUDIO_STYLES}</style>
             
             {/* LEFT SIDE: STUDIO CONTROLS */}
-            <div style={{ width: '380px', minWidth: '380px', flexShrink: 0, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+            <div className="report-studio-controls" style={{ width: '380px', minWidth: '380px', flexShrink: 0, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
                 {/* STUDIO HEADER */}
                 <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
@@ -379,7 +379,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
                 </div>
             </div>
             {/* RIGHT SIDE: LIVE PREVIEW */}
-            <div style={{ flex: 1, background: 'var(--background)', padding: '3rem 1.5rem', overflowY: 'auto', overflowX: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="report-preview-pane" style={{ flex: 1, background: 'var(--background)', padding: '3rem 1.5rem', overflowY: 'auto', overflowX: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
                 <div className="report-sheet">
                     <span className="sheet-label">LIVE PREVIEW</span>
