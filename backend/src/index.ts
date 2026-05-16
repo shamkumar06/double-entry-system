@@ -1,59 +1,62 @@
 import 'dotenv/config';
-import app from './app';
-process.on('exit', (code) => console.log('DEBUG: Process exiting with code:', code));
-process.on('uncaughtException', (err) => console.error('DEBUG: Uncaught:', err));
-process.on('unhandledRejection', (err) => console.error('DEBUG: Unhandled Rejection:', err));
-import { prisma } from './lib/prisma';
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs';
 
-const PORT = parseInt(process.env.PORT || '5000', 10);
+import authRoutes from './routes/auth.routes';
+import projectRoutes from './routes/project.routes';
+import accountingRoutes from './routes/accounting.routes';
+import systemRoutes from './routes/system.routes';
+import { errorHandler } from './middleware/errorHandler';
+import prisma from './lib/prisma';
 
-const startServer = async () => {
-  let retries = 3;
-  let connected = false;
+const app = express();
+const PORT = process.env.PORT || 5000;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-  while (retries > 0 && !connected) {
-    try {
-      console.log(`🔌 Attempting to connect to database... (${4 - retries}/3)`);
-      await prisma.$connect();
-      connected = true;
-      console.log('✅ Connected to PostgreSQL (Supabase)');
-    } catch (error) {
-      retries--;
-      console.error(`❌ Connection failed. Retries remaining: ${retries}`);
-      if (retries === 0) {
-        console.error('🛑 Could not connect to database. starting in maintenance mode.');
-        // We still start the server so the developer can see the error in the UI
-      } else {
-        await new Promise(res => setTimeout(res, 2000)); // wait 2 seconds before retry
-      }
-    }
-  }
+// --- Uploads folder ---
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
+// --- Middleware ---
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser());
+app.use('/uploads', express.static(uploadsDir));
+
+// --- Routes ---
+app.get('/api/health', async (_req, res) => {
   try {
-    const server = app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔒 Auth: JWT + HTTP-only cookies`);
-    });
-
-    const shutdown = async (signal: string) => {
-      console.log(`\n${signal} received. Shutting down gracefully...`);
-      server.close(async () => {
-        await prisma.$disconnect();
-        console.log('✅ Database connection closed.');
-        process.exit(0);
-      });
-    };
-
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
-
-    // Heartbeat to ensure persistence in production environments
-    setInterval(() => {}, 60000);
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ success: true, message: 'Server & DB healthy ✅', env: process.env.NODE_ENV });
+  } catch {
+    res.status(503).json({ success: false, message: 'Database connection failed ❌' });
   }
-};
+});
 
-startServer();
+app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/accounting', accountingRoutes);
+app.use('/api/system', systemRoutes);
+
+// --- 404 handler ---
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found.' });
+});
+
+// --- Global error handler ---
+app.use(errorHandler);
+
+// --- Start ---
+app.listen(PORT, () => {
+  console.log(`\n🚀 Server running at http://localhost:${PORT}`);
+  console.log(`📊 Health: http://localhost:${PORT}/api/health`);
+  console.log(`🌐 Frontend allowed: ${FRONTEND_URL}\n`);
+});
+
+export default app;

@@ -82,17 +82,51 @@ export function ProjectDataProvider({ children }) {
                 accountingApi.getPhaseFinancials(projectId).catch(() => []),
             ]);
 
-            // Build the phaseFinances map for O(1) lookups
+            // Dynamically calculate finances directly from the journal to guarantee 100% sync
             const phaseFinances = {};
-            (phaseFinancesArr || []).forEach(pf => {
-                phaseFinances[pf.phaseId] = pf;
+            let totalProjectSpent = 0;
+
+            // Initialize phases
+            (project.phases || []).forEach(ph => {
+                phaseFinances[ph.id] = {
+                    id: ph.id,
+                    name: ph.name,
+                    received: Number(ph.estimatedBudget) || 0, // Fallback to estimated budget as allocation
+                    spent: 0,
+                    balance: Number(ph.estimatedBudget) || 0
+                };
             });
 
-            // projectFinances live on the project object (from backend aggregation)
+            // Aggregate spent amounts from the journal
+            (journal || []).forEach(tx => {
+                let txExpense = 0;
+                // Sum all DEBIT lines that represent an actual outflow/expense (typically EXPENSE accounts)
+                (tx.lines || []).forEach(line => {
+                    if (line.type === 'DEBIT' && line.account?.type === 'EXPENSE') {
+                        txExpense += Number(line.amount);
+                    }
+                });
+
+                // If no direct expense was found, fallback to the primary debit line amount to ensure we don't show $0
+                if (txExpense === 0 && tx.lines?.length > 0) {
+                    const debitLine = tx.lines.find(l => l.type === 'DEBIT');
+                    if (debitLine) txExpense = Number(debitLine.amount);
+                }
+                
+                totalProjectSpent += txExpense;
+                
+                if (tx.phaseId && phaseFinances[tx.phaseId]) {
+                    phaseFinances[tx.phaseId].spent += txExpense;
+                    phaseFinances[tx.phaseId].balance = phaseFinances[tx.phaseId].received - phaseFinances[tx.phaseId].spent;
+                }
+            });
+            
+            // Calculate overall project finances
+            const totalProjectReceived = Number(project.totalFunds) || 0;
             const projectFinances = {
-                received: Number(project.received_amount) || 0,
-                spent:    Number(project.spent_amount)    || 0,
-                balance:  Number(project.remaining_balance) || 0,
+                received: totalProjectReceived,
+                spent: totalProjectSpent,
+                balance: totalProjectReceived - totalProjectSpent,
             };
 
             dispatch({
@@ -106,25 +140,28 @@ export function ProjectDataProvider({ children }) {
     }, []);
 
     /**
-     * Call after adding a transaction — optimistically updates the journal.
+     * Call after adding a transaction — optimistically updates the journal and fetches new totals.
      */
     const addTransaction = useCallback((tx) => {
         dispatch({ type: 'ADD_TRANSACTION', payload: tx });
-    }, []);
+        if (state.project?.id) loadProject(state.project.id); // Re-fetch to update totals instantly
+    }, [state.project, loadProject]);
 
     /**
-     * Call after deleting a transaction — removes it from local state instantly.
+     * Call after deleting a transaction — removes it from local state instantly and fetches new totals.
      */
     const removeTransaction = useCallback((id) => {
         dispatch({ type: 'REMOVE_TRANSACTION', payload: id });
-    }, []);
+        if (state.project?.id) loadProject(state.project.id);
+    }, [state.project, loadProject]);
 
     /**
-     * Call after editing a transaction — replaces it in local state instantly.
+     * Call after editing a transaction — replaces it in local state instantly and fetches new totals.
      */
     const updateTransaction = useCallback((tx) => {
         dispatch({ type: 'UPDATE_TRANSACTION', payload: tx });
-    }, []);
+        if (state.project?.id) loadProject(state.project.id);
+    }, [state.project, loadProject]);
 
     /**
      * Forces a full re-fetch from backend. Use sparingly (e.g. after phase deletion).

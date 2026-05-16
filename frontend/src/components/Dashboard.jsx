@@ -98,22 +98,22 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                 <div style={{ 
                     flex: 1, 
                     display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
                     gap: '1.5rem'
                 }}>
                     <div className="stat-card-premium">
-                        <div className="stat-icon-wrapper" style={{ background: 'rgba(15, 23, 42, 0.05)', color: 'var(--primary)' }}>
+                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--primary)' }}>
                             <Target size={20} />
                         </div>
                         <span className="hero-stat-label">Total Allocation</span>
-                        <span className="hero-stat-value text-gradient">
+                        <span className="hero-stat-value" style={{ color: 'var(--primary)' }}>
                             {formatCurrency(phaseId
                                 ? (Number(project?.phases?.find(p => p.id === phaseId)?.estimatedBudget) || 0)
                                 : (Number(project?.totalFunds) || 0))}
                         </span>
                     </div>
                     <div className="stat-card-premium">
-                        <div className="stat-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)' }}>
+                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--danger)' }}>
                             <TrendingDown size={20} />
                         </div>
                         <span className="hero-stat-label">Total Spent</span>
@@ -122,7 +122,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         </span>
                     </div>
                     <div className="stat-card-premium">
-                        <div className="stat-icon-wrapper" style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' }}>
+                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--success)' }}>
                             <Wallet size={20} />
                         </div>
                         <span className="hero-stat-label">Remaining Balance</span>
@@ -131,7 +131,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         </span>
                     </div>
                     <div className="stat-card-premium">
-                        <div className="stat-icon-wrapper" style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent)' }}>
+                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--accent)' }}>
                             <TrendingUp size={20} />
                         </div>
                         <span className="hero-stat-label">Received Funds</span>
@@ -140,7 +140,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         </span>
                     </div>
                     <div className="stat-card-premium">
-                        <div className="stat-icon-wrapper" style={{ background: 'rgba(100, 116, 139, 0.1)', color: 'var(--text-muted)' }}>
+                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
                             <FileText size={20} />
                         </div>
                         <span className="hero-stat-label">Total Transactions</span>
@@ -155,7 +155,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
             {!phaseName && phaseBreakdown.length > 0 && (
                 <div className="glass-panel phase-breakdown-panel">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem 1.5rem 0', marginBottom: '1.5rem' }}>
-                        <div style={{ padding: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '10px' }}>
                             <Layers size={20} color="var(--accent)" />
                         </div>
                         <h3 style={{ fontWeight: 700, fontSize: '1.25rem' }}>Phase-Wise Distribution</h3>
@@ -173,7 +173,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                         <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{formatCurrency(ph.spent)}</span> / {formatCurrency(ph.allocated)}
                                     </span>
                                 </div>
-                                <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(0,0,0,0.05)', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.5)' }}>
+                                <div style={{ height: '8px', borderRadius: '4px', background: 'var(--progress-track)', overflow: 'hidden', border: '1px solid var(--border)' }}>
                                     <div style={{
                                         height: '100%',
                                         width: `${ph.pct}%`,
@@ -196,7 +196,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
             )}
 
             {/* Recent transactions */}
-            <div className="glass-panel" style={{ padding: '2rem', border: '1px solid rgba(255,255,255,0.8)' }}>
+            <div className="glass-panel" style={{ padding: '2rem', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{ padding: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px' }}>
@@ -206,7 +206,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                     </div>
                 </div>
                 {recentTxs.length === 0 ? (
-                    <div style={{ padding: '3rem', textAlign: 'center', background: 'rgba(255,255,255,0.4)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
+                    <div style={{ padding: '3rem', textAlign: 'center', background: 'var(--surface-hover)', borderRadius: '16px', border: '1px dashed var(--border)' }}>
                         <p style={{ color: 'var(--text-muted)', fontWeight: 500 }}>No transactions yet. Click "+ New Transaction" to get started.</p>
                     </div>
                 ) : (
@@ -228,8 +228,8 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             return (
                                 <div key={tx.id} className="transaction-row premium-hover" style={{ 
                                     display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                                    padding: '1rem 1.25rem', borderRadius: '16px', background: 'rgba(255, 255, 255, 0.6)',
-                                    border: '1px solid rgba(255, 255, 255, 0.4)', transition: 'all 0.2s ease', cursor: 'pointer'
+                                    padding: '1rem 1.25rem', borderRadius: '16px', background: 'var(--surface)',
+                                    border: '1px solid var(--border)', transition: 'all 0.2s ease', cursor: 'pointer'
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                         <div style={{ 

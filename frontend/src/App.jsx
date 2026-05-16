@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Home, ChevronLeft, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut } from 'lucide-react';
+import { Download, Home, ChevronLeft, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User } from 'lucide-react';
 import Journal from './components/Journal';
 import Ledger from './components/Ledger';
 import TrialBalance from './components/TrialBalance';
@@ -13,7 +13,7 @@ import EditOverviewModal from './components/EditOverviewModal';
 import Reports from './components/Reports';
 import LoginScreen from './components/LoginScreen';
 import ReceiptsGallery from './components/ReceiptsGallery';
-import { accountingApi, authApi } from './services/api';
+import { accountingApi, authApi, getImageUrl } from './services/api';
 import { useSettings } from './context/SettingsContext';
 import { ProjectDataProvider, useProjectData } from './context/ProjectDataContext';
 
@@ -143,16 +143,20 @@ function AppInner() {
   };
 
   const navActive = (tab) => ({
-    textAlign: 'left',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    width: '100%',
     color: activeTab === tab ? 'var(--primary)' : 'var(--text-muted)',
-    padding: '0.5rem 0.75rem',
-    borderRadius: '8px',
-    background: activeTab === tab ? 'var(--surface-hover)' : 'transparent',
+    padding: '0.7rem 1rem',
+    borderRadius: '10px',
+    background: activeTab === tab ? 'rgba(2, 132, 199, 0.08)' : 'transparent',
     fontWeight: activeTab === tab ? 700 : 500,
     cursor: 'pointer',
-    borderLeft: activeTab === tab ? '3px solid var(--primary)' : '3px solid transparent',
+    border: 'none',
     transition: 'all 0.15s ease',
-    fontSize: '0.85rem'
+    fontSize: '0.9rem',
+    textAlign: 'left'
   });
 
   // Stage 0: Auth Check
@@ -216,12 +220,12 @@ function AppInner() {
         <div className="sidebar-nav-content">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
                 {activeProject.logoUrl ? (
-                    <img src={activeProject.logoUrl} alt="Logo" style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '4px' }} />
+                    <img src={getImageUrl(activeProject.logoUrl)} alt="Logo" style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '4px' }} />
                 ) : (
                     <FolderOpen color="var(--primary)" size={24} />
                 )}
-                <div style={{ overflow: 'hidden' }}>
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.1, whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{activeProject.name}</h2>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.3, wordBreak: 'break-word' }}>{activeProject.name}</h2>
                     <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '1px' }}>{activeProject.description || 'Accounting'}</p>
                 </div>
             </div>
@@ -259,23 +263,25 @@ function AppInner() {
              </button>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', marginTop: '1rem' }}>
-            <button style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); }}>📊  Overview</button>
-            <button style={navActive('Journal')} onClick={() => setActiveTab('Journal')}>📖  Journal</button>
-            <button style={navActive('Ledger')} onClick={() => setActiveTab('Ledger')}>📒  Ledger</button>
-            <button style={navActive('Trial Balance')} onClick={() => setActiveTab('Trial Balance')}>⚖️  Trial Balance</button>
-            <button style={navActive('Reports')} onClick={() => setActiveTab('Reports')}>📄  Reports</button>
-            <button style={navActive('Receipts')} onClick={() => setActiveTab('Receipts')}>🧾  Receipts</button>
-            <div style={{ height: '1px', background: 'var(--border)', margin: '0.75rem 0' }} />
-            <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 0.75rem 0.25rem' }}>Management</p>
-            <button style={navActive('Categories')} onClick={() => setActiveTab('Categories')}>⚙️  Categories</button>
-            <button style={navActive('Settings')} onClick={() => setActiveTab('Settings')}>👤  Settings</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '1.25rem' }}>
+            <button style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); }}><Activity size={18} /> Overview</button>
+            <button style={navActive('Journal')} onClick={() => setActiveTab('Journal')}><Book size={18} /> Journal</button>
+            <button style={navActive('Ledger')} onClick={() => setActiveTab('Ledger')}><Layers size={18} /> Ledger</button>
+            <button style={navActive('Trial Balance')} onClick={() => setActiveTab('Trial Balance')}><Scale size={18} /> Trial Balance</button>
+            <button style={navActive('Reports')} onClick={() => setActiveTab('Reports')}><FileText size={18} /> Reports</button>
+            <button style={navActive('Receipts')} onClick={() => setActiveTab('Receipts')}><Image size={18} /> Receipts</button>
+            
+            <div style={{ height: '1px', background: 'var(--border)', margin: '1rem 0.5rem' }} />
+            <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 1rem 0.4rem' }}>Management</p>
+            
+            <button style={navActive('Categories')} onClick={() => setActiveTab('Categories')}><SettingsIcon size={18} /> Categories</button>
+            <button style={navActive('Settings')} onClick={() => setActiveTab('Settings')}><User size={18} /> Settings</button>
           </div>
         </div>
         
         {/* Sticky Profile Section - Edge-to-edge */}
         <div style={{ 
-            background: 'rgba(255, 255, 255, 0.4)', 
+            background: 'var(--glass-bg)', 
             borderTop: '1px solid var(--border)', 
             padding: '0.75rem 1.25rem',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'

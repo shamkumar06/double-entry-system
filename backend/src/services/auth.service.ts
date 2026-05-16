@@ -1,65 +1,58 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../lib/prisma';
-import { ApiError } from '../middleware/errorHandler';
-import { JwtPayload } from '../middleware/auth';
+import prisma from '../lib/prisma';
+import { AppError } from '../middleware/errorHandler';
 
-const SALT_ROUNDS = 12;
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
-const signToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  } as jwt.SignOptions);
+export const register = async (email: string, password: string, name?: string) => {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) throw new AppError('Email already registered.', 409);
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user = await prisma.user.create({
+    data: { email, passwordHash, name, role: 'VIEWER' },
+    select: { id: true, email: true, name: true, role: true },
+  });
+  return user;
 };
 
-// ── Register: always creates a VIEWER ──────────────────────────────────────
-export const registerUser = async (
-  email: string,
-  password: string,
-  name?: string
-) => {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new ApiError(409, 'An account with this email already exists.');
-  }
+export const login = async (email: string, password: string) => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || !user.isActive) throw new AppError('Invalid credentials.', 401);
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) throw new AppError('Invalid credentials.', 401);
 
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      name: name?.trim() || null,
-      role: 'VIEWER', // ALWAYS defaults to VIEWER — plan rule #4.1
-    },
+  const token = jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
+  );
+
+  return {
+    token,
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+  };
+};
+
+export const getMe = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
     select: { id: true, email: true, name: true, role: true, createdAt: true },
   });
-
-  const token = signToken({ userId: user.id, email: user.email, role: user.role });
-
-  return { user, token };
+  if (!user) throw new AppError('User not found.', 404);
+  return user;
 };
 
-// ── Login ──────────────────────────────────────────────────────────────────
-export const loginUser = async (email: string, password: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
-
-  if (!user || !user.isActive) {
-    throw new ApiError(401, 'Invalid email or password.');
-  }
-
-  const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-  if (!passwordMatch) {
-    throw new ApiError(401, 'Invalid email or password.');
-  }
-
-  const token = signToken({ userId: user.id || 'admin-temp', email: user.email, role: user.role });
-
-  const safeUser = { id: user.id, email: user.email, name: user.name, role: user.role };
-  return { user: safeUser, token };
+export const listUsers = async () => {
+  return prisma.user.findMany({
+    select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+  });
 };
 
-// ── Admin creates user with specific role ─────────────────────────────────
 export const adminCreateUser = async (
   email: string,
   password: string,
@@ -67,30 +60,16 @@ export const adminCreateUser = async (
   name?: string
 ) => {
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new ApiError(409, 'An account with this email already exists.');
-  }
+  if (existing) throw new AppError('Email already registered.', 409);
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      name: name?.trim() || null,
-      role,
-    },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+  const passwordHash = await bcrypt.hash(password, 12);
+  return prisma.user.create({
+    data: { email, passwordHash, name, role },
+    select: { id: true, email: true, name: true, role: true },
   });
-
-  return user;
 };
 
-// ── Admin upgrades/downgrades a user's role ───────────────────────────────
-export const updateUserRole = async (userId: string, role: 'ADMIN' | 'VIEWER') => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new ApiError(404, 'User not found.');
-
+export const changeUserRole = async (userId: string, role: 'ADMIN' | 'VIEWER') => {
   return prisma.user.update({
     where: { id: userId },
     data: { role },
@@ -98,18 +77,12 @@ export const updateUserRole = async (userId: string, role: 'ADMIN' | 'VIEWER') =
   });
 };
 
-// ── List all users (admin only) ───────────────────────────────────────────
-// ── Admin maintenance functions ──────────────────────────────────────────
-export const resetUserPassword = async (userId: string, newPassword: string) => {
-  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  return prisma.user.update({
-    where: { id: userId },
-    data: { passwordHash },
-    select: { id: true, email: true, name: true, role: true },
-  });
+export const resetPassword = async (userId: string, password: string) => {
+  const passwordHash = await bcrypt.hash(password, 12);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 };
 
-export const updateUser = async (userId: string, data: { name?: string, email?: string, isActive?: boolean }) => {
+export const updateUser = async (userId: string, data: { name?: string; email?: string; isActive?: boolean }) => {
   return prisma.user.update({
     where: { id: userId },
     data,
@@ -118,13 +91,5 @@ export const updateUser = async (userId: string, data: { name?: string, email?: 
 };
 
 export const deleteUser = async (userId: string) => {
-  // Prevent deleting the primary admin or whatever if needed, but for now:
-  return prisma.user.delete({ where: { id: userId } });
-};
-
-export const listUsers = async () => {
-  return prisma.user.findMany({
-    select: { id: true, email: true, name: true, role: true, isActive: true, createdAt: true },
-    orderBy: { createdAt: 'desc' },
-  });
+  await prisma.user.delete({ where: { id: userId } });
 };

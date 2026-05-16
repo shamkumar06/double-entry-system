@@ -1,6 +1,13 @@
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
+export const BASE_URL = API_URL.replace(/\/api$/, '');
+
+export const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `${BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -135,7 +142,7 @@ export const accountingApi = {
         data: {
           projectId,
           reportType,
-          phaseIds: phaseId ? (Array.isArray(phaseId) ? phaseId : [phaseId]) : undefined,
+          phaseIds: phaseId ? (Array.isArray(phaseId) ? phaseId : phaseId.split(',').filter(Boolean)) : undefined,
           params  // ← Bug 1 fix: pass the entire params object to the backend
         },
         responseType: 'blob',

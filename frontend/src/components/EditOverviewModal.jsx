@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingApi } from '../services/api';
+import { accountingApi, getImageUrl } from '../services/api';
 import { X, Save } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
 
@@ -191,7 +191,7 @@ export default function EditOverviewModal({ project, phaseObj, onClose, onComple
                                 }}>
                                     <div style={{ position: 'relative' }}>
                                         {logoUrl ? (
-                                            <img src={logoUrl} alt="Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', borderRadius: '12px' }} />
+                                            <img src={getImageUrl(logoUrl)} alt="Logo" style={{ width: '64px', height: '64px', objectFit: 'contain', borderRadius: '12px' }} />
                                         ) : (
                                             <div style={{ width: '64px', height: '64px', background: 'var(--surface-hover)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No Logo</div>
                                         )}

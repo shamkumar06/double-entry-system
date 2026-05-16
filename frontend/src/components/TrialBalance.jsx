@@ -65,7 +65,7 @@ export default function TrialBalance({ projectId, projectName, phaseId }) {
                     <Scale color="var(--primary)" />
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Trial Balance</h3>
                 </div>
-                {data && (
+                {data && data.totals && (
                     <div style={{ padding: '0.5rem 1rem', borderRadius: '9999px', background: data.totals.isBalanced ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: data.totals.isBalanced ? 'var(--success)' : 'var(--danger)', fontWeight: 500 }}>
                         {data.totals.isBalanced ? 'BALANCED' : 'OUT OF BALANCE'}
                     </div>
@@ -76,7 +76,7 @@ export default function TrialBalance({ projectId, projectName, phaseId }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                     {loading ? (
                         <p style={{ color: 'var(--text-muted)' }}>Loading balances...</p>
-                    ) : !data || data.accounts.length === 0 ? (
+                    ) : !data || !data.accounts || data.accounts.length === 0 ? (
                         <p style={{ color: 'var(--text-muted)' }}>No accounts found.</p>
                     ) : (
                         <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
@@ -113,10 +113,10 @@ export default function TrialBalance({ projectId, projectName, phaseId }) {
                                     <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
                                         <td style={{ padding: '1.5rem 1rem 1rem 1rem' }}>Total</td>
                                         <td style={{ padding: '1.5rem 1rem 1rem 1rem', textAlign: 'right', color: 'var(--text-main)' }}>
-                                            {formatCurrency(data.totals.totalDebits)}
+                                            {formatCurrency(data.totals?.totalDebits || 0)}
                                         </td>
                                         <td style={{ padding: '1.5rem 1rem 1rem 1rem', textAlign: 'right', color: 'var(--text-main)' }}>
-                                            {formatCurrency(data.totals.totalCredits)}
+                                            {formatCurrency(data.totals?.totalCredits || 0)}
                                         </td>
                                     </tr>
                                 </tfoot>

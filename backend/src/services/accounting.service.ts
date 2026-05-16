@@ -1,6 +1,6 @@
-import Decimal from 'decimal.js';
-import { prisma } from '../lib/prisma';
-import { ApiError } from '../middleware/errorHandler';
+import { Prisma } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { AppError } from '../middleware/errorHandler';
 
 interface TransactionLineInput {
   accountId: string;
@@ -8,7 +8,7 @@ interface TransactionLineInput {
   amount: number;
 }
 
-interface CreateJournalInput {
+interface CreateTransactionInput {
   projectId: string;
   phaseId?: string;
   date: string;
@@ -18,408 +18,262 @@ interface CreateJournalInput {
   paymentMode?: string;
   reference?: string;
   attachmentUrl?: string;
+  cgst?: number;
+  sgst?: number;
+  igst?: number;
+  discount?: number;
   lines: TransactionLineInput[];
 }
 
-// ── Parse embedded description metadata (legacy fallback) ─────────────────
-export const parseTransactionDescription = (description: string = '') => {
-  if (!description?.includes('| From:')) {
-    return { pureDesc: description, fromEntity: null, toEntity: null, paymentMode: null, reference: null };
-  }
-  const parts = description.split('|');
-  const pureDesc = parts[0]?.trim() || '';
-  let fromEntity: string | null = null;
-  let toEntity: string | null = null;
-  let paymentMode: string | null = null;
-  let reference: string | null = null;
+const validateDoubleEntry = (lines: TransactionLineInput[]) => {
+  const totalDebit = lines
+    .filter((l) => l.type === 'DEBIT')
+    .reduce((sum, l) => sum + l.amount, 0);
+  const totalCredit = lines
+    .filter((l) => l.type === 'CREDIT')
+    .reduce((sum, l) => sum + l.amount, 0);
 
-  if (parts[1]) {
-    const m = parts[1].match(/From: (.*?) To: (.*)/);
-    if (m) { fromEntity = m[1]?.trim() || null; toEntity = m[2]?.trim() || null; }
-  }
-  if (parts[2]) {
-    const m = parts[2].match(/Mode: (.*?) Ref: (.*)/);
-    if (m) { paymentMode = m[1]?.trim() || null; reference = m[2]?.trim() || null; }
-  }
-  return { pureDesc, fromEntity, toEntity, paymentMode, reference };
-};
-
-// ── Core Rule: Sum(Debits) must === Sum(Credits) ───────────────────────────
-const validateDoubleEntry = (lines: TransactionLineInput[]): void => {
-  let totalDebits = new Decimal(0);
-  let totalCredits = new Decimal(0);
-
-  for (const line of lines) {
-    const amount = new Decimal(line.amount);
-    if (amount.lte(0)) {
-      throw new ApiError(400, 'All transaction amounts must be greater than zero.');
-    }
-    if (line.type === 'DEBIT') {
-      totalDebits = totalDebits.plus(amount);
-    } else {
-      totalCredits = totalCredits.plus(amount);
-    }
-  }
-
-  if (!totalDebits.equals(totalCredits)) {
-    throw new ApiError(
-      400,
-      `Double-entry validation failed. Debits (${totalDebits.toFixed(2)}) must equal Credits (${totalCredits.toFixed(2)}).`
+  // Use toFixed to handle floating point precision
+  if (Math.abs(totalDebit - totalCredit) > 0.001) {
+    throw new AppError(
+      `Unbalanced entry: Debits (${totalDebit}) ≠ Credits (${totalCredit})`,
+      400
     );
   }
-
-  if (lines.length < 2) {
-    throw new ApiError(400, 'A journal entry requires at least 2 transaction lines.');
-  }
 };
 
-// ── Create Journal Entry ───────────────────────────────────────────────────
-export const createJournalEntry = async (input: CreateJournalInput) => {
-  // 1. Validate double-entry before touching DB
+export const createTransaction = async (input: CreateTransactionInput) => {
   validateDoubleEntry(input.lines);
 
-  // 2. Verify project exists
-  const project = await prisma.project.findUnique({ where: { id: input.projectId } });
-  if (!project) throw new ApiError(404, 'Project not found.');
-
-  // 3. Verify phase if provided
-  if (input.phaseId) {
-    const phase = await prisma.phase.findFirst({
-      where: { id: input.phaseId, projectId: input.projectId },
-    });
-    if (!phase) throw new ApiError(404, 'Phase not found in this project.');
-  }
-
-  // 4. Verify all account categories exist
-  const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
-  const accounts = await prisma.accountCategory.findMany({
-    where: { id: { in: accountIds } },
-    select: { id: true },
-  });
-  if (accounts.length !== accountIds.length) {
-    throw new ApiError(400, 'One or more account IDs are invalid.');
-  }
-
-  // 5. Wrap in Prisma $transaction for atomicity — plan rule #5.1
-  const result = await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const transaction = await tx.transaction.create({
       data: {
         projectId: input.projectId,
         phaseId: input.phaseId || null,
         date: new Date(input.date),
         description: input.description,
-        fromEntity: input.fromEntity || null,
-        toEntity: input.toEntity || null,
-        paymentMode: input.paymentMode || null,
-        reference: input.reference || null,
-        attachmentUrl: input.attachmentUrl || null,
+        fromEntity: input.fromEntity,
+        toEntity: input.toEntity,
+        paymentMode: input.paymentMode,
+        reference: input.reference,
+        attachmentUrl: input.attachmentUrl,
+        cgst: input.cgst !== undefined ? new Prisma.Decimal(input.cgst) : null,
+        sgst: input.sgst !== undefined ? new Prisma.Decimal(input.sgst) : null,
+        igst: input.igst !== undefined ? new Prisma.Decimal(input.igst) : null,
+        discount: input.discount !== undefined ? new Prisma.Decimal(input.discount) : null,
         lines: {
-          create: input.lines.map((line) => ({
-            accountId: line.accountId,
-            type: line.type,
-            amount: new Decimal(line.amount),
+          create: input.lines.map((l) => ({
+            accountId: l.accountId,
+            type: l.type,
+            amount: new Prisma.Decimal(l.amount),
           })),
         },
       },
-      include: {
-        lines: {
-          include: { account: { select: { id: true, code: true, name: true, type: true } } },
-        },
-        phase: { select: { id: true, name: true } },
-        project: { select: { id: true, name: true } },
-      },
+      include: { lines: { include: { account: true } } },
     });
-
     return transaction;
   });
-
-  return result;
 };
 
-// ── Update Journal Entry ───────────────────────────────────────────────────
-export const updateJournalEntry = async (transactionId: string, input: CreateJournalInput) => {
-  validateDoubleEntry(input.lines);
+export const updateTransaction = async (id: string, input: Partial<CreateTransactionInput>) => {
+  const existing = await prisma.transaction.findUnique({ where: { id } });
+  if (!existing || existing.isDeleted) throw new AppError('Transaction not found.', 404);
 
-  const existingTx = await prisma.transaction.findUnique({ where: { id: transactionId } });
-  if (!existingTx) throw new ApiError(404, 'Transaction not found.');
-  if (existingTx.isDeleted) throw new ApiError(400, 'Cannot edit a deleted transaction.');
+  if (input.lines) validateDoubleEntry(input.lines);
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Delete existing lines entirely, then rewrite them dynamically
-    await tx.transactionLine.deleteMany({ where: { transactionId } });
+  return prisma.$transaction(async (tx) => {
+    if (input.lines) {
+      await tx.transactionLine.deleteMany({ where: { transactionId: id } });
+    }
 
     return tx.transaction.update({
-      where: { id: transactionId },
+      where: { id },
       data: {
-        projectId: input.projectId,
-        phaseId: input.phaseId || null,
-        date: new Date(input.date),
-        description: input.description,
-        fromEntity: input.fromEntity || null,
-        toEntity: input.toEntity || null,
-        paymentMode: input.paymentMode || null,
-        reference: input.reference || null,
-        attachmentUrl: input.attachmentUrl || null,
-        lines: {
-          create: input.lines.map((line) => ({
-            accountId: line.accountId,
-            type: line.type,
-            amount: new Decimal(line.amount),
-          })),
-        },
+        ...(input.date && { date: new Date(input.date) }),
+        ...(input.description && { description: input.description }),
+        ...(input.fromEntity !== undefined && { fromEntity: input.fromEntity }),
+        ...(input.toEntity !== undefined && { toEntity: input.toEntity }),
+        ...(input.paymentMode !== undefined && { paymentMode: input.paymentMode }),
+        ...(input.reference !== undefined && { reference: input.reference }),
+        ...(input.attachmentUrl !== undefined && { attachmentUrl: input.attachmentUrl }),
+        ...(input.cgst !== undefined && { cgst: input.cgst !== null ? new Prisma.Decimal(input.cgst) : null }),
+        ...(input.sgst !== undefined && { sgst: input.sgst !== null ? new Prisma.Decimal(input.sgst) : null }),
+        ...(input.igst !== undefined && { igst: input.igst !== null ? new Prisma.Decimal(input.igst) : null }),
+        ...(input.discount !== undefined && { discount: input.discount !== null ? new Prisma.Decimal(input.discount) : null }),
+        ...(input.phaseId !== undefined && { phaseId: input.phaseId }),
+        ...(input.lines && {
+          lines: {
+            create: input.lines.map((l) => ({
+              accountId: l.accountId,
+              type: l.type,
+              amount: new Prisma.Decimal(l.amount),
+            })),
+          },
+        }),
       },
-      include: { lines: { include: { account: true } }, phase: true, project: true }
+      include: { lines: { include: { account: true } } },
     });
   });
-
-  return result;
 };
 
-// ── Get Journal (with phase filtering) ────────────────────────────────────
+export const softDeleteTransaction = async (id: string) => {
+  const existing = await prisma.transaction.findUnique({ where: { id } });
+  if (!existing) throw new AppError('Transaction not found.', 404);
+  await prisma.transaction.update({
+    where: { id },
+    data: { isDeleted: true, deletedAt: new Date() },
+  });
+};
+
+export const restoreTransaction = async (id: string) => {
+  await prisma.transaction.update({
+    where: { id },
+    data: { isDeleted: false, deletedAt: null },
+  });
+};
+
 export const getJournal = async (projectId: string, phaseIds?: string[]) => {
-  const whereClause: Record<string, unknown> = {
-    projectId,
-    isDeleted: false,
-  };
-
-  if (phaseIds && phaseIds.length > 0) {
-    whereClause.phaseId = { in: phaseIds }; // Prisma `in` for multi-phase — plan rule #6.1
-  }
-
   return prisma.transaction.findMany({
-    where: whereClause,
+    where: {
+      projectId,
+      isDeleted: false,
+      ...(phaseIds?.length ? { phaseId: { in: phaseIds } } : {}),
+    },
     include: {
-      lines: {
-        include: {
-          account: { select: { id: true, code: true, name: true, type: true } },
-        },
-      },
+      lines: { include: { account: { select: { id: true, name: true, type: true, code: true } } } },
       phase: { select: { id: true, name: true } },
-      project: { select: { id: true, name: true } },
     },
     orderBy: { date: 'desc' },
   });
 };
 
-// ── Soft Delete a transaction ──────────────────────────────────────────────
-export const softDeleteTransaction = async (transactionId: string) => {
-  const tx = await prisma.transaction.findUnique({ where: { id: transactionId } });
-  if (!tx) throw new ApiError(404, 'Transaction not found.');
-  if (tx.isDeleted) throw new ApiError(400, 'Transaction is already deleted.');
-
-  return prisma.transaction.update({
-    where: { id: transactionId },
-    data: { isDeleted: true, deletedAt: new Date() },
+export const getDeletedTransactions = async (projectId: string) => {
+  return prisma.transaction.findMany({
+    where: { projectId, isDeleted: true },
+    include: {
+      lines: { include: { account: { select: { id: true, name: true, type: true } } } },
+      phase: { select: { id: true, name: true } },
+    },
+    orderBy: { deletedAt: 'desc' },
   });
 };
 
-// ── Trial Balance (phase-filtered) ─────────────────────────────────────────
 export const getTrialBalance = async (projectId: string, phaseIds?: string[]) => {
-  const txWhereClause: Record<string, unknown> = {
-    projectId,
-    isDeleted: false,
-  };
-
-  if (phaseIds && phaseIds.length > 0) {
-    txWhereClause.phaseId = { in: phaseIds };
-  }
-
-  const groupedLines = await prisma.transactionLine.groupBy({
-    by: ['accountId', 'type'],
-    _sum: { amount: true },
-    where: { transaction: txWhereClause },
+  const lines = await prisma.transactionLine.findMany({
+    where: {
+      transaction: {
+        projectId,
+        isDeleted: false,
+        ...(phaseIds?.length ? { phaseId: { in: phaseIds } } : {}),
+      },
+    },
+    include: {
+      account: { select: { id: true, name: true, type: true, code: true } },
+    },
   });
 
-  const accountIds = [...new Set(groupedLines.map(g => g.accountId))];
-  const accountsData = await prisma.accountCategory.findMany({
-    where: { id: { in: accountIds } },
-    select: { id: true, code: true, name: true, type: true },
-  });
+  const accounts: Record<
+    string,
+    { id: string; name: string; type: string; code: number; debit: number; credit: number }
+  > = {};
 
-  const accountMap: Record<string, { id: string, name: string; type: string; code: number; debits: Decimal; credits: Decimal }> = {};
-  for (const acc of accountsData) {
-    accountMap[acc.id] = { id: acc.id, name: acc.name, type: acc.type, code: acc.code, debits: new Decimal(0), credits: new Decimal(0) };
-  }
-
-  for (const group of groupedLines) {
-    const aid = group.accountId;
-    if (accountMap[aid]) {
-      if (group.type === 'DEBIT') {
-        accountMap[aid].debits = accountMap[aid].debits.plus(new Decimal(group._sum.amount?.toString() || '0'));
-      } else {
-        accountMap[aid].credits = accountMap[aid].credits.plus(new Decimal(group._sum.amount?.toString() || '0'));
-      }
+  lines.forEach((line) => {
+    const key = line.accountId;
+    if (!accounts[key]) {
+      accounts[key] = {
+        id: line.account.id,
+        name: line.account.name,
+        type: line.account.type,
+        code: line.account.code,
+        debit: 0,
+        credit: 0,
+      };
     }
-  }
-
-  let totalDebits = new Decimal(0);
-  let totalCredits = new Decimal(0);
-
-  const accounts = Object.values(accountMap).map((acc) => {
-    totalDebits = totalDebits.plus(acc.debits);
-    totalCredits = totalCredits.plus(acc.credits);
-    return {
-      ...acc,
-      debits: acc.debits.toFixed(2),
-      credits: acc.credits.toFixed(2),
-      balance: acc.debits.minus(acc.credits).toFixed(2),
-    };
+    if (line.type === 'DEBIT') {
+      accounts[key].debit += Number(line.amount);
+    } else {
+      accounts[key].credit += Number(line.amount);
+    }
   });
+
+  let totalDebits = 0;
+  let totalCredits = 0;
+
+  const accountsArray = Object.values(accounts).map(acc => {
+    const netBalance = acc.debit - acc.credit;
+    totalDebits += acc.debit;
+    totalCredits += acc.credit;
+    
+    return {
+      id: acc.id,
+      name: acc.name,
+      type: acc.type,
+      code: acc.code,
+      balance: netBalance
+    };
+  }).sort((a, b) => a.code - b.code);
 
   return {
-    accounts,
+    accounts: accountsArray,
     totals: {
-      totalDebits: totalDebits.toFixed(2),
-      totalCredits: totalCredits.toFixed(2),
-      isBalanced: totalDebits.equals(totalCredits),
-    },
+      totalDebits,
+      totalCredits,
+      isBalanced: Math.abs(totalDebits - totalCredits) < 0.01
+    }
   };
 };
 
-// ── Ledger for a single account (phase-filtered) ───────────────────────────
-export const getLedger = async (
-  projectId: string,
-  accountId: string,
-  phaseIds?: string[]
-) => {
-  const txWhere: Record<string, unknown> = { projectId, isDeleted: false };
-  if (phaseIds && phaseIds.length > 0) {
-    txWhere.phaseId = { in: phaseIds };
-  }
+export const getLedger = async (projectId: string, accountId: string, phaseIds?: string[]) => {
+  const account = await prisma.accountCategory.findUnique({ where: { id: accountId } });
+  if (!account) return [];
 
   const lines = await prisma.transactionLine.findMany({
     where: {
       accountId,
-      transaction: txWhere,
+      transaction: {
+        projectId,
+        isDeleted: false,
+        ...(phaseIds?.length ? { phaseId: { in: phaseIds } } : {}),
+      },
     },
     include: {
       transaction: {
-        include: { phase: { select: { id: true, name: true } } },
+        select: {
+          id: true,
+          date: true,
+          description: true,
+          reference: true,
+          phase: { select: { id: true, name: true } },
+        },
       },
-      account: { select: { id: true, code: true, name: true, type: true } },
     },
     orderBy: { transaction: { date: 'asc' } },
   });
 
-  let runningBalance = new Decimal(0);
-  const isNormalDebit = ['ASSET', 'EXPENSE'].includes(lines[0]?.account.type || '');
+  let runningBalance = 0;
+  const isNormalDebit = ['ASSET', 'EXPENSE'].includes(account.type);
 
-  return lines.map((line) => {
-    const amt = new Decimal(line.amount.toString());
+  return lines.map(line => {
+    const amount = Number(line.amount);
+    
     if (isNormalDebit) {
-      runningBalance = line.type === 'DEBIT'
-        ? runningBalance.plus(amt)
-        : runningBalance.minus(amt);
+       if (line.type === 'DEBIT') runningBalance += amount;
+       else runningBalance -= amount;
     } else {
-      runningBalance = line.type === 'CREDIT'
-        ? runningBalance.plus(amt)
-        : runningBalance.minus(amt);
+       if (line.type === 'CREDIT') runningBalance += amount;
+       else runningBalance -= amount;
     }
 
     return {
       id: line.id,
       date: line.transaction.date,
       description: line.transaction.description,
-      phaseName: line.transaction.phase?.name || 'Whole Project',
+      reference: line.transaction.reference,
+      phaseName: line.transaction.phase?.name || null,
       type: line.type,
-      amount: amt.toFixed(2),
-      runningBalance: runningBalance.toFixed(2),
-      accountType: line.account.type,
+      amount: amount,
+      accountType: account.type,
+      runningBalance
     };
-  });
-};
-
-// ── Project-level Financial Aggregation (for Dashboard) ────────────────────
-export const getProjectFinancials = async (projectId: string, phaseIds?: string[]) => {
-  const txWhere: Record<string, unknown> = { projectId, isDeleted: false };
-  if (phaseIds && phaseIds.length > 0) {
-    txWhere.phaseId = { in: phaseIds };
-  }
-
-  const groupedLines = await prisma.transactionLine.groupBy({
-    by: ['accountId', 'type'],
-    _sum: { amount: true },
-    where: { transaction: txWhere },
-  });
-
-  const accountIds = [...new Set(groupedLines.map(g => g.accountId))];
-  const accountsData = await prisma.accountCategory.findMany({
-    where: { id: { in: accountIds } },
-    select: { id: true, type: true },
-  });
-
-  const accountTypesMap: Record<string, string> = {};
-  accountsData.forEach(a => accountTypesMap[a.id] = a.type);
-
-  let received = new Decimal(0);
-  let spent = new Decimal(0);
-
-  for (const group of groupedLines) {
-    const type = accountTypesMap[group.accountId];
-    const amount = new Decimal(group._sum.amount?.toString() || '0');
-    
-    if (group.type === 'CREDIT' && ['REVENUE', 'EQUITY', 'LIABILITY'].includes(type)) {
-      received = received.plus(amount);
-    }
-    
-    if (group.type === 'DEBIT' && type === 'EXPENSE') {
-      spent = spent.plus(amount);
-    }
-  }
-
-  return {
-    received: received.toFixed(2),
-    spent: spent.toFixed(2),
-    balance: received.minus(spent).toFixed(2)
-  };
-};
-
-// ── Recycle Bin Operations ────────────────────────────────────────────────
-export const getDeletedTransactions = async (projectId: string) => {
-  const transactions = await prisma.transaction.findMany({
-    where: { projectId, isDeleted: true },
-    include: {
-      lines: {
-        include: { account: { select: { name: true } } }
-      },
-      phase: { select: { name: true } }
-    },
-    orderBy: { deletedAt: 'desc' },
-  });
-
-  return transactions.map(tx => {
-    const debitLine = tx.lines.find(l => l.type === 'DEBIT');
-    
-    // Disassemble description to match UI expectations
-    let pureDesc = tx.description;
-    let fromName = '-';
-    let toName = '-';
-    if (tx.description?.includes('| From:')) {
-        const parts = tx.description.split('|');
-        pureDesc = parts[0]?.trim() || '';
-        const fromToMatch = parts[1]?.match(/From: (.*?) To: (.*)/);
-        if (fromToMatch) {
-            fromName = fromToMatch[1]?.trim() || '-';
-            toName = fromToMatch[2]?.trim() || '-';
-        }
-    }
-
-    return {
-      id: tx.id,
-      category_name: debitLine?.account?.name || 'Unknown',
-      phase_name: tx.phase?.name || '',
-      transaction_date: tx.date.toISOString().split('T')[0],
-      from_name: fromName,
-      to_name: toName,
-      description: pureDesc,
-      amount: debitLine?.amount.toNumber() || 0,
-    };
-  });
-};
-
-export const restoreTransaction = async (id: string) => {
-  return prisma.transaction.update({
-    where: { id },
-    data: { isDeleted: false, deletedAt: null }
   });
 };

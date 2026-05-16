@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingApi } from '../services/api';
+import { accountingApi, getImageUrl } from '../services/api';
 import { GitBranch, Plus, Trash2, ArrowRight, ChevronLeft, Edit2 } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
 
@@ -56,12 +56,10 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
 
             const receivedAmt = parseFloat(newPhase.received_amount) || 0;
             await accountingApi.createPhase(project.id, {
-                ...newPhase,
                 name: newPhase.name.trim(),
                 description: newPhase.description.trim(),
                 estimatedBudget: newAlloc,
-                received_amount: receivedAmt,
-                is_received: receivedAmt > 0
+                receivedAmount: receivedAmt
             });
             setNewPhase({ 
                 name: '', description: '', estimatedBudget: '',
@@ -101,12 +99,10 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
 
             const receivedAmt = parseFloat(editData.received_amount) || 0;
             await accountingApi.updatePhase(project.id, phaseId, {
-                ...editData,
                 name: editData.name.trim(),
                 description: editData.description.trim(),
                 estimatedBudget: newAlloc,
-                received_amount: receivedAmt,
-                is_received: receivedAmt > 0
+                receivedAmount: receivedAmt
             });
             setEditingId(null);
             await fetchPhases();
@@ -126,7 +122,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
             name: phase.name,
             description: phase.description || '',
             estimatedBudget: phase.estimatedBudget || '',
-            received_amount: phase.initial_funding_amount !== undefined ? phase.initial_funding_amount : (phase.received_amount || ''),
+            received_amount: phase.receivedAmount || '',
             received_from: phase.received_from || '',
             received_to: phase.received_to || '',
             payment_mode: phase.payment_mode || 'Bank Transfer',
@@ -156,7 +152,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                 </button>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                     {project.logoUrl ? (
-                        <img src={project.logoUrl} alt="Logo" style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '12px', border: '1px solid var(--border)' }} />
+                        <img src={getImageUrl(project.logoUrl)} alt="Logo" style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '12px', border: '1px solid var(--border)' }}/>
                     ) : (
                         <div style={{ width: '48px', height: '48px', background: 'var(--surface)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
                             <GitBranch size={24} color="var(--primary)" />
@@ -212,7 +208,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--success)' }}>
                                         <span style={{ fontWeight: 600 }}>Received</span>
-                                        <span style={{ fontWeight: 800 }}>{formatCurrency(phase.received_amount || 0)}</span>
+                                        <span style={{ fontWeight: 800 }}>{formatCurrency(phase.receivedAmount || 0)}</span>
                                     </div>
                                     
                                     {/* Utilization Bar */}
@@ -220,7 +216,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                                             <span>Utilization</span>
                                             <span>{(() => {
-                                                const received = parseFloat(phase.received_amount) || 0;
+                                                const received = parseFloat(phase.receivedAmount) || 0;
                                                 const spent = parseFloat(phase.spent_amount) || 0;
                                                 if (received <= 0) return '0%';
                                                 return Math.round((spent / received) * 100) + '%';
@@ -230,12 +226,12 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                             <div style={{ 
                                                 height: '100%', 
                                                 width: `${(() => {
-                                                    const received = parseFloat(phase.received_amount) || 0;
+                                                    const received = parseFloat(phase.receivedAmount) || 0;
                                                     const spent = parseFloat(phase.spent_amount) || 0;
                                                     if (received <= 0) return 0;
                                                     return Math.min(100, (spent / received) * 100);
                                                 })()}%`,
-                                                background: (parseFloat(phase.spent_amount || 0) > parseFloat(phase.received_amount || 0)) ? 'var(--danger)' : 'var(--primary)',
+                                                background: (parseFloat(phase.spent_amount || 0) > parseFloat(phase.receivedAmount || 0)) ? 'var(--danger)' : 'var(--primary)',
                                                 transition: 'width 0.3s ease'
                                             }} />
                                         </div>

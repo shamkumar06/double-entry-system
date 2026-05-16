@@ -7,6 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 enum Role {
   ADMIN
   VIEWER
@@ -74,6 +75,7 @@ model Phase {
   name            String
   description     String?
   estimatedBudget Decimal  @default(0) @db.Decimal(15, 2)
+  receivedAmount  Decimal  @default(0) @db.Decimal(15, 2)
   isSettled       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -114,6 +116,10 @@ model Transaction {
   paymentMode   String?
   reference     String?
   attachmentUrl String?
+  cgst          Decimal?  @db.Decimal(15, 2)
+  sgst          Decimal?  @db.Decimal(15, 2)
+  igst          Decimal?  @db.Decimal(15, 2)
+  discount      Decimal?  @db.Decimal(15, 2)
   isDeleted     Boolean   @default(false)
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
