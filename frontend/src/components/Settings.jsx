@@ -6,6 +6,7 @@ import {
   Key, Trash2, UserPlus, Fingerprint
 } from 'lucide-react';
 import { accountingApi, authApi } from '../services/api';
+import ConfirmationDialog from './ConfirmationDialog';
 
 // ─────────────────────────────────────────────────
 // Tiny reusable section header
@@ -38,6 +39,32 @@ export default function Settings({ activeProject, onUpdate, user }) {
   const [creatingUser, setCreatingUser] = useState(false);
   const [userError, setUserError] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
+
+  // ── Custom Confirmation Dialog state ─────────────
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'danger',
+    onConfirm: () => {}
+  });
+
+  const triggerConfirm = ({ title, message, confirmText, cancelText, type, onConfirm }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      type,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   // ── Load phases from API ─────────────────────────
   const fetchPhases = async () => {
@@ -85,23 +112,31 @@ export default function Settings({ activeProject, onUpdate, user }) {
     });
   };
 
-  const handleToggleSettlement = async (phase) => {
+  const handleToggleSettlement = (phase) => {
     const action = phase.isSettled ? 'Unsettle' : 'Settle';
     const msg = phase.isSettled
       ? `Unsettle "${phase.name}"? This will reopen it for editing.`
       : `Settle "${phase.name}"? It will become read-only.`;
-    if (!window.confirm(msg)) return;
 
-    setSettlingId(phase.id);
-    try {
-      await accountingApi.updatePhase(activeProject.id, phase.id, { isSettled: !phase.isSettled });
-      await fetchPhases();
-      if (onUpdate) onUpdate();
-    } catch (e) {
-      alert('Action failed: ' + (e?.error || e?.message || 'Unknown error'));
-    } finally {
-      setSettlingId(null);
-    }
+    triggerConfirm({
+      title: `${action} Phase`,
+      message: msg,
+      confirmText: action,
+      cancelText: 'Cancel',
+      type: phase.isSettled ? 'danger' : 'info',
+      onConfirm: async () => {
+        setSettlingId(phase.id);
+        try {
+          await accountingApi.updatePhase(activeProject.id, phase.id, { isSettled: !phase.isSettled });
+          await fetchPhases();
+          if (onUpdate) onUpdate();
+        } catch (e) {
+          alert('Action failed: ' + (e?.error || e?.message || 'Unknown error'));
+        } finally {
+          setSettlingId(null);
+        }
+      }
+    });
   };
 
   const handleCreateUser = async (e) => {
@@ -123,15 +158,23 @@ export default function Settings({ activeProject, onUpdate, user }) {
     }
   };
 
-  const handleChangeRole = async (userId, currentRole) => {
+  const handleChangeRole = (userId, currentRole) => {
     const newRole = currentRole === 'ADMIN' ? 'VIEWER' : 'ADMIN';
-    if (!window.confirm(`Change this user's role to ${newRole}?`)) return;
-    try {
-      await authApi.changeUserRole(userId, newRole);
-      await fetchUsers();
-    } catch (e) {
-      alert('Failed to change role: ' + (e?.error || e?.message));
-    }
+    triggerConfirm({
+      title: 'Change User Role',
+      message: `Change this user's role to ${newRole}?`,
+      confirmText: 'Update Role',
+      cancelText: 'Cancel',
+      type: 'info',
+      onConfirm: async () => {
+        try {
+          await authApi.changeUserRole(userId, newRole);
+          await fetchUsers();
+        } catch (e) {
+          alert('Failed to change role: ' + (e?.error || e?.message));
+        }
+      }
+    });
   };
 
   const handleResetPassword = async (userId, email) => {
@@ -146,26 +189,43 @@ export default function Settings({ activeProject, onUpdate, user }) {
     }
   };
 
-  const handleToggleActive = async (userToUpdate) => {
+  const handleToggleActive = (userToUpdate) => {
     const newStatus = !userToUpdate.isActive;
     const msg = newStatus ? `Reactivate account for ${userToUpdate.email}?` : `Deactivate account for ${userToUpdate.email}? They will be blocked from logging in.`;
-    if (!window.confirm(msg)) return;
-    try {
-      await authApi.updateUser(userToUpdate.id, { isActive: newStatus });
-      await fetchUsers();
-    } catch (e) {
-      alert('Failed to update status: ' + (e?.error || e?.message));
-    }
+
+    triggerConfirm({
+      title: newStatus ? 'Reactivate User' : 'Deactivate User',
+      message: msg,
+      confirmText: newStatus ? 'Reactivate' : 'Deactivate',
+      cancelText: 'Cancel',
+      type: newStatus ? 'success' : 'danger',
+      onConfirm: async () => {
+        try {
+          await authApi.updateUser(userToUpdate.id, { isActive: newStatus });
+          await fetchUsers();
+        } catch (e) {
+          alert('Failed to update status: ' + (e?.error || e?.message));
+        }
+      }
+    });
   };
 
-  const handleDeleteUser = async (userToDelete) => {
-    if (!window.confirm(`PERMANENTLY DELETE user ${userToDelete.email}? This cannot be undone.`)) return;
-    try {
-      await authApi.deleteUser(userToDelete.id);
-      await fetchUsers();
-    } catch (e) {
-      alert('Failed to delete: ' + (e?.error || e?.message));
-    }
+  const handleDeleteUser = (userToDelete) => {
+    triggerConfirm({
+      title: 'Delete User Account',
+      message: `PERMANENTLY DELETE user ${userToDelete.email}? This cannot be undone.`,
+      confirmText: 'Delete User',
+      cancelText: 'Cancel',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await authApi.deleteUser(userToDelete.id);
+          await fetchUsers();
+        } catch (e) {
+          alert('Failed to delete: ' + (e?.error || e?.message));
+        }
+      }
+    });
   };
 
   // ── Shared input style ────────────────────────────
@@ -486,6 +546,17 @@ export default function Settings({ activeProject, onUpdate, user }) {
           </div>
         </form>
       </div>
+
+      <ConfirmationDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
