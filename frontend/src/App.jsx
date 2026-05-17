@@ -326,13 +326,7 @@ function AppInner() {
             🔖 {activePhase?.name || 'All Phases'}
             {isPhaseSettled ? <Lock size={10} /> : <div style={{ fontSize: '9px', opacity: 0.6 }}>▼</div>}
           </div>
-          
-          {/* Quick Add Button underneath phase badge */}
-          {activeTab === 'Journal' && !isPhaseSettled && (
-             <button onClick={() => { setEditingTransaction(null); setShowTransactionForm(true); }} style={{ marginTop: '0.75rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.5rem', background: 'var(--primary)', color: 'white', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'opacity 0.2s' }} onMouseEnter={e => e.currentTarget.style.opacity = 0.9} onMouseLeave={e => e.currentTarget.style.opacity = 1}>
-               <Plus size={14} /> Add Transaction
-             </button>
-          )}
+
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '1.25rem' }}>
             <button style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); setIsSidebarOpen(false); }}><Activity size={18} /> Overview</button>
@@ -402,12 +396,45 @@ function AppInner() {
               {activeProject?.name} {activePhase?.name ? `› ${activePhase.name}` : '› All Phases'}
             </p>
           </div>
-          {activeTab === 'Overview' && (
-            <button className="btn-circle-glass" onClick={() => setShowEditModal(true)} title="Edit Details">
-               <Edit3 size={20} />
-            </button>
-          )}
-          {/* Header button removed as per user request (shortcuts available in sidebar/FAB) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {activeTab === 'Overview' && (
+              <button className="btn-circle-glass" onClick={() => setShowEditModal(true)} title="Edit Details">
+                 <Edit3 size={20} />
+              </button>
+            )}
+
+            {!isPhaseSettled && (activeTab === 'Journal' || activeTab === 'Overview') && (
+              <button 
+                className="desktop-only"
+                onClick={() => { setEditingTransaction(null); setShowTransactionForm(true); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, var(--primary) 0%, #2563eb 100%)',
+                  color: 'white',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 132, 199, 0.35)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.25)';
+                }}
+              >
+                <Plus size={18} /> Add Transaction
+              </button>
+            )}
+          </div>
         </header>
 
         {activeTab === 'Overview' && (
