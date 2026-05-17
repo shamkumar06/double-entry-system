@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { AlertTriangle, Info, CheckCircle, X } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 export default function ConfirmationDialog({ 
     isOpen, 
@@ -11,6 +12,9 @@ export default function ConfirmationDialog({
     cancelText = 'Cancel',
     type = 'danger' // 'danger' | 'info' | 'success'
 }) {
+    const { settings } = useSettings();
+    const isDark = settings?.theme === 'dark';
+
     // Close on Escape key press
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -30,30 +34,33 @@ export default function ConfirmationDialog({
             case 'success':
                 return {
                     icon: <CheckCircle size={28} color="#10b981" />,
-                    bg: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    bg: isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.08)',
+                    border: isDark ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(16, 185, 129, 0.15)',
                     btnBg: '#10b981',
                     btnHover: '#059669',
-                    glow: 'rgba(16, 185, 129, 0.4)'
+                    btnText: '#ffffff',
+                    glow: isDark ? 'rgba(16, 185, 129, 0.4)' : 'rgba(16, 185, 129, 0.2)'
                 };
             case 'info':
                 return {
                     icon: <Info size={28} color="var(--primary)" />,
-                    bg: 'rgba(2, 132, 199, 0.1)',
-                    border: '1px solid rgba(2, 132, 199, 0.2)',
+                    bg: isDark ? 'rgba(2, 132, 199, 0.1)' : 'rgba(15, 23, 42, 0.05)',
+                    border: isDark ? '1px solid rgba(2, 132, 199, 0.2)' : '1px solid rgba(15, 23, 42, 0.1)',
                     btnBg: 'var(--primary)',
-                    btnHover: '#0369a1',
-                    glow: 'rgba(2, 132, 199, 0.4)'
+                    btnHover: isDark ? '#0369a1' : 'var(--primary-hover)',
+                    btnText: isDark ? '#020617' : '#ffffff',
+                    glow: isDark ? 'rgba(2, 132, 199, 0.4)' : 'rgba(15, 23, 42, 0.15)'
                 };
             case 'danger':
             default:
                 return {
                     icon: <AlertTriangle size={28} color="#ef4444" />,
-                    bg: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    bg: isDark ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.08)',
+                    border: isDark ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(239, 68, 68, 0.15)',
                     btnBg: '#ef4444',
                     btnHover: '#dc2626',
-                    glow: 'rgba(239, 68, 68, 0.4)'
+                    btnText: '#ffffff',
+                    glow: isDark ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.2)'
                 };
         }
     };
@@ -69,7 +76,7 @@ export default function ConfirmationDialog({
             alignItems: 'center',
             justifyContent: 'center',
             padding: '1.5rem',
-            background: 'rgba(10, 15, 30, 0.8)',
+            background: isDark ? 'rgba(10, 15, 30, 0.8)' : 'rgba(15, 23, 42, 0.35)',
             backdropFilter: 'blur(12px) saturate(160%)',
             animation: 'fadeIn 0.2s ease-out'
         }}
@@ -77,14 +84,16 @@ export default function ConfirmationDialog({
             {/* Modal Body */}
             <div style={{
                 position: 'relative',
-                background: 'rgba(30, 41, 59, 0.85)',
+                background: isDark ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.98)',
                 backdropFilter: 'blur(24px)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
                 borderRadius: '24px',
                 maxWidth: '480px',
                 width: '100%',
                 padding: '2rem',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+                boxShadow: isDark 
+                    ? '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05)'
+                    : '0 25px 50px -12px rgba(15, 23, 42, 0.15), inset 0 1px 0 rgba(255,255,255,0.8)',
                 transform: 'scale(1)',
                 animation: 'zoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 display: 'flex',
@@ -182,7 +191,7 @@ export default function ConfirmationDialog({
                             borderRadius: '12px',
                             border: 'none',
                             background: colors.btnBg,
-                            color: '#ffffff',
+                            color: colors.btnText,
                             fontSize: '0.875rem',
                             fontWeight: 700,
                             cursor: 'pointer',
