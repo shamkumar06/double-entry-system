@@ -58,8 +58,30 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
     const fetchPhases = async () => {
         setLoading(true);
         try {
-            const data = await accountingApi.listPhases(project.id);
-            setPhases(data);
+            const [phasesData, txs] = await Promise.all([
+                accountingApi.listPhases(project.id),
+                accountingApi.getJournal(project.id, null)
+            ]);
+            const list = Array.isArray(txs) ? txs : (txs?.data || []);
+            const phasesArray = Array.isArray(phasesData) ? phasesData : (phasesData?.data || []);
+
+            const mappedPhases = phasesArray.map(phase => {
+                let spent_amount = 0;
+                list.forEach(tx => {
+                    if (tx.phaseId === phase.id || tx.phase?.id === phase.id) {
+                        tx.lines?.forEach(line => {
+                            if (line.type === 'DEBIT') {
+                                spent_amount += parseFloat(line.amount) || 0;
+                            }
+                        });
+                    }
+                });
+                return {
+                    ...phase,
+                    spent_amount
+                };
+            });
+            setPhases(mappedPhases);
         } catch (e) {
             console.error("Failed to load phases", e);
         } finally {
