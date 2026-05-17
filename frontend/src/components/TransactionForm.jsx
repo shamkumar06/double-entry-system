@@ -513,13 +513,14 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                             border: '1px solid rgba(255,255,255,0.1)',
                             color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer'
                         }}>Cancel</button>
-                        <button type="submit" disabled={loading || uploadingReceipt || uploadingMaterial} style={{
+                        <button type="submit" className="btn-primary" disabled={loading || uploadingReceipt || uploadingMaterial} style={{
                             padding: '0.8rem 2rem', borderRadius: '12px',
-                            background: loading ? '#1e293b' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                            border: '1px solid rgba(59,130,246,0.4)',
-                            color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer',
-                            boxShadow: loading ? 'none' : '0 4px 20px rgba(59,130,246,0.35)',
-                            transition: 'all 0.2s'
+                            background: loading ? 'var(--border)' : 'var(--btn-primary-bg)',
+                            color: loading ? 'var(--text-muted)' : 'var(--btn-primary-text)',
+                            fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer',
+                            boxShadow: loading ? 'none' : '0 4px 20px var(--btn-primary-shadow)',
+                            transition: 'all 0.2s',
+                            border: 'none'
                         }}>
                             {loading ? 'Saving...' : initialData ? 'Update Transaction' : 'Save Transaction'}
                         </button>

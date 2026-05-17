@@ -79,6 +79,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
     };
     
     const [downloading, setDownloading] = useState(false);
+    const [activeControlTab, setActiveControlTab] = useState('branding'); // 'branding', 'filters', 'columns'
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [selectedPhaseIds, setSelectedPhaseIds] = useState([]);
@@ -199,183 +200,492 @@ export default function Reports({ projectId, projectName, phasesList }) {
             <style>{STUDIO_STYLES}</style>
             
             {/* LEFT SIDE: STUDIO CONTROLS */}
-            <div className="report-studio-controls" style={{ width: '380px', minWidth: '380px', flexShrink: 0, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+            <div className="report-studio-controls" style={{ 
+                width: '400px', 
+                minWidth: '400px', 
+                flexShrink: 0, 
+                background: 'var(--surface)', 
+                borderRight: '1px solid var(--border)', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                zIndex: 10 
+            }}>
                 {/* STUDIO HEADER */}
-                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                        <div style={{ background: 'var(--primary)', color: 'white', padding: '0.6rem', borderRadius: '12px' }}><SettingsIcon size={20} /></div>
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <h3 style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-main)' }}>Report Studio</h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '20px' }}>
-                                    <div style={{ width: '6px', height: '6px', background: 'var(--success)', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
-                                    <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--success)' }}>LIVE</span>
-                                </div>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ background: 'var(--primary)', color: 'var(--btn-primary-text)', padding: '0.5rem', borderRadius: '10px' }}>
+                                <SettingsIcon size={18} />
                             </div>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>IDENTITY POWERED • V2.0</p>
+                            <div>
+                                <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-main)', margin: 0, lineHeight: 1.2 }}>Report Studio</h3>
+                                <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, margin: 0, letterSpacing: '0.5px' }}>IDENTITY POWERED • V2.0</p>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.25rem 0.65rem', borderRadius: '20px' }}>
+                            <div style={{ width: '6px', height: '6px', background: 'var(--success)', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--success)', letterSpacing: '0.5px' }}>LIVE</span>
                         </div>
                     </div>
-                    <button onClick={handleDownload} disabled={downloading} className="btn-primary" style={{ width: '100%', gap: '0.5rem', padding: '0.85rem' }}>
+                    
+                    {/* Primary Download Button */}
+                    <button 
+                        onClick={handleDownload} 
+                        disabled={downloading} 
+                        className="btn-primary" 
+                        style={{ 
+                            width: '100%', 
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.5rem', 
+                            padding: '0.8rem', 
+                            borderRadius: '12px',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            boxShadow: '0 4px 12px var(--btn-primary-shadow)'
+                        }}
+                    >
                         {downloading ? 'Drafting Report...' : <><Download size={18} /> Download Word Doc</>}
                     </button>
-                    
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                        <button onClick={() => updateConfig({ showFooterNote: !config.showFooterNote })} className={`btn-secondary ${config.showFooterNote ? 'active' : ''}`} style={{ flex: 1, fontSize: '0.7rem', fontWeight: 700 }}>
-                            FOOTER {config.showFooterNote ? 'ON' : 'OFF'}
-                        </button>
-                    </div>
-                    <div style={{ marginTop: '0.5rem' }}>
-                        <button onClick={() => updateConfig({ useRomanNumerals: !config.useRomanNumerals })} className={`btn-secondary ${config.useRomanNumerals !== false ? 'active' : ''}`} style={{ width: '100%', fontSize: '0.7rem', fontWeight: 700 }}>
-                            {config.useRomanNumerals !== false ? '✓ ROMAN NUMERAL HEADINGS' : 'STANDARD NUMBERING (1, 2, 3)'}
-                        </button>
-                    </div>
-                    <div style={{ marginTop: '0.5rem' }}>
-                        <button onClick={() => updateConfig({ combineLedgerAccounts: !config.combineLedgerAccounts })} className={`btn-secondary ${config.combineLedgerAccounts ? 'active' : ''}`} style={{ width: '100%', fontSize: '0.7rem', fontWeight: 700 }}>
-                            {config.combineLedgerAccounts ? '✓ LEDGER COMBINED IN 1 TABLE' : 'SEPARATE LEDGER TABLES PER ACCOUNT'}
-                        </button>
+
+                    {/* Premium Horizontal Navigation Tabs */}
+                    <div style={{ 
+                        display: 'flex', 
+                        background: 'var(--background)', 
+                        padding: '0.25rem', 
+                        borderRadius: '10px', 
+                        marginTop: '1.25rem',
+                        border: '1px solid var(--border)'
+                    }}>
+                        {[
+                            { id: 'branding', label: 'Style', icon: <Type size={14} /> },
+                            { id: 'filters', label: 'Filters', icon: <Calendar size={14} /> },
+                            { id: 'columns', label: 'Columns', icon: <Layout size={14} /> }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveControlTab(tab.id)}
+                                style={{
+                                    flex: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.5rem 0.25rem',
+                                    borderRadius: '8px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: activeControlTab === tab.id ? 700 : 500,
+                                    background: activeControlTab === tab.id ? 'var(--surface)' : 'transparent',
+                                    color: activeControlTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+                                    boxShadow: activeControlTab === tab.id ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                {tab.icon}
+                                <span>{tab.label}</span>
+                            </button>
+                        ))}
                     </div>
                 </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     
-                    {/* SECTION 1: TITLE & BRANDING */}
-                    <div className="studio-section">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>1. Title & Branding</label>
-                        <div className="studio-card">
-                            <input 
-                                type="text" value={config.customHeader} onChange={e => updateConfig({ customHeader: e.target.value })} 
-                                placeholder="Main Report Title..." 
-                                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontWeight: 700, fontSize: '1rem', marginBottom: '1rem' }} 
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Font Size</span>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)' }}>{config.headerFontSize || 26}pt</span>
-                            </div>
-                            <input type="range" min="14" max="42" value={config.headerFontSize || 26} onChange={e => updateConfig({ headerFontSize: parseInt(e.target.value) })} style={{ width: '100%', accentColor: 'var(--primary)', cursor: 'pointer' }} />
-                            
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
-                                <input type="checkbox" checked={config.showTitleLine} onChange={e => updateConfig({ showTitleLine: e.target.checked })} />
-                                Show line below title
-                            </label>
-
-                            <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
-                                    <input type="checkbox" checked={config.showDateCorner} onChange={e => updateConfig({ showDateCorner: e.target.checked })} />
-                                    Show Date in Top Corner
-                                </label>
-                                {config.showDateCorner && (
+                    {/* TAB 1: STYLE & BRANDING */}
+                    {activeControlTab === 'branding' && (
+                        <>
+                            <div className="studio-section">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Document Title</label>
+                                <div className="studio-card">
                                     <input 
-                                        type="date" 
-                                        value={config.reportDate} 
-                                        onChange={e => updateConfig({ reportDate: e.target.value })} 
-                                        style={{ width: '100%', marginTop: '0.75rem', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem' }} 
+                                        type="text" 
+                                        value={config.customHeader} 
+                                        onChange={e => updateConfig({ customHeader: e.target.value })} 
+                                        placeholder="Main Report Title..." 
+                                        style={{ 
+                                            width: '100%', 
+                                            padding: '0.75rem', 
+                                            borderRadius: '10px', 
+                                            border: '1px solid var(--border)', 
+                                            background: 'var(--background)', 
+                                            color: 'var(--text-main)', 
+                                            fontWeight: 700, 
+                                            fontSize: '0.95rem', 
+                                            marginBottom: '1rem',
+                                            outline: 'none'
+                                        }} 
                                     />
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Font Size</span>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)' }}>{config.headerFontSize || 26}pt</span>
+                                    </div>
+                                    <input 
+                                        type="range" 
+                                        min="14" 
+                                        max="42" 
+                                        value={config.headerFontSize || 26} 
+                                        onChange={e => updateConfig({ headerFontSize: parseInt(e.target.value) })} 
+                                        style={{ width: '100%', accentColor: 'var(--primary)', cursor: 'pointer', marginBottom: '1rem' }} 
+                                    />
+                                    
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.showTitleLine} 
+                                            onChange={e => updateConfig({ showTitleLine: e.target.checked })} 
+                                            style={{ width: '15px', height: '15px', accentColor: 'var(--primary)' }}
+                                        />
+                                        Show divider line below title
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="studio-section">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                                     <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sub-headings</label>
+                                     <button 
+                                        onClick={() => updateConfig({ subHeaders: [...(config.subHeaders || []), { text: "", fontSize: 12 }] })} 
+                                        style={{ color: 'var(--primary)', background: 'none', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                     >
+                                        <Plus size={14} /> Add Line
+                                     </button>
+                                </div>
+                                
+                                {(config.subHeaders || []).length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '1.5rem', border: '1px dashed var(--border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                        No sub-headings added yet. Click "+ Add Line" above.
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        {(config.subHeaders || []).map((sh, idx) => (
+                                            <div key={idx} className="studio-card" style={{ padding: '0.85rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                    <input 
+                                                        type="text" 
+                                                        value={sh.text} 
+                                                        onChange={e => handleUpdateSubHeader(idx, 'text', e.target.value)} 
+                                                        placeholder="Sub-heading text..." 
+                                                        style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text-main)', fontWeight: 600, fontSize: '0.85rem', borderBottom: '1px solid var(--border)', outline: 'none' }} 
+                                                    />
+                                                    <button onClick={() => updateConfig({ subHeaders: config.subHeaders.filter((_, i) => i !== idx) })} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={14} /></button>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                    <input type="range" min="8" max="20" value={sh.fontSize || 12} onChange={e => handleUpdateSubHeader(idx, 'fontSize', parseInt(e.target.value))} style={{ flex: 1, height: '4px', cursor: 'pointer' }} />
+                                                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', minWidth: '24px', textAlign: 'right' }}>{sh.fontSize || 12}pt</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
-                        </div>
-                    </div>
 
-                    {/* SECTION 2: SUB-HEADINGS */}
-                    <div className="studio-section">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                             <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>2. Sub-headings</label>
-                             <button onClick={() => updateConfig({ subHeaders: [...(config.subHeaders || []), { text: "", fontSize: 12 }] })} style={{ color: 'var(--primary)', background: 'none', border: 'none', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>+ Add Line</button>
-                        </div>
-                        {(config.subHeaders || []).map((sh, idx) => (
-                            <div key={idx} className="studio-card" style={{ padding: '1rem' }}>
-                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                    <input type="text" value={sh.text} onChange={e => handleUpdateSubHeader(idx, 'text', e.target.value)} placeholder="Sub-heading text..." style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text-main)', fontWeight: 500, fontSize: '0.9rem', borderBottom: '1px solid var(--border)' }} />
-                                    <button onClick={() => updateConfig({ subHeaders: config.subHeaders.filter((_, i) => i !== idx) })} style={{ color: '#ef4444', background: 'none', border: 'none' }}><Trash2 size={14} /></button>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <input type="range" min="8" max="20" value={sh.fontSize || 12} onChange={e => handleUpdateSubHeader(idx, 'fontSize', parseInt(e.target.value))} style={{ flex: 1, height: '4px', cursor: 'pointer' }} />
-                                    <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{sh.fontSize || 12}pt</span>
+                            <div className="studio-section">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Date Corner</label>
+                                <div className="studio-card">
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: config.showDateCorner ? '0.75rem' : 0 }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.showDateCorner} 
+                                            onChange={e => updateConfig({ showDateCorner: e.target.checked })} 
+                                            style={{ width: '15px', height: '15px', accentColor: 'var(--primary)' }}
+                                        />
+                                        Show Date in Top-Right Corner
+                                    </label>
+                                    {config.showDateCorner && (
+                                        <input 
+                                            type="date" 
+                                            value={config.reportDate} 
+                                            onChange={e => updateConfig({ reportDate: e.target.value })} 
+                                            style={{ 
+                                                width: '100%', 
+                                                padding: '0.5rem', 
+                                                borderRadius: '8px', 
+                                                border: '1px solid var(--border)', 
+                                                background: 'var(--background)', 
+                                                color: 'var(--text-main)', 
+                                                fontSize: '0.8rem',
+                                                outline: 'none'
+                                            }} 
+                                        />
+                                    )}
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        </>
+                    )}
 
-                    {/* SECTION 3: DATA RANGE */}
-                    <div className="studio-section">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>3. Data Range & Phases</label>
-                        <div className="studio-card">
-                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem' }} />
-                                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem' }} />
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                                <button onClick={() => setSelectedPhaseIds([])} style={{ width: '100%', textAlign: 'left', padding: '0.6rem', borderRadius: '8px', border: 'none', background: selectedPhaseIds.length === 0 ? 'var(--primary)' : 'var(--background)', color: selectedPhaseIds.length === 0 ? 'white' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>Whole Project</button>
-                                {localPhases.map(ph => (
-                                    <button key={ph.id} onClick={(e) => e.shiftKey ? setSelectedPhaseIds(p => p.includes(ph.id) ? p.filter(id => id !== ph.id) : [...p, ph.id]) : setSelectedPhaseIds([ph.id]) } style={{ width: '100%', textAlign: 'left', padding: '0.6rem', borderRadius: '8px', border: 'none', background: selectedPhaseIds.includes(ph.id) ? 'var(--secondary)' : 'var(--background)', color: selectedPhaseIds.includes(ph.id) ? 'white' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600 }}>{ph.name}</button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SECTION 4: TABLE LAB */}
-                    <div className="studio-section">
-                        <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>4. Structure & Tables</label>
-                        
-                        <div className={`studio-card ${settings.reportSections.journal ? 'context-settings-active' : ''}`}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => updateSettings({ reportSections: { ...settings.reportSections, journal: !settings.reportSections.journal } })}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <input type="checkbox" checked={settings.reportSections.journal} readOnly />
-                                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Journal Entries</span>
-                                </div>
-                                <ChevronDown size={18} style={{ transform: expandedSections.journal ? 'rotate(180deg)' : '', transition: '0.2s' }} onClick={(e) => { e.stopPropagation(); setExpandedSections(p => ({ ...p, journal: !p.journal })) }} />
-                            </div>
-                            {expandedSections.journal && settings.reportSections.journal && (
-                                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                    {["Date", "Phase", "From", "To", "Category", "Description", "Amount"].map(col => (
-                                        <button key={col} onClick={() => toggleColumn('journal', col)} style={{ fontSize: '0.65rem', padding: '0.4rem 0.6rem', borderRadius: '6px', cursor: 'pointer', background: config.selectedColumns.journal.includes(col) ? 'rgba(79,70,229,0.1)' : 'white', color: config.selectedColumns.journal.includes(col) ? 'var(--primary)' : '#94a3b8', border: '1px solid ' + (config.selectedColumns.journal.includes(col) ? 'var(--primary)' : '#e2e8f0') }}>{col}</button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className={`studio-card ${settings.reportSections.ledger ? 'context-settings-active' : ''}`}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => updateSettings({ reportSections: { ...settings.reportSections, ledger: !settings.reportSections.ledger } })}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <input type="checkbox" checked={settings.reportSections.ledger} readOnly />
-                                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>General Ledger</span>
-                                </div>
-                                <ChevronDown size={18} style={{ transform: expandedSections.ledger ? 'rotate(180deg)' : '', transition: '0.2s' }} onClick={(e) => { e.stopPropagation(); setExpandedSections(p => ({ ...p, ledger: !p.ledger })) }} />
-                            </div>
-                            {expandedSections.ledger && settings.reportSections.ledger && (
-                                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>COLUMNS</p>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
-                                        {["Date", "Phase", "Debit", "Credit", "Running Balance"].map(col => (
-                                            <button key={col} onClick={() => toggleColumn('ledger', col)} style={{ fontSize: '0.65rem', padding: '0.35rem 0.65rem', borderRadius: '6px', background: config.selectedColumns.ledger.includes(col) ? 'rgba(79,70,229,0.1)' : 'white', color: config.selectedColumns.ledger.includes(col) ? 'var(--primary)' : '#94a3b8', border: '1px solid #e2e8f0' }}>{col}</button>
-                                        ))}
-                                    </div>
-                                    <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>ACCOUNTS</p>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '100px', overflowY: 'auto' }}>
-                                        {allAccounts.map(acc => (
-                                            <button key={acc.id} onClick={() => updateConfig({ ledgerAccounts: config.ledgerAccounts.includes(acc.name) ? config.ledgerAccounts.filter(a => a !== acc.name) : [...config.ledgerAccounts, acc.name] })} style={{ fontSize: '0.6rem', padding: '0.3rem 0.5rem', borderRadius: '6px', background: config.ledgerAccounts.includes(acc.name) ? 'var(--primary)' : 'white', color: config.ledgerAccounts.includes(acc.name) ? 'white' : '#64748b', border: '1px solid #e2e8f0' }}>{acc.name}</button>
-                                        ))}
+                    {/* TAB 2: DATA & FILTERS */}
+                    {activeControlTab === 'filters' && (
+                        <>
+                            <div className="studio-section">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Date Filtering</label>
+                                <div className="studio-card">
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        <div>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Start Date</span>
+                                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem', outline: 'none' }} />
+                                        </div>
+                                        <div>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>End Date</span>
+                                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.8rem', outline: 'none' }} />
+                                        </div>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-
-                        <div className={`studio-card ${settings.reportSections.trialBalance ? 'context-settings-active' : ''}`}>
-                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => updateSettings({ reportSections: { ...settings.reportSections, trialBalance: !settings.reportSections.trialBalance } })}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <input type="checkbox" checked={settings.reportSections.trialBalance} readOnly />
-                                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Trial Balance</span>
-                                </div>
-                                <ChevronDown size={18} style={{ transform: expandedSections.tb ? 'rotate(180deg)' : '', transition: '0.2s' }} onClick={(e) => { e.stopPropagation(); setExpandedSections(p => ({ ...p, tb: !p.tb })) }} />
                             </div>
-                            {expandedSections.tb && settings.reportSections.trialBalance && (
-                                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                    {["Account Name", "Debit Balance", "Credit Balance"].map(col => (
-                                        <button key={col} onClick={() => toggleColumn('trialBalance', col)} style={{ fontSize: '0.65rem', padding: '0.4rem 0.6rem', borderRadius: '6px', background: config.selectedColumns.trialBalance.includes(col) ? 'rgba(79,70,229,0.1)' : 'white', color: config.selectedColumns.trialBalance.includes(col) ? 'var(--primary)' : '#94a3b8', border: '1px solid ' + (config.selectedColumns.trialBalance.includes(col) ? 'var(--primary)' : '#e2e8f0') }}>{col}</button>
+
+                            <div className="studio-section">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Filter by Phase</label>
+                                <div className="studio-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.75rem' }}>
+                                    <button 
+                                        onClick={() => setSelectedPhaseIds([])} 
+                                        style={{ 
+                                            width: '100%', 
+                                            textAlign: 'left', 
+                                            padding: '0.5rem 0.75rem', 
+                                            borderRadius: '8px', 
+                                            border: 'none', 
+                                            background: selectedPhaseIds.length === 0 ? 'var(--primary)' : 'var(--background)', 
+                                            color: selectedPhaseIds.length === 0 ? 'var(--btn-primary-text)' : 'var(--text-main)', 
+                                            fontSize: '0.8rem', 
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease'
+                                        }}
+                                    >
+                                        Whole Project
+                                    </button>
+                                    {localPhases.map(ph => (
+                                        <button 
+                                            key={ph.id} 
+                                            onClick={(e) => e.shiftKey ? setSelectedPhaseIds(p => p.includes(ph.id) ? p.filter(id => id !== ph.id) : [...p, ph.id]) : setSelectedPhaseIds([ph.id]) } 
+                                            style={{ 
+                                                width: '100%', 
+                                                textAlign: 'left', 
+                                                padding: '0.5rem 0.75rem', 
+                                                borderRadius: '8px', 
+                                                border: 'none', 
+                                                background: selectedPhaseIds.includes(ph.id) ? 'var(--secondary)' : 'var(--background)', 
+                                                color: selectedPhaseIds.includes(ph.id) ? 'white' : 'var(--text-muted)', 
+                                                fontSize: '0.8rem', 
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s ease'
+                                            }}
+                                            title="Shift + Click to select multiple phases"
+                                        >
+                                            {ph.name}
+                                        </button>
                                     ))}
                                 </div>
-                            )}
-                        </div>
-                    </div>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', fontStyle: 'italic' }}>* Shift + Click to select multiple phases.</span>
+                            </div>
+
+                            <div className="studio-section">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Global Settings</label>
+                                <div className="studio-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.useRomanNumerals !== false} 
+                                            onChange={() => updateConfig({ useRomanNumerals: !config.useRomanNumerals })} 
+                                            style={{ width: '15px', height: '15px', accentColor: 'var(--primary)' }}
+                                        />
+                                        Use Roman Numeral Headings
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.combineLedgerAccounts} 
+                                            onChange={() => updateConfig({ combineLedgerAccounts: !config.combineLedgerAccounts })} 
+                                            style={{ width: '15px', height: '15px', accentColor: 'var(--primary)' }}
+                                        />
+                                        Combine Ledger in 1 Table
+                                    </label>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                        <input 
+                                            type="checkbox" 
+                                            checked={config.showFooterNote} 
+                                            onChange={() => updateConfig({ showFooterNote: !config.showFooterNote })} 
+                                            style={{ width: '15px', height: '15px', accentColor: 'var(--primary)' }}
+                                        />
+                                        Show Footer Note
+                                    </label>
+                                    {config.showFooterNote && (
+                                        <input 
+                                            type="text" 
+                                            value={config.footerNote} 
+                                            onChange={e => updateConfig({ footerNote: e.target.value })} 
+                                            placeholder="Footer text..." 
+                                            style={{ 
+                                                width: '100%', 
+                                                padding: '0.5rem', 
+                                                borderRadius: '8px', 
+                                                border: '1px solid var(--border)', 
+                                                background: 'var(--background)', 
+                                                color: 'var(--text-main)', 
+                                                fontSize: '0.8rem',
+                                                outline: 'none'
+                                            }} 
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* TAB 3: TABLE COLUMNS */}
+                    {activeControlTab === 'columns' && (
+                        <>
+                            <div className="studio-section">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Include Sections & Columns</label>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    {/* JOURNAL CARD */}
+                                    <div className="studio-card" style={{ padding: '1rem', borderLeft: settings.reportSections.journal ? '4px solid var(--primary)' : '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => updateSettings({ reportSections: { ...settings.reportSections, journal: !settings.reportSections.journal } })}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <input type="checkbox" checked={settings.reportSections.journal} readOnly style={{ accentColor: 'var(--primary)' }} />
+                                                <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-main)' }}>I. Journal Entries</span>
+                                            </div>
+                                            <ChevronDown size={16} style={{ transform: expandedSections.journal ? 'rotate(180deg)' : '', transition: '0.2s', color: 'var(--text-muted)' }} onClick={(e) => { e.stopPropagation(); setExpandedSections(p => ({ ...p, journal: !p.journal })) }} />
+                                        </div>
+                                        {expandedSections.journal && settings.reportSections.journal && (
+                                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                                                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>VISIBLE COLUMNS</p>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                                    {["Date", "Phase", "From", "To", "Category", "Description", "Amount"].map(col => {
+                                                        const isSelected = config.selectedColumns.journal.includes(col);
+                                                        return (
+                                                            <button 
+                                                                key={col} 
+                                                                onClick={() => toggleColumn('journal', col)} 
+                                                                style={{ 
+                                                                    fontSize: '0.65rem', 
+                                                                    padding: '0.3rem 0.55rem', 
+                                                                    borderRadius: '6px', 
+                                                                    cursor: 'pointer', 
+                                                                    background: isSelected ? 'var(--primary)' : 'var(--background)', 
+                                                                    color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-muted)', 
+                                                                    border: '1px solid ' + (isSelected ? 'var(--primary)' : 'var(--border)'),
+                                                                    fontWeight: 600
+                                                                }}
+                                                            >
+                                                                {col}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* LEDGER CARD */}
+                                    <div className="studio-card" style={{ padding: '1rem', borderLeft: settings.reportSections.ledger ? '4px solid var(--primary)' : '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => updateSettings({ reportSections: { ...settings.reportSections, ledger: !settings.reportSections.ledger } })}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <input type="checkbox" checked={settings.reportSections.ledger} readOnly style={{ accentColor: 'var(--primary)' }} />
+                                                <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-main)' }}>II. General Ledger</span>
+                                            </div>
+                                            <ChevronDown size={16} style={{ transform: expandedSections.ledger ? 'rotate(180deg)' : '', transition: '0.2s', color: 'var(--text-muted)' }} onClick={(e) => { e.stopPropagation(); setExpandedSections(p => ({ ...p, ledger: !p.ledger })) }} />
+                                        </div>
+                                        {expandedSections.ledger && settings.reportSections.ledger && (
+                                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                                                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.4rem', letterSpacing: '0.5px' }}>VISIBLE COLUMNS</p>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
+                                                    {["Date", "Phase", "Debit", "Credit", "Running Balance"].map(col => {
+                                                        const isSelected = config.selectedColumns.ledger.includes(col);
+                                                        return (
+                                                            <button 
+                                                                key={col} 
+                                                                onClick={() => toggleColumn('ledger', col)} 
+                                                                style={{ 
+                                                                    fontSize: '0.65rem', 
+                                                                    padding: '0.3rem 0.55rem', 
+                                                                    borderRadius: '6px', 
+                                                                    cursor: 'pointer',
+                                                                    background: isSelected ? 'var(--primary)' : 'var(--background)', 
+                                                                    color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-muted)', 
+                                                                    border: '1px solid ' + (isSelected ? 'var(--primary)' : 'var(--border)'),
+                                                                    fontWeight: 600
+                                                                }}
+                                                            >
+                                                                {col}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.4rem', letterSpacing: '0.5px' }}>FILTER ACCOUNTS</p>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '100px', overflowY: 'auto', background: 'var(--background)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                                    {allAccounts.map(acc => {
+                                                        const isSelected = config.ledgerAccounts.includes(acc.name);
+                                                        return (
+                                                            <button 
+                                                                key={acc.id} 
+                                                                onClick={() => updateConfig({ ledgerAccounts: isSelected ? config.ledgerAccounts.filter(a => a !== acc.name) : [...config.ledgerAccounts, acc.name] })} 
+                                                                style={{ 
+                                                                    fontSize: '0.6rem', 
+                                                                    padding: '0.25rem 0.45rem', 
+                                                                    borderRadius: '6px', 
+                                                                    cursor: 'pointer',
+                                                                    background: isSelected ? 'var(--primary)' : 'var(--surface)', 
+                                                                    color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-muted)', 
+                                                                    border: '1px solid var(--border)',
+                                                                    fontWeight: 600
+                                                                }}
+                                                            >
+                                                                {acc.name}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* TRIAL BALANCE CARD */}
+                                    <div className="studio-card" style={{ padding: '1rem', borderLeft: settings.reportSections.trialBalance ? '4px solid var(--primary)' : '1px solid var(--border)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => updateSettings({ reportSections: { ...settings.reportSections, trialBalance: !settings.reportSections.trialBalance } })}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <input type="checkbox" checked={settings.reportSections.trialBalance} readOnly style={{ accentColor: 'var(--primary)' }} />
+                                                <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-main)' }}>III. Trial Balance</span>
+                                            </div>
+                                            <ChevronDown size={16} style={{ transform: expandedSections.tb ? 'rotate(180deg)' : '', transition: '0.2s', color: 'var(--text-muted)' }} onClick={(e) => { e.stopPropagation(); setExpandedSections(p => ({ ...p, tb: !p.tb })) }} />
+                                        </div>
+                                        {expandedSections.tb && settings.reportSections.trialBalance && (
+                                            <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                                                <p style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>VISIBLE COLUMNS</p>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                                    {["Account Name", "Debit Balance", "Credit Balance"].map(col => {
+                                                        const isSelected = config.selectedColumns.trialBalance.includes(col);
+                                                        return (
+                                                            <button 
+                                                                key={col} 
+                                                                onClick={() => toggleColumn('trialBalance', col)} 
+                                                                style={{ 
+                                                                    fontSize: '0.65rem', 
+                                                                    padding: '0.3rem 0.55rem', 
+                                                                    borderRadius: '6px', 
+                                                                    cursor: 'pointer',
+                                                                    background: isSelected ? 'var(--primary)' : 'var(--background)', 
+                                                                    color: isSelected ? 'var(--btn-primary-text)' : 'var(--text-muted)', 
+                                                                    border: '1px solid ' + (isSelected ? 'var(--primary)' : 'var(--border)'),
+                                                                    fontWeight: 600
+                                                                }}
+                                                            >
+                                                                {col}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
                 </div>
             </div>
             {/* RIGHT SIDE: LIVE PREVIEW */}
