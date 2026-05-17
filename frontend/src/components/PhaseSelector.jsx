@@ -392,6 +392,49 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     </div>
                 )}
 
+                {/* Overall Project Dashboard Redirect Button */}
+                {!loading && phases.length > 0 && (
+                    <button 
+                        onClick={() => onSelectPhase(null)}
+                        className="glass-panel animate-in"
+                        style={{
+                            width: '100%',
+                            padding: '1.25rem',
+                            borderRadius: '16px',
+                            background: 'rgba(2, 132, 199, 0.06)',
+                            border: '1px solid rgba(2, 132, 199, 0.25)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.75rem',
+                            cursor: 'pointer',
+                            color: 'var(--primary)',
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            transition: 'all 0.2s ease',
+                            boxShadow: 'var(--shadow-sm)',
+                            outline: 'none',
+                            marginTop: '0.5rem',
+                            marginBottom: '0.5rem'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = 'rgba(2, 132, 199, 0.12)';
+                            e.currentTarget.style.borderColor = 'var(--primary)';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 8px 24px rgba(2, 132, 199, 0.15)';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = 'rgba(2, 132, 199, 0.06)';
+                            e.currentTarget.style.borderColor = 'rgba(2, 132, 199, 0.25)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                        }}
+                    >
+                        <span>📂 Open Overall Project Ledger & Dashboard (All Stages)</span>
+                        <span style={{ fontSize: '1.1rem', transition: 'transform 0.2s' }} className="arrow-icon">➔</span>
+                    </button>
+                )}
+
                 {loading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
                         <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Syncing phase balances...</span>
