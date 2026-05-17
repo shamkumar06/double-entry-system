@@ -34,6 +34,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use('/uploads', express.static(uploadsDir));
 
+// --- Request Logger Middleware ---
+app.use((req, _res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // --- Routes ---
 app.get('/api/health', async (_req, res) => {
   try {

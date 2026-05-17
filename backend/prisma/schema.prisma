@@ -70,15 +70,20 @@ model Project {
 }
 
 model Phase {
-  id              String   @id @default(uuid())
-  projectId       String
-  name            String
-  description     String?
-  estimatedBudget Decimal  @default(0) @db.Decimal(15, 2)
-  receivedAmount  Decimal  @default(0) @db.Decimal(15, 2)
-  isSettled       Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(uuid())
+  projectId        String
+  name             String
+  description      String?
+  estimatedBudget  Decimal  @default(0) @db.Decimal(15, 2)
+  receivedAmount   Decimal  @default(0) @db.Decimal(15, 2)
+  receivedFrom     String?
+  receivedTo       String?
+  paymentMode      String?
+  reference        String?
+  requestLetterUrl String?
+  isSettled        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   transactions Transaction[]

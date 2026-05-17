@@ -80,17 +80,21 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
+    const folder = (req.query.folder as string) || 'receipts';
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
+    // Generate unique filename since memoryStorage does not populate req.file.filename
+    const ext = req.file.originalname ? req.file.originalname.substring(req.file.originalname.lastIndexOf('.')) : '.png';
+    const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
     if (supabaseUrl && supabaseKey) {
       try {
-        const filePath = req.file.path;
-        const fileBuffer = fs.readFileSync(filePath);
+        const fileBuffer = req.file.buffer;
         
-        // Upload to Supabase Storage REST API
+        // Upload to Supabase Storage REST API inside specific subfolder
         await axios.post(
-          `${supabaseUrl}/storage/v1/object/attachments/${req.file.filename}`,
+          `${supabaseUrl}/storage/v1/object/attachments/${folder}/${uniqueFilename}`,
           fileBuffer,
           {
             headers: {
@@ -101,24 +105,25 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
           }
         );
 
-        // Delete the temporary file from local uploads folder
-        try {
-          fs.unlinkSync(filePath);
-        } catch (err) {
-          console.error('Failed to delete temp file:', err);
-        }
-
         // Return the absolute public URL of the uploaded asset in Supabase bucket
-        const url = `${supabaseUrl}/storage/v1/object/public/attachments/${req.file.filename}`;
+        const url = `${supabaseUrl}/storage/v1/object/public/attachments/${folder}/${uniqueFilename}`;
         res.json({ success: true, data: { url } });
         return;
       } catch (err: any) {
-        console.error('Supabase upload error, falling back to local storage:', err.message || err);
+        const errorDetail = err.response?.data ? JSON.stringify(err.response.data) : (err.message || err);
+        console.error('Supabase upload error, falling back to local storage:', errorDetail);
       }
     }
 
     // Fallback: For local dev, serve from /uploads
-    const url = `/uploads/${req.file.filename}`;
+    try {
+      const localPath = `${__dirname}/../../uploads/${uniqueFilename}`;
+      fs.writeFileSync(localPath, req.file.buffer);
+    } catch (writeErr) {
+      console.warn('Failed to write local fallback file (expected on Vercel):', writeErr);
+    }
+
+    const url = `/uploads/${uniqueFilename}`;
     res.json({ success: true, data: { url } });
   } catch (err) { next(err); }
 };

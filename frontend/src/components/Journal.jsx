@@ -13,6 +13,8 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
     const [phases, setPhases] = useState([]);
     const [selectedPhaseId, setSelectedPhaseId] = useState(phaseId || null);
     const [searchTerm, setSearchTerm] = useState("");
+    const [lightboxImage, setLightboxImage] = useState(null);
+    const [lightboxTitle, setLightboxTitle] = useState('');
 
     const fetchJournal = async () => {
         setLoading(true);
@@ -190,17 +192,8 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                                     <button 
                                                         onClick={() => {
                                                             const url = getImageUrl(tx.attachmentUrl);
-                                                            const filename = `${tx.description || 'Receipt'}.${url.toLowerCase().endsWith('.pdf') ? 'pdf' : 'png'}`;
-                                                            const link = document.createElement('a');
-                                                            fetch(url).then(res => res.blob()).then(blob => {
-                                                                const blobUrl = window.URL.createObjectURL(blob);
-                                                                link.href = blobUrl;
-                                                                link.download = filename;
-                                                                document.body.appendChild(link);
-                                                                link.click();
-                                                                document.body.removeChild(link);
-                                                                window.URL.revokeObjectURL(blobUrl);
-                                                            }).catch(() => window.open(url, '_blank'));
+                                                            setLightboxImage(url);
+                                                            setLightboxTitle(`${tx.description || 'Receipt'} - Bill`);
                                                         }}
                                                         style={{ 
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.3rem', 
@@ -217,17 +210,8 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                                     <button 
                                                         onClick={() => {
                                                             const url = getImageUrl(tx.gpayScreenshotUrl);
-                                                            const filename = `${tx.description || 'GPay'}.png`;
-                                                            const link = document.createElement('a');
-                                                            fetch(url).then(res => res.blob()).then(blob => {
-                                                                const blobUrl = window.URL.createObjectURL(blob);
-                                                                link.href = blobUrl;
-                                                                link.download = filename;
-                                                                document.body.appendChild(link);
-                                                                link.click();
-                                                                document.body.removeChild(link);
-                                                                window.URL.revokeObjectURL(blobUrl);
-                                                            }).catch(() => window.open(url, '_blank'));
+                                                            setLightboxImage(url);
+                                                            setLightboxTitle(`${tx.description || 'GPay'} - GPay / UPI`);
                                                         }}
                                                         style={{ 
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.3rem', 
@@ -244,17 +228,8 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                                     <button 
                                                         onClick={() => {
                                                             const url = getImageUrl(tx.materialImageUrl);
-                                                            const filename = `${tx.description || 'Material'}.png`;
-                                                            const link = document.createElement('a');
-                                                            fetch(url).then(res => res.blob()).then(blob => {
-                                                                const blobUrl = window.URL.createObjectURL(blob);
-                                                                link.href = blobUrl;
-                                                                link.download = filename;
-                                                                document.body.appendChild(link);
-                                                                link.click();
-                                                                document.body.removeChild(link);
-                                                                window.URL.revokeObjectURL(blobUrl);
-                                                            }).catch(() => window.open(url, '_blank'));
+                                                            setLightboxImage(url);
+                                                            setLightboxTitle(`${tx.description || 'Material'} - Photo`);
                                                         }}
                                                         style={{ 
                                                             display: 'inline-flex', alignItems: 'center', gap: '0.3rem', 
@@ -319,6 +294,62 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.description || 'No Description'}</div>
                                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDate(tx.date)} • {primaryAccount}</div>
+                                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                                                    {tx.attachmentUrl && (
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const url = getImageUrl(tx.attachmentUrl);
+                                                                setLightboxImage(url);
+                                                                setLightboxTitle(`${tx.description || 'Receipt'} - Bill`);
+                                                            }}
+                                                            style={{ 
+                                                                display: 'inline-flex', alignItems: 'center', gap: '0.2rem', 
+                                                                fontSize: '0.65rem', fontWeight: 700, color: 'var(--primary)', 
+                                                                background: 'var(--surface-hover)', border: '1px solid var(--border)', 
+                                                                padding: '0.15rem 0.4rem', borderRadius: '4px', cursor: 'pointer' 
+                                                            }}
+                                                        >
+                                                            📄 Bill
+                                                        </button>
+                                                    )}
+                                                    {tx.gpayScreenshotUrl && (
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const url = getImageUrl(tx.gpayScreenshotUrl);
+                                                                setLightboxImage(url);
+                                                                setLightboxTitle(`${tx.description || 'GPay'} - GPay / UPI`);
+                                                            }}
+                                                            style={{ 
+                                                                display: 'inline-flex', alignItems: 'center', gap: '0.2rem', 
+                                                                fontSize: '0.65rem', fontWeight: 700, color: '#10b981', 
+                                                                background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', 
+                                                                padding: '0.15rem 0.4rem', borderRadius: '4px', cursor: 'pointer' 
+                                                            }}
+                                                        >
+                                                            📱 GPay
+                                                        </button>
+                                                    )}
+                                                    {tx.materialImageUrl && (
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const url = getImageUrl(tx.materialImageUrl);
+                                                                setLightboxImage(url);
+                                                                setLightboxTitle(`${tx.description || 'Material'} - Photo`);
+                                                            }}
+                                                            style={{ 
+                                                                display: 'inline-flex', alignItems: 'center', gap: '0.2rem', 
+                                                                fontSize: '0.65rem', fontWeight: 700, color: '#3b82f6', 
+                                                                background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', 
+                                                                padding: '0.15rem 0.4rem', borderRadius: '4px', cursor: 'pointer' 
+                                                            }}
+                                                        >
+                                                            📷 Photo
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
@@ -421,6 +452,44 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                         setShowRecycleBin(false);
                     }}
                 />
+            )}
+
+            {lightboxImage && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+                    background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(8px)',
+                    zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '2rem'
+                }} onClick={() => setLightboxImage(null)}>
+                    <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '1rem' }}>
+                        <button onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(lightboxImage, '_blank');
+                        }} style={{
+                            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff',
+                            padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
+                        }}>
+                            📥 Open Original
+                        </button>
+                        <button onClick={() => setLightboxImage(null)} style={{
+                            background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff',
+                            width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '1.2rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>✕</button>
+                    </div>
+                    <div style={{ color: '#fff', marginBottom: '1rem', fontWeight: 700, fontSize: '1.1rem', textAlign: 'center' }}>{lightboxTitle}</div>
+                    <div style={{
+                        maxWidth: '90%', maxHeight: '80%', borderRadius: '12px', overflow: 'hidden',
+                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000'
+                    }} onClick={e => e.stopPropagation()}>
+                        {lightboxImage.toLowerCase().endsWith('.pdf') ? (
+                            <iframe src={lightboxImage} style={{ width: '80vw', height: '75vh', border: 'none' }} title={lightboxTitle} />
+                        ) : (
+                            <img src={lightboxImage} style={{ maxWidth: '100%', maxHeight: '75vh', objectFit: 'contain' }} alt={lightboxTitle} />
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );

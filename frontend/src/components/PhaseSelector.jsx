@@ -13,7 +13,8 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
         name: '', description: '', estimatedBudget: '',
         received_amount: '',
         received_from: '', received_to: '',
-        payment_mode: 'Bank Transfer', reference: ''
+        payment_mode: 'Bank Transfer', reference: '',
+        request_letter_url: ''
     });
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
@@ -22,9 +23,11 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
         name: '', description: '', estimatedBudget: '',
         received_amount: '',
         received_from: '', received_to: '',
-        payment_mode: '', reference: '',
+        payment_mode: 'Bank Transfer', reference: '',
+        request_letter_url: '',
         isSettled: false
     });
+    const [uploadingRequestLetter, setUploadingRequestLetter] = useState(false);
 
     // ── Custom Confirmation Dialog state ─────────────
     const [confirmDialog, setConfirmDialog] = useState({
@@ -66,6 +69,25 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
 
     useEffect(() => { fetchPhases(); }, [project.id]);
 
+    const handleRequestLetterChange = async (e, isEdit = false) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploadingRequestLetter(true);
+        try {
+            const url = await accountingApi.uploadReceipt(file);
+            if (isEdit) {
+                setEditData(prev => ({ ...prev, request_letter_url: url }));
+            } else {
+                setNewPhase(prev => ({ ...prev, request_letter_url: url }));
+            }
+        } catch (err) {
+            console.error("Upload error", err);
+            alert("Failed to upload request letter. " + (err?.error || err.message));
+        } finally {
+            setUploadingRequestLetter(false);
+        }
+    };
+
     const handleCreate = async (e) => {
         e.preventDefault();
         if (!newPhase.name.trim()) return;
@@ -87,13 +109,19 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     name: newPhase.name.trim(),
                     description: newPhase.description.trim(),
                     estimatedBudget: newAlloc,
-                    receivedAmount: receivedAmt
+                    receivedAmount: receivedAmt,
+                    receivedFrom: newPhase.received_from.trim(),
+                    receivedTo: newPhase.received_to.trim(),
+                    paymentMode: newPhase.payment_mode,
+                    reference: newPhase.reference.trim(),
+                    requestLetterUrl: newPhase.request_letter_url
                 });
                 setNewPhase({ 
                     name: '', description: '', estimatedBudget: '',
                     received_amount: '',
                     received_from: '', received_to: '',
-                    payment_mode: 'Bank Transfer', reference: ''
+                    payment_mode: 'Bank Transfer', reference: '',
+                    request_letter_url: ''
                 });
                 setCreating(false);
                 await fetchPhases();
@@ -145,6 +173,11 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     description: editData.description.trim(),
                     estimatedBudget: newAlloc,
                     receivedAmount: receivedAmt,
+                    receivedFrom: editData.received_from.trim(),
+                    receivedTo: editData.received_to.trim(),
+                    paymentMode: editData.payment_mode,
+                    reference: editData.reference.trim(),
+                    requestLetterUrl: editData.request_letter_url,
                     isSettled: editData.isSettled
                 });
                 setEditingId(null);
@@ -180,10 +213,11 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
             description: phase.description || '',
             estimatedBudget: phase.estimatedBudget || '',
             received_amount: phase.receivedAmount || '',
-            received_from: phase.received_from || '',
-            received_to: phase.received_to || '',
-            payment_mode: phase.payment_mode || 'Bank Transfer',
+            received_from: phase.receivedFrom || '',
+            received_to: phase.receivedTo || '',
+            payment_mode: phase.paymentMode || 'Bank Transfer',
             reference: phase.reference || '',
+            request_letter_url: phase.requestLetterUrl || '',
             isSettled: phase.isSettled || false
         });
     };
@@ -337,6 +371,28 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                 <div>
                                     <h3 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>{phase.name}</h3>
                                     {phase.description && <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', lineClamp: 2, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>{phase.description}</p>}
+                                    {phase.requestLetterUrl && (
+                                        <div style={{ marginTop: '0.5rem' }}>
+                                            <a 
+                                                href={getImageUrl(phase.requestLetterUrl)} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer" 
+                                                style={{ 
+                                                    fontSize: '0.75rem', 
+                                                    color: 'var(--primary)', 
+                                                    textDecoration: 'none', 
+                                                    display: 'inline-flex', 
+                                                    alignItems: 'center', 
+                                                    gap: '0.25rem',
+                                                    fontWeight: 600
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                                                onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+                                            >
+                                                📎 Request Letter
+                                            </a>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div style={{ margin: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -464,13 +520,41 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                             <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Receiver Entity</label>
                                             <input type="text" placeholder="Who received the funds?" value={editingId ? editData.received_to : newPhase.received_to} onChange={e => editingId ? setEditData({...editData, received_to: e.target.value}) : setNewPhase({...newPhase, received_to: e.target.value})} />
                                         </div>
+                                        
+                                        {/* Request Letter Attachment */}
+                                        <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
+                                            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Request Letter (Optional)</label>
+                                            <label style={{
+                                                display: 'block', padding: '0.6rem 1rem',
+                                                background: 'var(--background)',
+                                                border: '1px dashed var(--border)',
+                                                borderRadius: '10px', color: 'var(--text-muted)',
+                                                fontSize: '0.85rem', fontWeight: 500,
+                                                cursor: 'pointer', textAlign: 'center',
+                                                transition: 'all 0.2s'
+                                            }}>
+                                                <input type="file" accept="image/*,.pdf" onChange={e => handleRequestLetterChange(e, !!editingId)}
+                                                    disabled={uploadingRequestLetter} style={{ display: 'none' }} />
+                                                {uploadingRequestLetter ? '⏳ Uploading...' : (editingId ? editData.request_letter_url : newPhase.request_letter_url) ? '✅ Request Letter Attached' : '📎 Attach Request Letter'}
+                                            </label>
+                                            {(editingId ? editData.request_letter_url : newPhase.request_letter_url) && (
+                                                <a 
+                                                    href={getImageUrl(editingId ? editData.request_letter_url : newPhase.request_letter_url)} 
+                                                    target="_blank" 
+                                                    rel="noreferrer" 
+                                                    style={{ display: 'block', fontSize: '0.75rem', marginTop: '0.35rem', color: 'var(--primary)', textDecoration: 'underline', textAlign: 'center' }}
+                                                >
+                                                    View Uploaded Request Letter
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
                                 <button type="button" onClick={() => { setCreating(false); setEditingId(null); }} style={{ padding: '0.8rem 2rem', border: 'none', background: 'transparent', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-                                <button type="submit" className="btn-primary" disabled={saving} style={{ padding: '0.8rem 2.5rem', fontSize: '1rem' }}>
+                                <button type="submit" className="btn-primary" disabled={saving || uploadingRequestLetter} style={{ padding: '0.8rem 2.5rem', fontSize: '1rem' }}>
                                     {saving ? 'Processing...' : (editingId ? 'Update Phase' : 'Activate Phase')}
                                 </button>
                             </div>

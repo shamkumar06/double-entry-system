@@ -216,7 +216,13 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                         style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
                                         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
                                         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                                        onError={e => { e.currentTarget.style.display = 'none'; }}
+                                        onError={e => { 
+                                            e.currentTarget.style.display = 'none';
+                                            const placeholder = document.createElement('div');
+                                            placeholder.style.cssText = 'height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem; color:var(--text-muted); padding:1rem; text-align:center;';
+                                            placeholder.innerHTML = `<span style="font-size:2rem;">📷</span><span style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Image Preview</span>`;
+                                            e.currentTarget.parentElement.appendChild(placeholder);
+                                        }}
                                     />
                                 )}
                                 {/* Zoom overlay */}

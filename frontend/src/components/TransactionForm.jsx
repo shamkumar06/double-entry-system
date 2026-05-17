@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { accountingApi } from '../services/api';
+import { accountingApi, getImageUrl } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
 import { useProjectData } from '../context/ProjectDataContext';
 
@@ -535,35 +535,69 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
 
                     {/* Uploads */}
                     <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-                        <div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <label style={labelStyle}>Receipt / Bill (Optional)</label>
                             <label style={uploadLabelStyle}>
                                 <input type="file" accept="image/*,.pdf" onChange={handleReceiptChange}
                                     disabled={uploadingReceipt} style={{ display: 'none' }} />
                                 {uploadingReceipt ? '⏳ Uploading...' : formData.receipt_url ? '✅ Bill Uploaded' : '📎 Attach Receipt'}
                             </label>
+                            {formData.receipt_url && (
+                                <div className="premium-hover" style={{ position: 'relative', marginTop: '0.75rem', width: '90px', height: '90px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface-hover)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    {formData.receipt_url.toLowerCase().endsWith('.pdf') ? (
+                                        <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: 'var(--text-muted)', gap: '0.25rem' }}>
+                                            <span style={{ fontSize: '1.5rem' }}>📄</span>
+                                            <span style={{ fontWeight: 600 }}>PDF Document</span>
+                                        </div>
+                                    ) : (
+                                        <img src={getImageUrl(formData.receipt_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Receipt" />
+                                    )}
+                                    <button type="button" onClick={() => setFormData(f => ({ ...f, receipt_url: '' }))} style={{
+                                        position: 'absolute', top: '4px', right: '4px', width: '20px', height: '20px', borderRadius: '50%',
+                                        background: 'rgba(239, 68, 68, 0.9)', border: 'none', color: '#fff', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s'
+                                    }} title="Remove attachment">✕</button>
+                                </div>
+                            )}
                             <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', textAlign: 'center' }}>
                                 💡 Attach invoice PDF or official bill.
                             </span>
                         </div>
-                        <div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <label style={labelStyle}>GPay / UPI screenshot (Optional)</label>
                             <label style={uploadLabelStyle}>
                                 <input type="file" accept="image/*" onChange={handleGpayChange}
                                     disabled={uploadingGpay} style={{ display: 'none' }} />
                                 {uploadingGpay ? '⏳ Uploading...' : formData.gpay_screenshot_url ? '✅ GPay Screenshot Uploaded' : '📱 Attach GPay / UPI'}
                             </label>
+                            {formData.gpay_screenshot_url && (
+                                <div className="premium-hover" style={{ position: 'relative', marginTop: '0.75rem', width: '90px', height: '90px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface-hover)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    <img src={getImageUrl(formData.gpay_screenshot_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="GPay Screenshot" />
+                                    <button type="button" onClick={() => setFormData(f => ({ ...f, gpay_screenshot_url: '' }))} style={{
+                                        position: 'absolute', top: '4px', right: '4px', width: '20px', height: '20px', borderRadius: '50%',
+                                        background: 'rgba(239, 68, 68, 0.9)', border: 'none', color: '#fff', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s'
+                                    }} title="Remove screenshot">✕</button>
+                                </div>
+                            )}
                             <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', textAlign: 'center' }}>
                                 💡 Attach payment transaction screenshot.
                             </span>
                         </div>
-                        <div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <label style={labelStyle}>Material Photo (Optional)</label>
                             <label style={uploadLabelStyle}>
                                 <input type="file" accept="image/*" onChange={handleMaterialChange}
                                     disabled={uploadingMaterial} style={{ display: 'none' }} />
                                 {uploadingMaterial ? '⏳ Uploading...' : formData.material_image_url ? '✅ Photo Uploaded' : '📷 Attach Photo'}
                             </label>
+                            {formData.material_image_url && (
+                                <div className="premium-hover" style={{ position: 'relative', marginTop: '0.75rem', width: '90px', height: '90px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface-hover)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                                    <img src={getImageUrl(formData.material_image_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Material Photo" />
+                                    <button type="button" onClick={() => setFormData(f => ({ ...f, material_image_url: '' }))} style={{
+                                        position: 'absolute', top: '4px', right: '4px', width: '20px', height: '20px', borderRadius: '50%',
+                                        background: 'rgba(239, 68, 68, 0.9)', border: 'none', color: '#fff', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s'
+                                    }} title="Remove photo">✕</button>
+                                </div>
+                            )}
                             <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', textAlign: 'center' }}>
                                 💡 Attach delivery or site photo.
                             </span>
