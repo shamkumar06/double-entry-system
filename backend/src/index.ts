@@ -44,6 +44,39 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
+app.get('/api/diagnose', async (_req, res) => {
+  const diagnosticResults: any = {
+    timestamp: new Date().toISOString(),
+    connectionTest: false,
+    usersQuery: null,
+    categoriesQuery: null,
+    error: null
+  };
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    diagnosticResults.connectionTest = true;
+
+    try {
+      const users = await prisma.user.findMany({ take: 2, select: { id: true, email: true, role: true } });
+      diagnosticResults.usersQuery = { success: true, count: users.length, sample: users };
+    } catch (e: any) {
+      diagnosticResults.usersQuery = { success: false, error: e.message || String(e), stack: e.stack };
+    }
+
+    try {
+      const categories = await prisma.accountCategory.findMany({ take: 2 });
+      diagnosticResults.categoriesQuery = { success: true, count: categories.length, sample: categories };
+    } catch (e: any) {
+      diagnosticResults.categoriesQuery = { success: false, error: e.message || String(e), stack: e.stack };
+    }
+
+    res.json({ success: true, diagnostics: diagnosticResults });
+  } catch (err: any) {
+    diagnosticResults.error = err.message || String(err);
+    res.status(500).json({ success: false, diagnostics: diagnosticResults });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/accounting', accountingRoutes);

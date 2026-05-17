@@ -559,31 +559,12 @@ function AppInner() {
         </button>
       </div>
 
-      {/* Floating Action Button (FAB) at bottom-right corner for Mobile */}
+      {/* Floating Action Button (FAB) at bottom-right corner */}
       {!isPhaseSettled && (
         <button 
-          className="mobile-only"
+          className="fab-button"
           onClick={() => { setEditingTransaction(null); setShowTransactionForm(true); }}
-          style={{
-            position: 'fixed',
-            bottom: '80px',
-            right: '20px',
-            width: '56px',
-            height: '56px',
-            borderRadius: '28px',
-            background: 'var(--primary)',
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 16px rgba(2, 132, 199, 0.4)',
-            border: 'none',
-            zIndex: 999,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
-          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          title="Add Transaction"
         >
           <Plus size={28} />
         </button>
