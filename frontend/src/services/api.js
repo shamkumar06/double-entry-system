@@ -118,14 +118,41 @@ export const accountingApi = {
   updateTransaction: (id, data) => api.put(`/accounting/journal/${id}`, data),
   deleteTransaction: (id) => api.delete(`/accounting/journal/${id}`),
   uploadReceipt: async (file, folder = 'receipts') => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await api.post(`/accounting/upload?folder=${folder}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return res.url || res.data?.url;
+    const supabaseUrl = 'https://sildxjncajthkoybgyno.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpbGR4am5jYWp0aGtveWJneW5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MTU5MTksImV4cCI6MjA5NDQ5MTkxOX0.kxjsPtCYJ3hFodomkg2cxljxmu--UWazKK7pzOBLlDI';
+
+    const ext = file.name ? file.name.substring(file.name.lastIndexOf('.')) : '.png';
+    const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/attachments/${folder}/${uniqueFilename}`;
+
+    try {
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': file.type || 'image/png',
+        },
+        body: file
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Supabase direct upload failed: ${errText}`);
+      }
+
+      return `${supabaseUrl}/storage/v1/object/public/attachments/${folder}/${uniqueFilename}`;
+    } catch (error) {
+      console.warn('Direct Supabase upload failed, falling back to backend upload:', error);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post(`/accounting/upload?folder=${folder}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return res.url || res.data?.url;
+    }
   },
 
   // --- Reports & Reporting ---
