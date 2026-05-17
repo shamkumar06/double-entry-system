@@ -522,6 +522,9 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                     disabled={uploadingReceipt} style={{ display: 'none' }} />
                                 {uploadingReceipt ? '⏳ Uploading...' : formData.receipt_url ? '✅ Bill Uploaded' : '📎 Attach Receipt'}
                             </label>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', textAlign: 'center' }}>
+                                💡 Attach invoice PDF, bill photo, or <strong>GPay screenshot</strong>.
+                            </span>
                         </div>
                         <div>
                             <label style={labelStyle}>Material Photo (Optional)</label>
