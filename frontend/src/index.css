@@ -458,6 +458,14 @@ input:focus, select:focus, textarea:focus {
   margin-bottom: 0.75rem;
 }
 
+/* Responsive Modal Containers */
+.modal-header-container {
+  padding: 2rem 2rem 1.5rem;
+}
+.modal-form-container {
+  padding: 1.75rem 2rem 2rem;
+}
+
 .mobile-card-actions {
   display: flex;
   align-items: center;
@@ -710,6 +718,15 @@ input:focus, select:focus, textarea:focus {
     justify-content: space-between;
     padding-top: 0.5rem;
     border-top: 1px solid var(--border);
+    }
+
+  /* Compact Modal Padding for Mobile Devices */
+  .modal-header-container {
+    padding: 1.25rem 1.25rem 0.75rem !important;
+  }
+  .modal-form-container {
+    padding: 0.75rem 1.25rem 1.5rem !important;
+    gap: 1rem !important;
   }
 }
 

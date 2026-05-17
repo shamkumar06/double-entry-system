@@ -234,8 +234,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         <div className="modal-overlay animate-in">
             <div className="glass-panel modal-content">
                 {/* Modal Header */}
-                <div style={{
-                    padding: '2rem 2rem 1.5rem',
+                <div className="modal-header-container" style={{
                     borderBottom: '1px solid var(--border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                 }}>
@@ -255,7 +254,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                     }}>✕</button>
                 </div>
 
-                <form onSubmit={handleSubmit} style={{ padding: '1.75rem 2rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <form onSubmit={handleSubmit} className="modal-form-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     
                     {/* Row 1: Amount + Account */}
                     <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
