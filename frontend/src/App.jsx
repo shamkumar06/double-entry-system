@@ -73,6 +73,14 @@ function AppInner() {
     sessionStorage.setItem('activeTab', activeTab);
   }, [activeTab]);
 
+  // Auto-close modals when switching navigation tabs
+  useEffect(() => {
+    setShowTransactionForm(false);
+    setEditingTransaction(null);
+    setShowEditModal(false);
+  }, [activeTab]);
+
+
 
   const phasesList = Array.isArray(contextProject?.phases) ? contextProject.phases : Object.values(contextProject?.phases || activeProject?.phases || {});
 
