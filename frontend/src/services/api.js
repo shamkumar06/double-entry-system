@@ -136,7 +136,13 @@ export const accountingApi = {
   uploadReceipt: async (file, folder = 'receipts') => {
     const formData = new FormData();
     formData.append('file', file);
+    const headers = {};
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
     const res = await axios.post(`${API_URL}/accounting/upload?folder=${folder}`, formData, {
+      headers,
       withCredentials: true,
     });
     return res.data?.data?.url || res.data?.url;
@@ -170,9 +176,15 @@ export const accountingApi = {
   // Word Document generator
   generateReport: async (projectId, projectName, reportType, phaseId = null, params = {}) => {
     try {
+      const headers = {};
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
       const response = await axios({
         method: 'POST',
         url: `${API_URL}/accounting/reports/generate`,
+        headers,
         data: {
           projectId,
           reportType,
