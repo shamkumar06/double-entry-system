@@ -50,9 +50,39 @@ export const deleteProject = async (id: string) => {
 // --- Phases ---
 
 export const listPhases = async (projectId: string) => {
-  return prisma.phase.findMany({
+  const phases = await prisma.phase.findMany({
     where: { projectId },
+    include: {
+      transactions: {
+        where: { isDeleted: false },
+        include: { lines: true },
+      },
+    },
     orderBy: { createdAt: 'asc' },
+  });
+
+  return phases.map((phase) => {
+    let spent_amount = 0;
+    phase.transactions.forEach((tx) => {
+      tx.lines.forEach((line) => {
+        if (line.type === 'DEBIT') {
+          spent_amount += Number(line.amount);
+        }
+      });
+    });
+
+    return {
+      id: phase.id,
+      projectId: phase.projectId,
+      name: phase.name,
+      description: phase.description,
+      estimatedBudget: Number(phase.estimatedBudget),
+      receivedAmount: Number(phase.receivedAmount),
+      isSettled: phase.isSettled,
+      createdAt: phase.createdAt,
+      updatedAt: phase.updatedAt,
+      spent_amount,
+    };
   });
 };
 

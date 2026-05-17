@@ -21,7 +21,8 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
         name: '', description: '', estimatedBudget: '',
         received_amount: '',
         received_from: '', received_to: '',
-        payment_mode: '', reference: ''
+        payment_mode: '', reference: '',
+        isSettled: false
     });
 
     const fetchPhases = async () => {
@@ -102,7 +103,8 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                 name: editData.name.trim(),
                 description: editData.description.trim(),
                 estimatedBudget: newAlloc,
-                receivedAmount: receivedAmt
+                receivedAmount: receivedAmt,
+                isSettled: editData.isSettled
             });
             setEditingId(null);
             await fetchPhases();
@@ -126,7 +128,8 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
             received_from: phase.received_from || '',
             received_to: phase.received_to || '',
             payment_mode: phase.payment_mode || 'Bank Transfer',
-            reference: phase.reference || ''
+            reference: phase.reference || '',
+            isSettled: phase.isSettled || false
         });
     };
 
@@ -185,14 +188,39 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                         {phases.map(phase => (
                             <div key={phase.id} className="glass-panel animate-in" style={{ 
                                 padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem', 
-                                border: '1px solid var(--border)', borderRadius: '24px',
+                                border: phase.isSettled ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border)', 
+                                borderRadius: '24px',
+                                boxShadow: phase.isSettled ? '0 10px 30px rgba(16, 185, 129, 0.05)' : '',
                                 opacity: deletingId === phase.id ? 0.4 : 1, transition: 'all 0.3s ease'
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <div style={{ width: '40px', height: '40px', background: 'var(--surface-hover)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>🔖</div>
-                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                        <button onClick={() => startEdit(phase)} className="btn-icon" style={{ padding: '0.4rem' }}><Edit2 size={14} /></button>
-                                        <button onClick={() => handleDelete(phase.id, phase.name)} title="Delete" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onMouseEnter={e => e.currentTarget.style.color='var(--danger)'} onMouseLeave={e => e.currentTarget.style.color='var(--text-muted)'}><Trash2 size={14} /></button>
+                                    <div style={{ 
+                                        width: '40px', height: '40px', 
+                                        background: phase.isSettled ? 'rgba(16, 185, 129, 0.1)' : 'var(--surface-hover)', 
+                                        borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' 
+                                    }}>
+                                        {phase.isSettled ? '✅' : '🔖'}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        {phase.isSettled && (
+                                            <span style={{ 
+                                                background: 'rgba(16, 185, 129, 0.1)', 
+                                                color: '#10b981', 
+                                                fontSize: '0.7rem', 
+                                                fontWeight: 700, 
+                                                padding: '0.25rem 0.6rem', 
+                                                borderRadius: '100px', 
+                                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em'
+                                            }}>
+                                                Settled
+                                            </span>
+                                        )}
+                                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                            <button onClick={() => startEdit(phase)} className="btn-icon" style={{ padding: '0.4rem' }}><Edit2 size={14} /></button>
+                                            <button onClick={() => handleDelete(phase.id, phase.name)} title="Delete" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onMouseEnter={e => e.currentTarget.style.color='var(--danger)'} onMouseLeave={e => e.currentTarget.style.color='var(--text-muted)'}><Trash2 size={14} /></button>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -214,7 +242,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                     {/* Utilization Bar */}
                                     <div style={{ marginTop: '0.2rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                                            <span>Utilization</span>
+                                            <span>{phase.isSettled ? 'Settled' : 'Utilization'}</span>
                                             <span>{(() => {
                                                 const received = parseFloat(phase.receivedAmount) || 0;
                                                 const spent = parseFloat(phase.spent_amount) || 0;
@@ -231,7 +259,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                                     if (received <= 0) return 0;
                                                     return Math.min(100, (spent / received) * 100);
                                                 })()}%`,
-                                                background: (parseFloat(phase.spent_amount || 0) > parseFloat(phase.receivedAmount || 0)) ? 'var(--danger)' : 'var(--primary)',
+                                                background: phase.isSettled ? '#10b981' : (parseFloat(phase.spent_amount || 0) > parseFloat(phase.receivedAmount || 0)) ? 'var(--danger)' : 'var(--primary)',
                                                 transition: 'width 0.3s ease'
                                             }} />
                                         </div>
@@ -277,8 +305,23 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', marginBottom: '0.6rem', fontWeight: 600, fontSize: '0.875rem' }}>Description</label>
-                                        <textarea value={editingId ? editData.description : newPhase.description} onChange={e => editingId ? setEditData({...editData, description: e.target.value}) : setNewPhase({ ...newPhase, description: e.target.value })} placeholder="Project stage details..." style={{ minHeight: '100px' }} />
+                                        <textarea value={editingId ? editData.description : newPhase.description} onChange={e => editingId ? setEditData({...editData, description: e.target.value}) : setNewPhase({ ...newPhase, description: e.target.value })} placeholder="Project stage details..." style={{ minHeight: '100px', marginBottom: editingId ? '1.5rem' : '0' }} />
                                     </div>
+                                    {editingId && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(16, 185, 129, 0.05)', padding: '1rem', borderRadius: '14px', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                                            <input 
+                                                type="checkbox" 
+                                                id="phase-settled-checkbox"
+                                                checked={editData.isSettled} 
+                                                onChange={e => setEditData({...editData, isSettled: e.target.checked})}
+                                                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#10b981' }} 
+                                            />
+                                            <div>
+                                                <label htmlFor="phase-settled-checkbox" style={{ fontWeight: 700, fontSize: '0.875rem', color: '#10b981', cursor: 'pointer', display: 'block' }}>Mark Phase as Settled</label>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Closes this phase and locks its settled budget status.</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div style={{ background: 'var(--surface)', padding: '1.5rem', borderRadius: '20px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
