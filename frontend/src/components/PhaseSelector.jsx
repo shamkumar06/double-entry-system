@@ -96,7 +96,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
         if (!file) return;
         setUploadingRequestLetter(true);
         try {
-            const url = await accountingApi.uploadReceipt(file);
+            const url = await accountingApi.uploadReceipt(file, 'letters');
             if (isEdit) {
                 setEditData(prev => ({ ...prev, request_letter_url: url }));
             } else {
