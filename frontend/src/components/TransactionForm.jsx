@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { accountingApi } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
+import { useProjectData } from '../context/ProjectDataContext';
 
 export default function TransactionForm({ projectId, phaseId, projectName, phaseName, initialData, onComplete, onCancel }) {
     const { currency } = useCurrency();
-    const [categories, setCategories] = useState([]);
+    const { categories: contextCategories } = useProjectData();
+    const [categories, setCategories] = useState(contextCategories && contextCategories.length > 0 ? contextCategories : []);
     const [phases, setPhases] = useState([]);
     
     // Extract legacy fields safely if dealing with a strict Node backend payload
@@ -31,9 +33,11 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         }
     }
     
-    // Extract actual numeric amount and category UUID from strict lines array
+    // Find initial default category synchronously on mount using pre-fetched context categories
+    const defaultCategory = contextCategories?.find(c => c.type === 'EXPENSE') || contextCategories?.[0];
+    const initialCategoryUuid = initialData?.lines?.find(l => !l.account?.name?.toLowerCase().includes('cash') && !l.account?.name?.toLowerCase().includes('bank'))?.accountId || initialData?.category_id || defaultCategory?.id || '';
+    const initialCategoryName = defaultCategory?.name || '';
     const initialAmount = initialData?.lines?.[0]?.amount || initialData?.amount || '';
-    const initialCategoryUuid = initialData?.lines?.find(l => !l.account?.name?.toLowerCase().includes('cash') && !l.account?.name?.toLowerCase().includes('bank'))?.accountId || initialData?.category_id || '';
 
     const defaultPaymentMode = initialMode.startsWith('UPI') ? 'UPI' : initialMode;
     const defaultUPIApp = defaultPaymentMode === 'UPI' && initialMode.includes('(') 
@@ -64,7 +68,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         } : {
             project_id: projectId,
             phaseId: phaseId || '',
-            category_id: '',
+            category_id: initialCategoryUuid,
+            category_name: initialCategoryName,
             project_name: projectName,
             phase_name: phaseName || '',
             amount: '',
@@ -88,43 +93,68 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
     const [submitError, setSubmitError] = useState(null);
 
-    // Load categories from Firebase on mount
+    // Synchronize or load categories
     useEffect(() => {
-        accountingApi.listCategories()
-            .then(data => {
-                setCategories(data);
-                
-                let matchingCatId = undefined;
-                let matchingCatName = undefined;
+        if (contextCategories && contextCategories.length > 0) {
+            setCategories(contextCategories);
+            
+            let matchingCatId = undefined;
+            let matchingCatName = undefined;
 
-                if (formData.category_id) {
-                    // Force upgrade legacy numeric codes to formal string UUIDs on edit
-                    const exists = data.find(c => c.code === parseInt(formData.category_id) || c.id === formData.category_id);
-                    if (exists) {
-                        matchingCatId = exists.id;
-                        matchingCatName = exists.name;
+            if (formData.category_id) {
+                const exists = contextCategories.find(c => c.code === parseInt(formData.category_id) || c.id === formData.category_id);
+                if (exists) {
+                    matchingCatId = exists.id;
+                    matchingCatName = exists.name;
+                }
+            }
+
+            if (matchingCatId) {
+                 setFormData(f => ({ ...f, category_id: matchingCatId, category_name: matchingCatName }));
+            } else if (contextCategories.length > 0 && !formData.category_id) {
+                 const defaultExp = contextCategories.find(c => c.type === 'EXPENSE') || contextCategories[0];
+                 setFormData(f => ({ 
+                     ...f, 
+                     category_id: defaultExp.id, 
+                     category_name: defaultExp.name 
+                 }));
+            }
+        } else {
+            accountingApi.listCategories()
+                .then(data => {
+                    setCategories(data);
+                    
+                    let matchingCatId = undefined;
+                    let matchingCatName = undefined;
+
+                    if (formData.category_id) {
+                        const exists = data.find(c => c.code === parseInt(formData.category_id) || c.id === formData.category_id);
+                        if (exists) {
+                            matchingCatId = exists.id;
+                            matchingCatName = exists.name;
+                        }
                     }
-                }
 
-                if (matchingCatId) {
-                     setFormData(f => ({ ...f, category_id: matchingCatId, category_name: matchingCatName }));
-                } else if (data.length > 0 && !formData.category_id) {
-                     const defaultExp = data.find(c => c.type === 'EXPENSE') || data[0];
-                     setFormData(f => ({ 
-                         ...f, 
-                         category_id: defaultExp.id, 
-                         category_name: defaultExp.name 
-                     }));
-                }
-            })
-            .catch(() => {
-                const defaults = [
-                    { id: 'offline-5001', code: 5001, name: 'Transport Expense', type: 'EXPENSE' },
-                    { id: 'offline-5002', code: 5002, name: 'Food Expense', type: 'EXPENSE' },
-                ];
-                setCategories(defaults);
-                setFormData(f => ({ ...f, category_id: defaults[0].id, category_name: 'Transport Expense' }));
-            });
+                    if (matchingCatId) {
+                         setFormData(f => ({ ...f, category_id: matchingCatId, category_name: matchingCatName }));
+                    } else if (data.length > 0 && !formData.category_id) {
+                         const defaultExp = data.find(c => c.type === 'EXPENSE') || data[0];
+                         setFormData(f => ({ 
+                             ...f, 
+                             category_id: defaultExp.id, 
+                             category_name: defaultExp.name 
+                         }));
+                    }
+                })
+                .catch(() => {
+                    const defaults = [
+                        { id: 'offline-5001', code: 5001, name: 'Transport Expense', type: 'EXPENSE' },
+                        { id: 'offline-5002', code: 5002, name: 'Food Expense', type: 'EXPENSE' },
+                    ];
+                    setCategories(defaults);
+                    setFormData(f => ({ ...f, category_id: defaults[0].id, category_name: 'Transport Expense' }));
+                });
+        }
 
         // Load project phases using dedicated endpoint
         accountingApi.listPhases(projectId)
@@ -132,7 +162,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                 setPhases(Array.isArray(phMap) ? phMap : Object.values(phMap || {}));
             })
             .catch(e => console.error("Failed to load phases for form", e));
-    }, [projectId]);
+    }, [projectId, contextCategories]);
 
     const handleReceiptChange = async (e) => {
         const file = e.target.files[0];
