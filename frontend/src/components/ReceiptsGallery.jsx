@@ -10,6 +10,21 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
     const [lightboxIndex, setLightboxIndex] = useState(null);
     const [filter, setFilter] = useState('all'); // 'all' | 'image' | 'pdf'
     const [searchTerm, setSearchTerm] = useState('');
+    const [phases, setPhases] = useState([]);
+    const [selectedPhaseId, setSelectedPhaseId] = useState(phaseId || 'all');
+
+    useEffect(() => {
+        setSelectedPhaseId(phaseId || 'all');
+    }, [phaseId]);
+
+    useEffect(() => {
+        if (!projectId) return;
+        accountingApi.listPhases(projectId)
+            .then(res => {
+                setPhases(Array.isArray(res) ? res : []);
+            })
+            .catch(err => console.error('Failed to load phases for gallery dropdown:', err));
+    }, [projectId]);
 
     useEffect(() => {
         if (!projectId) return;
@@ -51,6 +66,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                             accountName,
                             date: tx.date,
                             phaseName: tx.phase?.name || 'Whole Project',
+                            phaseId: tx.phaseId || tx.phase?.id || null
                         };
                     };
 
@@ -74,7 +90,8 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
     const filtered = receipts.filter(r => {
         const matchFilter = filter === 'all' || (filter === 'pdf' && r.isPdf) || (filter === 'image' && !r.isPdf);
         const matchSearch = !searchTerm || r.description?.toLowerCase().includes(searchTerm.toLowerCase()) || r.accountName?.toLowerCase().includes(searchTerm.toLowerCase()) || r.fromName?.toLowerCase().includes(searchTerm.toLowerCase());
-        return matchFilter && matchSearch;
+        const matchPhase = selectedPhaseId === 'all' || r.phaseId === selectedPhaseId;
+        return matchFilter && matchSearch && matchPhase;
     });
 
     const openLightbox = (idx) => setLightboxIndex(idx);
@@ -130,6 +147,38 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* Phase Filter Dropdown */}
+                    {!phaseId && phases.length > 0 && (
+                        <select
+                            value={selectedPhaseId}
+                            onChange={e => setSelectedPhaseId(e.target.value)}
+                            style={{
+                                padding: '0.5rem 2rem 0.5rem 1rem',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border)',
+                                background: 'var(--surface)',
+                                color: 'var(--text-main)',
+                                fontSize: '0.875rem',
+                                outline: 'none',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                                appearance: 'none',
+                                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='rgba%28156, 163, 175, 0.8%29' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                                backgroundRepeat: 'no-repeat',
+                                backgroundPosition: 'right 0.5rem center',
+                                backgroundSize: '1.25em',
+                                minWidth: '160px'
+                            }}
+                        >
+                            <option value="all">📁 All Stages / Phases</option>
+                            {phases.map(ph => (
+                                <option key={ph.id} value={ph.id}>
+                                    🔖 {ph.name}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+
                     {/* Search */}
                     <input
                         type="text"
