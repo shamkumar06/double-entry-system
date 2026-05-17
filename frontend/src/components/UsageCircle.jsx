@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const UsageCircle = ({ percent = 0, size = 180, strokeWidth = 6, label = "Utilization" }) => {
+const UsageCircle = ({ percent = 0, size = 180, strokeWidth = 6, label = "Utilization", isSettled = false }) => {
   const [offset, setOffset] = useState(0);
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
@@ -11,6 +11,7 @@ const UsageCircle = ({ percent = 0, size = 180, strokeWidth = 6, label = "Utiliz
   }, [percent, circumference]);
 
   const getColor = (p) => {
+    if (isSettled) return 'var(--success)';
     if (p > 90) return 'var(--danger)';
     if (p > 75) return 'var(--warning)';
     return 'var(--accent)'; // Professional blue accent

@@ -6,9 +6,19 @@ import UsageCircle from './UsageCircle';
 import EditOverviewModal from './EditOverviewModal';
 import { parseDescription } from '../utils/descriptionParser';
 
-export default function Dashboard({ projectId, projectName, phaseId, phaseName, onSelectPhase }) {
+export default function Dashboard({ projectId, projectName, phaseId, phaseName, onSelectPhase, isSettledProp }) {
     const { formatCurrency } = useCurrency();
     const { project, journal, phaseFinances, projectFinances, loading } = useProjectData();
+
+    // Derive settlement status for the active dashboard view
+    const isSettled = useMemo(() => {
+        if (isSettledProp !== undefined && phaseId) return isSettledProp;
+        if (!project) return false;
+        if (phaseId) {
+            return project.phases?.find(p => p.id === phaseId)?.isSettled || false;
+        }
+        return project.phases?.length > 0 && project.phases.every(p => p.isSettled);
+    }, [project, phaseId, isSettledProp]);
 
     // Compute stats for current view (phase or whole project) — pure derivation from context
     const stats = useMemo(() => {
@@ -59,7 +69,8 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                 allocated: budget,
                 spent: phSpent,
                 remaining: budget - phSpent,
-                pct: phPct
+                pct: phPct,
+                isSettled: ph.isSettled
             };
         });
     }, [project, phaseFinances, phaseId]);
@@ -87,12 +98,26 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             {/* Executive Hero Section */}
-            <div className="dashboard-hero">
+            <div className={`dashboard-hero ${isSettled ? 'settled-theme' : ''}`} style={{ position: 'relative' }}>
+                {isSettled && (
+                    <div className="settled-seal-container" title="Accounts session is fully settled and verified">
+                        <div className="settled-seal-ribbon-left"></div>
+                        <div className="settled-seal-ribbon-right"></div>
+                        <div className="settled-seal-wax">
+                            <div className="settled-seal-inner">
+                                <CheckCircle size={22} style={{ color: 'white', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }} />
+                                <span style={{ fontSize: '0.52rem', fontWeight: 900, letterSpacing: '0.06em', marginTop: '3px', color: 'white' }}>SETTLED</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <UsageCircle 
                     percent={stats?.spentPct || 0} 
                     size={220} 
                     strokeWidth={5}
-                    label="Utilization"
+                    label={isSettled ? "Settled" : "Utilization"}
+                    isSettled={isSettled}
                 />
                 
                 <div className="hero-stats-content">
@@ -108,11 +133,11 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         </span>
                     </div>
                     <div className="stat-card-premium">
-                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--danger)' }}>
+                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: isSettled ? 'var(--success)' : 'var(--danger)' }}>
                             <TrendingDown size={20} />
                         </div>
                         <span className="hero-stat-label">Total Spent</span>
-                        <span className="hero-stat-value" style={{ color: 'var(--danger)' }}>
+                        <span className="hero-stat-value" style={{ color: isSettled ? 'var(--success)' : 'var(--danger)' }}>
                             {formatCurrency(stats?.totalSpent)}
                         </span>
                     </div>
@@ -160,10 +185,18 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             <div key={ph.id}
                                 onClick={() => onSelectPhase && onSelectPhase(ph)}
                                 className="glass-panel phase-card premium-hover"
-                                style={{ padding: '1.25rem 1.5rem', cursor: 'pointer', border: '1px solid var(--border)', borderRadius: '16px', background: 'var(--surface)' }}
+                                style={{ 
+                                    padding: '1.25rem 1.5rem', 
+                                    cursor: 'pointer', 
+                                    border: ph.isSettled ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border)', 
+                                    borderRadius: '16px', 
+                                    background: ph.isSettled ? 'linear-gradient(135deg, var(--surface) 0%, rgba(16, 185, 129, 0.01) 100%)' : 'var(--surface)'
+                                }}
                             >
                                 <div className="phase-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                                    <span className="phase-name" style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-main)', textTransform: 'capitalize' }}>{ph.name}</span>
+                                    <span className="phase-name" style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-main)', textTransform: 'capitalize', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        {ph.name} {ph.isSettled && <CheckCircle size={14} style={{ color: 'var(--success)' }} />}
+                                    </span>
                                     <span className="phase-meta" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                                         <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{formatCurrency(ph.spent)}</span> / {formatCurrency(ph.allocated)}
                                     </span>
@@ -172,16 +205,18 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                     <div style={{
                                         height: '100%',
                                         width: `${ph.pct}%`,
-                                        background: ph.pct > 90
-                                            ? 'var(--danger)'
-                                            : 'linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%)',
+                                        background: ph.isSettled
+                                            ? 'var(--success)'
+                                            : ph.pct > 90
+                                                ? 'var(--danger)'
+                                                : 'linear-gradient(90deg, var(--accent) 0%, #60a5fa 100%)',
                                         transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1)'
                                     }} />
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.75rem', fontSize: '0.75rem' }}>
                                     <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Rem: {formatCurrency(ph.remaining)}</span>
-                                    <span style={{ color: ph.pct > 85 ? 'var(--danger)' : 'var(--accent)', fontWeight: 800 }}>
-                                        {ph.pct.toFixed(0)}%
+                                    <span style={{ color: ph.isSettled ? 'var(--success)' : ph.pct > 85 ? 'var(--danger)' : 'var(--accent)', fontWeight: 800 }}>
+                                        {ph.isSettled ? 'Settled' : `${ph.pct.toFixed(0)}%`}
                                     </span>
                                 </div>
                             </div>

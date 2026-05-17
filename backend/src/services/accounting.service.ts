@@ -22,6 +22,7 @@ interface CreateTransactionInput {
   sgst?: number;
   igst?: number;
   discount?: number;
+  actualAmount?: number;
   lines: TransactionLineInput[];
 }
 
@@ -61,6 +62,7 @@ export const createTransaction = async (input: CreateTransactionInput) => {
         sgst: input.sgst !== undefined ? new Prisma.Decimal(input.sgst) : null,
         igst: input.igst !== undefined ? new Prisma.Decimal(input.igst) : null,
         discount: input.discount !== undefined ? new Prisma.Decimal(input.discount) : null,
+        actualAmount: input.actualAmount !== undefined ? new Prisma.Decimal(input.actualAmount) : null,
         lines: {
           create: input.lines.map((l) => ({
             accountId: l.accountId,
@@ -100,6 +102,7 @@ export const updateTransaction = async (id: string, input: Partial<CreateTransac
         ...(input.sgst !== undefined && { sgst: input.sgst !== null ? new Prisma.Decimal(input.sgst) : null }),
         ...(input.igst !== undefined && { igst: input.igst !== null ? new Prisma.Decimal(input.igst) : null }),
         ...(input.discount !== undefined && { discount: input.discount !== null ? new Prisma.Decimal(input.discount) : null }),
+        ...(input.actualAmount !== undefined && { actualAmount: input.actualAmount !== null ? new Prisma.Decimal(input.actualAmount) : null }),
         ...(input.phaseId !== undefined && { phaseId: input.phaseId }),
         ...(input.lines && {
           lines: {

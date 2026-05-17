@@ -445,6 +445,7 @@ function AppInner() {
                 projectName={activeProject?.name}
                 phaseId={activePhase?.id}
                 phaseName={activePhase?.name} 
+                isSettledProp={isPhaseSettled}
                 onSelectPhase={(ph) => {
                     setActivePhase(ph);
                 }} 

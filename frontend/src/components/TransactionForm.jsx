@@ -38,6 +38,13 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     const initialCategoryUuid = initialData?.lines?.find(l => !l.account?.name?.toLowerCase().includes('cash') && !l.account?.name?.toLowerCase().includes('bank'))?.accountId || initialData?.category_id || defaultCategory?.id || '';
     const initialCategoryName = defaultCategory?.name || '';
     const initialAmount = initialData?.lines?.[0]?.amount || initialData?.amount || '';
+    const initialCgst = initialData?.cgst || '';
+    const initialSgst = initialData?.sgst || '';
+    const initialIgst = initialData?.igst || '';
+    const initialDiscount = initialData?.discount || '';
+    const initialActualAmount = initialData?.actualAmount || initialData?.actual_amount || (initialAmount 
+        ? (Number(initialAmount) - (Number(initialCgst) || 0) - (Number(initialSgst) || 0) - (Number(initialIgst) || 0) + (Number(initialDiscount) || 0)).toFixed(2)
+        : '');
 
     const defaultPaymentMode = initialMode.startsWith('UPI') ? 'UPI' : initialMode;
     const defaultUPIApp = defaultPaymentMode === 'UPI' && initialMode.includes('(') 
@@ -64,7 +71,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             cgst: initialData.cgst || '',
             sgst: initialData.sgst || '',
             igst: initialData.igst || '',
-            discount: initialData.discount || ''
+            discount: initialData.discount || '',
+            actual_amount: initialActualAmount
         } : {
             project_id: projectId,
             phaseId: phaseId || '',
@@ -85,7 +93,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             cgst: '',
             sgst: '',
             igst: '',
-            discount: ''
+            discount: '',
+            actual_amount: ''
         }
     );
     const [loading, setLoading] = useState(false);
@@ -164,6 +173,23 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             .catch(e => console.error("Failed to load phases for form", e));
     }, [projectId, contextCategories]);
 
+    // Automatically calculate Total Amount when Actual Amount, GSTs, or Discount changes
+    useEffect(() => {
+        const actual = parseFloat(formData.actual_amount);
+        const cgst = parseFloat(formData.cgst) || 0;
+        const sgst = parseFloat(formData.sgst) || 0;
+        const igst = parseFloat(formData.igst) || 0;
+        const discount = parseFloat(formData.discount) || 0;
+
+        if (!isNaN(actual)) {
+            const calculatedTotal = (actual + cgst + sgst + igst - discount);
+            setFormData(prev => ({
+                ...prev,
+                amount: calculatedTotal > 0 ? calculatedTotal.toFixed(2) : '0.00'
+            }));
+        }
+    }, [formData.actual_amount, formData.cgst, formData.sgst, formData.igst, formData.discount]);
+
     const handleReceiptChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -235,6 +261,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                 sgst: formData.sgst ? Number(formData.sgst) : undefined,
                 igst: formData.igst ? Number(formData.igst) : undefined,
                 discount: formData.discount ? Number(formData.discount) : undefined,
+                actualAmount: formData.actual_amount ? Number(formData.actual_amount) : undefined,
                 lines: lines
             };
 
@@ -449,29 +476,39 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                             <div style={{ gridColumn: '1 / -1' }}>
                                 <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 0.5rem 0' }}>Tax & Discount Details (Optional)</p>
                             </div>
+                            <div style={{ gridColumn: '1 / -1', marginBottom: '0.5rem' }}>
+                                <label style={{ ...labelStyle, color: 'var(--primary)', fontWeight: 700 }}>Actual Amount (Taxable Value / Base Amount)</label>
+                                <input type="number" step="0.01" value={formData.actual_amount}
+                                    onChange={e => setFormData({...formData, actual_amount: e.target.value})}
+                                    placeholder="Amount before tax (e.g. 100.00)"
+                                    style={{ fontSize: '1.15rem', fontWeight: 600, border: '1px solid var(--primary)', borderRadius: '10px' }} />
+                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem' }}>
+                                    💡 Entering Actual Amount auto-computes Total Gross Amount as: <strong>Actual Amount + CGST + SGST + IGST - Discount</strong>.
+                                </span>
+                            </div>
                             <div>
                                 <label style={labelStyle}>CGST Amount</label>
                                 <input type="number" step="0.01" value={formData.cgst}
                                     onChange={e => setFormData({...formData, cgst: e.target.value})}
-                                    placeholder="e.g. 18.00" />
+                                    placeholder="e.g. 9.00" />
                             </div>
                             <div>
                                 <label style={labelStyle}>SGST Amount</label>
                                 <input type="number" step="0.01" value={formData.sgst}
                                     onChange={e => setFormData({...formData, sgst: e.target.value})}
-                                    placeholder="e.g. 18.00" />
+                                    placeholder="e.g. 9.00" />
                             </div>
                             <div>
                                 <label style={labelStyle}>IGST Amount</label>
                                 <input type="number" step="0.01" value={formData.igst}
                                     onChange={e => setFormData({...formData, igst: e.target.value})}
-                                    placeholder="e.g. 36.00" />
+                                    placeholder="e.g. 18.00" />
                             </div>
                             <div>
                                 <label style={labelStyle}>Discount Amount</label>
                                 <input type="number" step="0.01" value={formData.discount}
                                     onChange={e => setFormData({...formData, discount: e.target.value})}
-                                    placeholder="e.g. 100.00" />
+                                    placeholder="e.g. 50.00" />
                             </div>
                         </div>
                     )}

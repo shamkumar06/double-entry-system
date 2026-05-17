@@ -120,6 +120,7 @@ model Transaction {
   sgst          Decimal?  @db.Decimal(15, 2)
   igst          Decimal?  @db.Decimal(15, 2)
   discount      Decimal?  @db.Decimal(15, 2)
+  actualAmount  Decimal?  @db.Decimal(15, 2)
   isDeleted     Boolean   @default(false)
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())

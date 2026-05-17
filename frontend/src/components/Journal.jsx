@@ -176,8 +176,9 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                         <td style={{ padding: '1rem', color: 'var(--text-main)' }}>{primaryAccount}</td>
                                         <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
                                             <div style={{ marginBottom: '0.4rem' }}>{pureDesc}</div>
-                                            {(tx.cgst || tx.sgst || tx.igst || tx.discount) && (
+                                            {(tx.actualAmount || tx.cgst || tx.sgst || tx.igst || tx.discount) && (
                                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                                                    {tx.actualAmount > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.15rem 0.4rem', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>Actual Amt: {formatCurrency(tx.actualAmount)}</span>}
                                                     {tx.cgst > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>CGST: {formatCurrency(tx.cgst)}</span>}
                                                     {tx.sgst > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>SGST: {formatCurrency(tx.sgst)}</span>}
                                                     {tx.igst > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6', borderRadius: '4px', border: '1px solid rgba(139, 92, 246, 0.2)' }}>IGST: {formatCurrency(tx.igst)}</span>}
