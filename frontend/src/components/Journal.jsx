@@ -185,8 +185,8 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                                     {tx.discount > 0 && <span style={{ fontSize: '0.65rem', fontWeight: 600, padding: '0.15rem 0.4rem', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>Discount: {formatCurrency(tx.discount)}</span>}
                                                 </div>
                                             )}
-                                            {tx.attachmentUrl && (
-                                                <div>
+                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                                                {tx.attachmentUrl && (
                                                     <button 
                                                         onClick={() => {
                                                             const url = getImageUrl(tx.attachmentUrl);
@@ -210,10 +210,64 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                                             borderRadius: '6px', cursor: 'pointer' 
                                                         }}
                                                     >
-                                                        <FileText size={11} /> Receipt Attached
+                                                        <FileText size={11} /> Bill
                                                     </button>
-                                                </div>
-                                            )}
+                                                )}
+                                                {tx.gpayScreenshotUrl && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            const url = getImageUrl(tx.gpayScreenshotUrl);
+                                                            const filename = `${tx.description || 'GPay'}.png`;
+                                                            const link = document.createElement('a');
+                                                            fetch(url).then(res => res.blob()).then(blob => {
+                                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                                link.href = blobUrl;
+                                                                link.download = filename;
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                                window.URL.revokeObjectURL(blobUrl);
+                                                            }).catch(() => window.open(url, '_blank'));
+                                                        }}
+                                                        style={{ 
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.3rem', 
+                                                            fontSize: '0.7rem', fontWeight: 700, color: '#10b981', 
+                                                            textTransform: 'uppercase', background: 'rgba(16, 185, 129, 0.05)', 
+                                                            border: '1px solid rgba(16, 185, 129, 0.2)', padding: '0.25rem 0.6rem', 
+                                                            borderRadius: '6px', cursor: 'pointer' 
+                                                        }}
+                                                    >
+                                                        <span>📱</span> GPay / UPI
+                                                    </button>
+                                                )}
+                                                {tx.materialImageUrl && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            const url = getImageUrl(tx.materialImageUrl);
+                                                            const filename = `${tx.description || 'Material'}.png`;
+                                                            const link = document.createElement('a');
+                                                            fetch(url).then(res => res.blob()).then(blob => {
+                                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                                link.href = blobUrl;
+                                                                link.download = filename;
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                                window.URL.revokeObjectURL(blobUrl);
+                                                            }).catch(() => window.open(url, '_blank'));
+                                                        }}
+                                                        style={{ 
+                                                            display: 'inline-flex', alignItems: 'center', gap: '0.3rem', 
+                                                            fontSize: '0.7rem', fontWeight: 700, color: '#3b82f6', 
+                                                            textTransform: 'uppercase', background: 'rgba(59, 130, 246, 0.05)', 
+                                                            border: '1px solid rgba(59, 130, 246, 0.2)', padding: '0.25rem 0.6rem', 
+                                                            borderRadius: '6px', cursor: 'pointer' 
+                                                        }}
+                                                    >
+                                                        <span>📷</span> Photo
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)' }}>
                                             {formatCurrency(txAmount)}

@@ -18,6 +18,8 @@ interface CreateTransactionInput {
   paymentMode?: string;
   reference?: string;
   attachmentUrl?: string;
+  gpayScreenshotUrl?: string;
+  materialImageUrl?: string;
   cgst?: number;
   sgst?: number;
   igst?: number;
@@ -58,6 +60,8 @@ export const createTransaction = async (input: CreateTransactionInput) => {
         paymentMode: input.paymentMode,
         reference: input.reference,
         attachmentUrl: input.attachmentUrl,
+        gpayScreenshotUrl: input.gpayScreenshotUrl,
+        materialImageUrl: input.materialImageUrl,
         cgst: input.cgst !== undefined ? new Prisma.Decimal(input.cgst) : null,
         sgst: input.sgst !== undefined ? new Prisma.Decimal(input.sgst) : null,
         igst: input.igst !== undefined ? new Prisma.Decimal(input.igst) : null,
@@ -98,6 +102,8 @@ export const updateTransaction = async (id: string, input: Partial<CreateTransac
         ...(input.paymentMode !== undefined && { paymentMode: input.paymentMode }),
         ...(input.reference !== undefined && { reference: input.reference }),
         ...(input.attachmentUrl !== undefined && { attachmentUrl: input.attachmentUrl }),
+        ...(input.gpayScreenshotUrl !== undefined && { gpayScreenshotUrl: input.gpayScreenshotUrl }),
+        ...(input.materialImageUrl !== undefined && { materialImageUrl: input.materialImageUrl }),
         ...(input.cgst !== undefined && { cgst: input.cgst !== null ? new Prisma.Decimal(input.cgst) : null }),
         ...(input.sgst !== undefined && { sgst: input.sgst !== null ? new Prisma.Decimal(input.sgst) : null }),
         ...(input.igst !== undefined && { igst: input.igst !== null ? new Prisma.Decimal(input.igst) : null }),

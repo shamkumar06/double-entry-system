@@ -115,7 +115,9 @@ model Transaction {
   toEntity      String?
   paymentMode   String?
   reference     String?
-  attachmentUrl String?
+  attachmentUrl     String?
+  gpayScreenshotUrl String?
+  materialImageUrl   String?
   cgst          Decimal?  @db.Decimal(15, 2)
   sgst          Decimal?  @db.Decimal(15, 2)
   igst          Decimal?  @db.Decimal(15, 2)

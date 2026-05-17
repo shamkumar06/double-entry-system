@@ -67,7 +67,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             reference: initialRef,
             description: initialDesc,
             receipt_url: initialData.attachmentUrl || initialData.receipt_url || '',
-            material_image_url: initialData.material_image_url || '',
+            gpay_screenshot_url: initialData.gpayScreenshotUrl || initialData.gpay_screenshot_url || '',
+            material_image_url: initialData.materialImageUrl || initialData.material_image_url || '',
             cgst: initialData.cgst || '',
             sgst: initialData.sgst || '',
             igst: initialData.igst || '',
@@ -89,6 +90,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             reference: '',
             description: '',
             receipt_url: '',
+            gpay_screenshot_url: '',
             material_image_url: '',
             cgst: '',
             sgst: '',
@@ -99,6 +101,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     );
     const [loading, setLoading] = useState(false);
     const [uploadingReceipt, setUploadingReceipt] = useState(false);
+    const [uploadingGpay, setUploadingGpay] = useState(false);
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
     const [submitError, setSubmitError] = useState(null);
 
@@ -205,6 +208,21 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         }
     };
 
+    const handleGpayChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploadingGpay(true);
+        try {
+            const url = await accountingApi.uploadReceipt(file);
+            setFormData(f => ({ ...f, gpay_screenshot_url: url }));
+        } catch (err) {
+            console.error("Upload error", err);
+            alert("Failed to upload GPay screenshot. " + (err?.error || err.message));
+        } finally {
+            setUploadingGpay(false);
+        }
+    };
+
     const handleMaterialChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -256,7 +274,9 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                 toEntity: formData.to_name,
                 paymentMode: finalPaymentMode,
                 reference: finalReference,
-                attachmentUrl: formData.receipt_url || formData.material_image_url || undefined,
+                attachmentUrl: formData.receipt_url || undefined,
+                gpayScreenshotUrl: formData.gpay_screenshot_url || undefined,
+                materialImageUrl: formData.material_image_url || undefined,
                 cgst: formData.cgst ? Number(formData.cgst) : undefined,
                 sgst: formData.sgst ? Number(formData.sgst) : undefined,
                 igst: formData.igst ? Number(formData.igst) : undefined,
@@ -514,7 +534,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                     )}
 
                     {/* Uploads */}
-                    <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                         <div>
                             <label style={labelStyle}>Receipt / Bill (Optional)</label>
                             <label style={uploadLabelStyle}>
@@ -523,7 +543,18 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                 {uploadingReceipt ? '⏳ Uploading...' : formData.receipt_url ? '✅ Bill Uploaded' : '📎 Attach Receipt'}
                             </label>
                             <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', textAlign: 'center' }}>
-                                💡 Attach invoice PDF, bill photo, or <strong>GPay screenshot</strong>.
+                                💡 Attach invoice PDF or official bill.
+                            </span>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>GPay / UPI screenshot (Optional)</label>
+                            <label style={uploadLabelStyle}>
+                                <input type="file" accept="image/*" onChange={handleGpayChange}
+                                    disabled={uploadingGpay} style={{ display: 'none' }} />
+                                {uploadingGpay ? '⏳ Uploading...' : formData.gpay_screenshot_url ? '✅ GPay Screenshot Uploaded' : '📱 Attach GPay / UPI'}
+                            </label>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', textAlign: 'center' }}>
+                                💡 Attach payment transaction screenshot.
                             </span>
                         </div>
                         <div>
@@ -533,6 +564,9 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                     disabled={uploadingMaterial} style={{ display: 'none' }} />
                                 {uploadingMaterial ? '⏳ Uploading...' : formData.material_image_url ? '✅ Photo Uploaded' : '📷 Attach Photo'}
                             </label>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem', textAlign: 'center' }}>
+                                💡 Attach delivery or site photo.
+                            </span>
                         </div>
                     </div>
 
