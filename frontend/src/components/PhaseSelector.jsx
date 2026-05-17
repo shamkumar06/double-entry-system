@@ -278,6 +278,120 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     </p>
                 </div>
 
+                {/* Overall Project Summary Dashboard */}
+                {!loading && phases.length > 0 && (
+                    <div className="glass-panel animate-in" style={{ 
+                        padding: '1.75rem', 
+                        borderRadius: '24px', 
+                        background: 'var(--surface-card, #0f172a)', 
+                        border: '1px solid var(--border)', 
+                        boxShadow: 'var(--shadow-md)',
+                        marginBottom: '1rem'
+                    }}>
+                        <h3 style={{ 
+                            fontSize: '0.8rem', 
+                            fontWeight: 800, 
+                            textTransform: 'uppercase', 
+                            letterSpacing: '0.1em', 
+                            color: 'var(--primary)', 
+                            margin: '0 0 1.25rem 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                        }}>
+                            📊 Project-Wide Financial Overview
+                        </h3>
+                        
+                        <div className="responsive-grid" style={{ 
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+                            gap: '1.25rem' 
+                        }}>
+                            {/* Card 1: Project Budget vs Phase Budgets */}
+                            <div style={{ background: 'var(--surface)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Project Budget</span>
+                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.25rem' }}>
+                                    {formatCurrency(project.totalFunds || 0)}
+                                </div>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                                    Phase Allocations: <strong>{formatCurrency(phases.reduce((sum, p) => sum + (parseFloat(p.estimatedBudget) || 0), 0))}</strong>
+                                </span>
+                            </div>
+
+                            {/* Card 2: Total Received Funds */}
+                            <div style={{ background: 'var(--surface)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Received Funds</span>
+                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.25rem' }}>
+                                    {formatCurrency(phases.reduce((sum, p) => sum + (parseFloat(p.receivedAmount) || 0), 0))}
+                                </div>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                                    Across all initialized stages
+                                </span>
+                            </div>
+
+                            {/* Card 3: Total Spent / Disbursed */}
+                            <div style={{ background: 'var(--surface)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Total Spent / Disbursed</span>
+                                <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.25rem' }}>
+                                    {formatCurrency(phases.reduce((sum, p) => sum + (parseFloat(p.spent_amount) || 0), 0))}
+                                </div>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                                    From journal transactions
+                                </span>
+                            </div>
+
+                            {/* Card 4: Pipeline Balance */}
+                            <div style={{ background: 'var(--surface)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Remaining Balance</span>
+                                <div style={{ 
+                                    fontSize: '1.35rem', 
+                                    fontWeight: 800, 
+                                    color: (phases.reduce((sum, p) => sum + (parseFloat(p.receivedAmount) || 0), 0) - phases.reduce((sum, p) => sum + (parseFloat(p.spent_amount) || 0), 0)) < 0 ? 'var(--danger)' : 'var(--text-main)', 
+                                    marginTop: '0.25rem' 
+                                }}>
+                                    {formatCurrency(
+                                        phases.reduce((sum, p) => sum + (parseFloat(p.receivedAmount) || 0), 0) - 
+                                        phases.reduce((sum, p) => sum + (parseFloat(p.spent_amount) || 0), 0)
+                                    )}
+                                </div>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                                    Funds available in hand
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Overall Progress & Utilization Bar */}
+                        <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.25rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                                <span>Overall Project Budget Utilization</span>
+                                <span>
+                                    {(() => {
+                                        const totalRec = phases.reduce((sum, p) => sum + (parseFloat(p.receivedAmount) || 0), 0);
+                                        const totalSp = phases.reduce((sum, p) => sum + (parseFloat(p.spent_amount) || 0), 0);
+                                        if (totalRec <= 0) return '0%';
+                                        return Math.round((totalSp / totalRec) * 100) + '%';
+                                    })()}
+                                </span>
+                            </div>
+                            <div style={{ height: '8px', background: 'var(--surface)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                <div style={{ 
+                                    height: '100%', 
+                                    width: `${(() => {
+                                        const totalRec = phases.reduce((sum, p) => sum + (parseFloat(p.receivedAmount) || 0), 0);
+                                        const totalSp = phases.reduce((sum, p) => sum + (parseFloat(p.spent_amount) || 0), 0);
+                                        if (totalRec <= 0) return 0;
+                                        return Math.min(100, (totalSp / totalRec) * 100);
+                                    })()}%`,
+                                    background: 'linear-gradient(90deg, var(--primary) 0%, #38bdf8 100%)',
+                                    transition: 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                                }} />
+                            </div>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.5rem' }}>
+                                💡 Calculated as: Total Spent ({formatCurrency(phases.reduce((sum, p) => sum + (parseFloat(p.spent_amount) || 0), 0))}) / Total Received ({formatCurrency(phases.reduce((sum, p) => sum + (parseFloat(p.receivedAmount) || 0), 0))})
+                            </span>
+                        </div>
+                    </div>
+                )}
+
                 {loading ? (
                     <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
                         <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Syncing phase balances...</span>
