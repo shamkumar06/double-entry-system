@@ -88,6 +88,8 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
     const ext = req.file.originalname ? req.file.originalname.substring(req.file.originalname.lastIndexOf('.')) : '.png';
     const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     if (supabaseUrl && supabaseKey) {
       try {
         const fileBuffer = req.file.buffer;
@@ -111,8 +113,24 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
         return;
       } catch (err: any) {
         const errorDetail = err.response?.data ? JSON.stringify(err.response.data) : (err.message || err);
-        console.error('Supabase upload error, falling back to local storage:', errorDetail);
+        console.error('Supabase upload error:', errorDetail);
+        
+        // Fail fast in production so the exact error is surfaced to the client
+        res.status(500).json({
+          success: false,
+          message: `Supabase upload failed: ${errorDetail}`
+        });
+        return;
       }
+    }
+
+    // In production, missing Supabase configuration is a fatal deployment error
+    if (isProduction) {
+      res.status(500).json({
+        success: false,
+        message: 'Deployment Configuration Error: SUPABASE_URL or SUPABASE_ANON_KEY is not defined in Vercel environment variables.'
+      });
+      return;
     }
 
     // Fallback: For local dev, serve from /uploads

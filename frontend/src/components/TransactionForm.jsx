@@ -213,7 +213,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         if (!file) return;
         setUploadingGpay(true);
         try {
-            const url = await accountingApi.uploadReceipt(file);
+            const url = await accountingApi.uploadReceipt(file, 'gpay');
             setFormData(f => ({ ...f, gpay_screenshot_url: url }));
         } catch (err) {
             console.error("Upload error", err);
@@ -228,7 +228,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         if (!file) return;
         setUploadingMaterial(true);
         try {
-            const url = await accountingApi.uploadReceipt(file);
+            const url = await accountingApi.uploadReceipt(file, 'materials');
             setFormData(f => ({ ...f, material_image_url: url }));
         } catch (err) {
             console.error("Upload error", err);
