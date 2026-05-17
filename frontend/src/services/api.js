@@ -75,6 +75,10 @@ export const authApi = {
     api.delete(`/auth/admin/users/${userId}`),
 };
 
+// --- Client-side Cache for Static Lookup Data ---
+let categoriesCache = null;
+let phasesCache = {}; // Map of projectId -> phases list
+
 export const accountingApi = {
   // --- Projects ---
   listProjects: () => api.get('/projects'),
@@ -84,16 +88,46 @@ export const accountingApi = {
   deleteProject: (id) => api.delete(`/projects/${id}`),
 
   // --- Phases ---
-  listPhases: (projectId) => api.get(`/projects/${projectId}/phases`),
-  createPhase: (projectId, data) => api.post(`/projects/${projectId}/phases`, data),
-  updatePhase: (projectId, phaseId, data) => api.put(`/projects/${projectId}/phases/${phaseId}`, data),
-  deletePhase: (projectId, phaseId) => api.delete(`/projects/${projectId}/phases/${phaseId}`),
+  listPhases: (projectId) => {
+    if (phasesCache[projectId]) return Promise.resolve(phasesCache[projectId]);
+    return api.get(`/projects/${projectId}/phases`).then(data => {
+      phasesCache[projectId] = data;
+      return data;
+    });
+  },
+  createPhase: (projectId, data) => {
+    delete phasesCache[projectId];
+    return api.post(`/projects/${projectId}/phases`, data);
+  },
+  updatePhase: (projectId, phaseId, data) => {
+    delete phasesCache[projectId];
+    return api.put(`/projects/${projectId}/phases/${phaseId}`, data);
+  },
+  deletePhase: (projectId, phaseId) => {
+    delete phasesCache[projectId];
+    return api.delete(`/projects/${projectId}/phases/${phaseId}`);
+  },
 
   // --- Categories / System ---
-  listCategories: () => api.get('/system/categories'),
-  createCategory: (data) => api.post('/system/categories', data),
-  deleteCategory: (id) => api.delete(`/system/categories/${id}`),
-  renameCategory: (id, newName) => api.put(`/system/categories/${id}`, { name: newName }),
+  listCategories: () => {
+    if (categoriesCache) return Promise.resolve(categoriesCache);
+    return api.get('/system/categories').then(data => {
+      categoriesCache = data;
+      return data;
+    });
+  },
+  createCategory: (data) => {
+    categoriesCache = null;
+    return api.post('/system/categories', data);
+  },
+  deleteCategory: (id) => {
+    categoriesCache = null;
+    return api.delete(`/system/categories/${id}`);
+  },
+  renameCategory: (id, newName) => {
+    categoriesCache = null;
+    return api.put(`/system/categories/${id}`, { name: newName });
+  },
 
   // --- Transactions ---
   createTransaction: (data) => api.post('/accounting/journal', data),

@@ -72,7 +72,7 @@ export default function TrialBalance({ projectId, projectName, phaseId }) {
                 )}
             </div>
 
-            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            <div className="phase-filter-container" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     {loading ? (
                         <p style={{ color: 'var(--text-muted)' }}>Loading balances...</p>
@@ -125,7 +125,7 @@ export default function TrialBalance({ projectId, projectName, phaseId }) {
                     )}
                 </div>
 
-                <div style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="phase-filter-sidebar" style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>
                         Phase Filter
                     </span>

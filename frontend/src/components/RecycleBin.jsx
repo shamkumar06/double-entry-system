@@ -114,7 +114,7 @@ export default function RecycleBin({ projectId, onClose, onRestored }) {
                         {deletedTxs.map(tx => {
                             const { categoryName, amount, phaseName, fromName, toName, dateStr, description } = getTxDisplay(tx);
                             return (
-                                <div key={tx.id} style={{
+                                <div key={tx.id} className="recycle-bin-item" style={{
                                     padding: '1rem 1.25rem', borderRadius: '12px', background: 'var(--surface-hover)',
                                     border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                     transition: 'all 0.2s ease',
@@ -141,7 +141,7 @@ export default function RecycleBin({ projectId, onClose, onRestored }) {
                                             </p>
                                         )}
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
+                                    <div className="recycle-bin-actions" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
                                         <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                             {formatCurrency(amount)}
                                         </span>

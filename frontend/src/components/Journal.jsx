@@ -256,21 +256,29 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                 const isExpense = tx.lines?.some(l => l.account?.type === 'EXPENSE');
 
                                 return (
-                                    <div key={tx.id} className="mobile-card premium-hover" onClick={() => onEdit(tx)}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <div key={tx.id} className="mobile-card premium-hover">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }} onClick={() => onEdit(tx)}>
                                             <div className="mobile-card-icon" style={{ background: isExpense ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: isExpense ? 'var(--danger)' : 'var(--success)' }}>
                                                 <FileText size={20} />
                                             </div>
-                                            <div>
-                                                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{tx.description || 'No Description'}</div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{formatDate(tx.date)} • {primaryAccount}</div>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.description || 'No Description'}</div>
+                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDate(tx.date)} • {primaryAccount}</div>
                                             </div>
                                         </div>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 800, color: isExpense ? 'var(--danger)' : 'var(--success)' }}>
+                                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                                            <div style={{ fontWeight: 800, color: isExpense ? 'var(--danger)' : 'var(--success)', fontSize: '0.9rem' }}>
                                                 {isExpense ? '-' : '+'}{formatCurrency(txAmount)}
                                             </div>
-                                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{tx.paymentMode}</div>
+                                            <div className="mobile-card-actions">
+                                                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{tx.paymentMode}</span>
+                                                <button 
+                                                   onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
+                                                   style={{ color: 'var(--danger)', padding: '4px', background: 'rgba(239, 68, 68, 0.05)', border: 'none', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                                                >
+                                                   <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 );
