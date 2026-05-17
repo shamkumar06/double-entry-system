@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { accountingApi, getImageUrl } from '../services/api';
 import { GitBranch, Plus, Trash2, ArrowRight, ChevronLeft, Edit2 } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
+import ConfirmationDialog from './ConfirmationDialog';
 
 export default function PhaseSelector({ project, onSelectPhase, onBack }) {
     const { formatCurrency, symbol } = useCurrency();
@@ -25,6 +26,32 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
         isSettled: false
     });
 
+    // ── Custom Confirmation Dialog state ─────────────
+    const [confirmDialog, setConfirmDialog] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+        cancelText: 'Cancel',
+        type: 'danger',
+        onConfirm: () => {}
+    });
+
+    const triggerConfirm = ({ title, message, confirmText, cancelText, type, onConfirm }) => {
+        setConfirmDialog({
+            isOpen: true,
+            title,
+            message,
+            confirmText,
+            cancelText,
+            type,
+            onConfirm: () => {
+                onConfirm();
+                setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+            }
+        });
+    };
+
     const fetchPhases = async () => {
         setLoading(true);
         try {
@@ -42,78 +69,106 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
     const handleCreate = async (e) => {
         e.preventDefault();
         if (!newPhase.name.trim()) return;
-        setSaving(true);
-        try {
-            const newAlloc = parseFloat(newPhase.estimatedBudget) || 0;
-            const currentTotalAlloc = phases.reduce((acc, ph) => acc + (ph.estimatedBudget || 0), 0);
-            const totalRequired = currentTotalAlloc + newAlloc;
+        
+        const newAlloc = parseFloat(newPhase.estimatedBudget) || 0;
+        const currentTotalAlloc = phases.reduce((acc, ph) => acc + (ph.estimatedBudget || 0), 0);
+        const totalRequired = currentTotalAlloc + newAlloc;
 
-            if (totalRequired > (project.totalFunds || 0)) {
-                const confirmMsg = `This new phase pushes the total allocation (₹${totalRequired.toLocaleString()}) above the Project Budget (₹${project.totalFunds?.toLocaleString()}). \n\nIncrease Project Budget to ₹${totalRequired.toLocaleString()}?`;
-                if (window.confirm(confirmMsg)) {
+        const proceedCreate = async (shouldUpdateBudget = false) => {
+            setSaving(true);
+            try {
+                if (shouldUpdateBudget) {
                     await accountingApi.updateProject(project.id, { totalFunds: totalRequired });
+                    project.totalFunds = totalRequired;
                 }
-            }
 
-            const receivedAmt = parseFloat(newPhase.received_amount) || 0;
-            await accountingApi.createPhase(project.id, {
-                name: newPhase.name.trim(),
-                description: newPhase.description.trim(),
-                estimatedBudget: newAlloc,
-                receivedAmount: receivedAmt
+                const receivedAmt = parseFloat(newPhase.received_amount) || 0;
+                await accountingApi.createPhase(project.id, {
+                    name: newPhase.name.trim(),
+                    description: newPhase.description.trim(),
+                    estimatedBudget: newAlloc,
+                    receivedAmount: receivedAmt
+                });
+                setNewPhase({ 
+                    name: '', description: '', estimatedBudget: '',
+                    received_amount: '',
+                    received_from: '', received_to: '',
+                    payment_mode: 'Bank Transfer', reference: ''
+                });
+                setCreating(false);
+                await fetchPhases();
+            } catch (err) {
+                console.error("Phase creation error:", err);
+                const detail = err?.response?.data?.detail || err?.message || "Unknown error";
+                alert(`Error creating phase: ${detail}`);
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        if (totalRequired > (project.totalFunds || 0)) {
+            triggerConfirm({
+                title: 'Increase Project Budget?',
+                message: `This new phase pushes the total allocation (₹${totalRequired.toLocaleString()}) above the Project Budget (₹${project.totalFunds?.toLocaleString()}). \n\nWould you like to increase the Project Budget to ₹${totalRequired.toLocaleString()}?`,
+                confirmText: 'Increase & Create',
+                cancelText: 'Cancel',
+                type: 'info',
+                onConfirm: () => proceedCreate(true)
             });
-            setNewPhase({ 
-                name: '', description: '', estimatedBudget: '',
-                received_amount: '',
-                received_from: '', received_to: '',
-                payment_mode: 'Bank Transfer', reference: ''
-            });
-            setCreating(false);
-            await fetchPhases();
-        } catch (err) {
-            console.error("Phase creation error:", err);
-            const detail = err?.response?.data?.detail || err?.message || "Unknown error";
-            alert(`Error creating phase: ${detail}`);
-        } finally {
-            setSaving(false);
+        } else {
+            proceedCreate(false);
         }
     };
 
     const handleUpdate = async (e, phaseId) => {
         e.preventDefault();
         if (!editData.name.trim()) return;
-        setSaving(true);
-        try {
-            const newAlloc = parseFloat(editData.estimatedBudget) || 0;
-            const otherPhasesAlloc = phases
-                .filter(ph => ph.id !== phaseId)
-                .reduce((acc, ph) => acc + (ph.estimatedBudget || 0), 0);
-            
-            const totalRequired = otherPhasesAlloc + newAlloc;
 
-            if (totalRequired > (project.totalFunds || 0)) {
-                const confirmMsg = `Updating this phase pushes the total allocation (₹${totalRequired.toLocaleString()}) above the Project Budget (₹${project.totalFunds?.toLocaleString()}). \n\nIncrease Project Budget to ₹${totalRequired.toLocaleString()}?`;
-                if (window.confirm(confirmMsg)) {
+        const newAlloc = parseFloat(editData.estimatedBudget) || 0;
+        const otherPhasesAlloc = phases
+            .filter(ph => ph.id !== phaseId)
+            .reduce((acc, ph) => acc + (ph.estimatedBudget || 0), 0);
+        
+        const totalRequired = otherPhasesAlloc + newAlloc;
+
+        const proceedUpdate = async (shouldUpdateBudget = false) => {
+            setSaving(true);
+            try {
+                if (shouldUpdateBudget) {
                     await accountingApi.updateProject(project.id, { totalFunds: totalRequired });
+                    project.totalFunds = totalRequired;
                 }
-            }
 
-            const receivedAmt = parseFloat(editData.received_amount) || 0;
-            await accountingApi.updatePhase(project.id, phaseId, {
-                name: editData.name.trim(),
-                description: editData.description.trim(),
-                estimatedBudget: newAlloc,
-                receivedAmount: receivedAmt,
-                isSettled: editData.isSettled
+                const receivedAmt = parseFloat(editData.received_amount) || 0;
+                await accountingApi.updatePhase(project.id, phaseId, {
+                    name: editData.name.trim(),
+                    description: editData.description.trim(),
+                    estimatedBudget: newAlloc,
+                    receivedAmount: receivedAmt,
+                    isSettled: editData.isSettled
+                });
+                setEditingId(null);
+                await fetchPhases();
+            } catch (err) {
+                console.error("Phase update error:", err);
+                const detail = err?.response?.data?.detail || err?.message || "Unknown error";
+                alert(`Error updating phase: ${detail}`);
+            } finally {
+                setSaving(false);
+            }
+        };
+
+        if (totalRequired > (project.totalFunds || 0)) {
+            triggerConfirm({
+                title: 'Increase Project Budget?',
+                message: `Updating this phase pushes the total allocation (₹${totalRequired.toLocaleString()}) above the Project Budget (₹${project.totalFunds?.toLocaleString()}). \n\nWould you like to increase the Project Budget to ₹${totalRequired.toLocaleString()}?`,
+                confirmText: 'Increase & Update',
+                cancelText: 'Cancel',
+                type: 'info',
+                onConfirm: () => proceedUpdate(true)
             });
-            setEditingId(null);
-            await fetchPhases();
-        } catch (err) {
-            console.error("Phase update error:", err);
-            const detail = err?.response?.data?.detail || err?.message || "Unknown error";
-            alert(`Error updating phase: ${detail}`);
-        } finally {
-            setSaving(false);
+        } else {
+            proceedUpdate(false);
         }
     };
 
@@ -134,54 +189,73 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
     };
 
     const handleDelete = async (phaseId, phaseName) => {
-        if (!window.confirm(`Delete "${phaseName}"? All transactions in this phase will be moved to the Recycle Bin.`)) return;
-        setDeletingId(phaseId);
-        try {
-            await accountingApi.deletePhase(project.id, phaseId);
-            setPhases(p => p.filter(ph => ph.id !== phaseId));
-        } catch {
-            alert("Error deleting phase");
-        } finally {
-            setDeletingId(null);
-        }
+        triggerConfirm({
+            title: 'Delete Phase',
+            message: `Delete "${phaseName}"? All transactions in this phase will be moved to the Recycle Bin.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            type: 'danger',
+            onConfirm: async () => {
+                setDeletingId(phaseId);
+                try {
+                    await accountingApi.deletePhase(project.id, phaseId);
+                    setPhases(p => p.filter(ph => ph.id !== phaseId));
+                } catch {
+                    alert("Error deleting phase");
+                } finally {
+                    setDeletingId(null);
+                }
+            }
+        });
     };
 
     return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', gap: '2rem', background: 'var(--background)' }}>
-            
-            <div style={{ textAlign: 'center', width: '100%', maxWidth: '820px' }}>
-                <button onClick={onBack} className="btn-icon" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
-                    <ChevronLeft size={16} /> Back to Projects
-                </button>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                    {project.logoUrl ? (
-                        <img src={getImageUrl(project.logoUrl)} alt="Logo" style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '12px', border: '1px solid var(--border)' }}/>
-                    ) : (
-                        <div style={{ width: '48px', height: '48px', background: 'var(--surface)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
-                            <GitBranch size={24} color="var(--primary)" />
-                        </div>
+            <div style={{ maxWidth: '1200px', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button onClick={onBack} className="btn-icon" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+                        <ChevronLeft size={16} /> Back to Projects
+                    </button>
+                    {project.logoUrl && (
+                        <img 
+                            src={getImageUrl(project.logoUrl)} 
+                            alt="Project Logo" 
+                            style={{ 
+                                height: '48px', 
+                                width: 'auto', 
+                                objectFit: 'contain',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border)',
+                                background: 'white',
+                                padding: '4px'
+                            }} 
+                        />
                     )}
-                    <h1 className="text-gradient" style={{ fontSize: '2.5rem', fontWeight: 800 }}>{project.name}</h1>
                 </div>
-                <p style={{ color: 'var(--text-muted)' }}>Select or create a phase to manage financial records</p>
-            </div>
 
-            <div style={{ width: '100%', maxWidth: '820px' }}>
-                <div className="glass-panel" style={{ padding: '1.25rem 1.75rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', border: '1px solid rgba(2, 132, 199, 0.2)', transition: 'all 0.2s', borderRadius: '20px' }}
-                    onClick={() => onSelectPhase(null)}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = ''}>
-                    <div>
-                        <p style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>📊 Project Financial Overview</p>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>View combined analytics across all phases</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--primary)' }}>
+                        <GitBranch size={24} />
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-0.02em' }}>Project Stages & Budgets</h2>
                     </div>
-                    <ArrowRight size={20} color="var(--primary)" />
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+                        Manage individual phase structures, initialize local funding pipelines, and review real-time budget utilization metrics for <strong>{project.name}</strong>.
+                    </p>
                 </div>
 
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '3rem' }}>
-                        <div className="spinner" style={{ margin: '0 auto 1rem' }}></div>
-                        <p style={{ color: 'var(--text-muted)' }}>Loading phases...</p>
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Syncing phase balances...</span>
+                    </div>
+                ) : phases.length === 0 ? (
+                    <div className="glass-panel" style={{ padding: '4rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', borderRadius: '24px' }}>
+                        <div style={{ width: '64px', height: '64px', borderRadius: '20px', background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>🔖</div>
+                        <div>
+                            <h3 style={{ fontWeight: 800, fontSize: '1.25rem', marginBottom: '0.5rem' }}>No Phases Initialized</h3>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '400px' }}>Every project requires at least one tracking phase to establish budget allocation limits and record transaction line entries.</p>
+                        </div>
+                        {!creating && <button onClick={() => setCreating(true)} className="btn-primary" style={{ padding: '0.75rem 2rem' }}>Initialize First Phase</button>}
                     </div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem' }}>
@@ -218,8 +292,44 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                             </span>
                                         )}
                                         <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                            <button onClick={() => startEdit(phase)} className="btn-icon" style={{ padding: '0.4rem' }}><Edit2 size={14} /></button>
-                                            <button onClick={() => handleDelete(phase.id, phase.name)} title="Delete" style={{ padding: '0.4rem', color: 'var(--text-muted)' }} onMouseEnter={e => e.currentTarget.style.color='var(--danger)'} onMouseLeave={e => e.currentTarget.style.color='var(--text-muted)'}><Trash2 size={14} /></button>
+                                            <button 
+                                                onClick={() => startEdit(phase)} 
+                                                title="Edit" 
+                                                style={{ 
+                                                    padding: '0.4rem', 
+                                                    color: 'var(--text-muted)', 
+                                                    display: 'inline-flex', 
+                                                    alignItems: 'center', 
+                                                    justifyContent: 'center', 
+                                                    transition: 'all 0.15s ease',
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer'
+                                                }} 
+                                                onMouseEnter={e => e.currentTarget.style.color='var(--primary)'} 
+                                                onMouseLeave={e => e.currentTarget.style.color='var(--text-muted)'}
+                                            >
+                                                <Edit2 size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDelete(phase.id, phase.name)} 
+                                                title="Delete" 
+                                                style={{ 
+                                                    padding: '0.4rem', 
+                                                    color: 'var(--text-muted)', 
+                                                    display: 'inline-flex', 
+                                                    alignItems: 'center', 
+                                                    justifyContent: 'center', 
+                                                    transition: 'all 0.15s ease',
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer'
+                                                }} 
+                                                onMouseEnter={e => e.currentTarget.style.color='var(--danger)'} 
+                                                onMouseLeave={e => e.currentTarget.style.color='var(--text-muted)'}
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -368,6 +478,18 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     </div>
                 )}
             </div>
+
+            {/* Custom Confirmation Dialog */}
+            <ConfirmationDialog 
+                isOpen={confirmDialog.isOpen}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                confirmText={confirmDialog.confirmText}
+                cancelText={confirmDialog.cancelText}
+                type={confirmDialog.type}
+                onConfirm={confirmDialog.onConfirm}
+                onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+            />
         </div>
     );
 }
