@@ -413,22 +413,24 @@ function AppInner() {
                   gap: '0.5rem',
                   padding: '0.65rem 1.25rem',
                   borderRadius: '12px',
-                  background: 'linear-gradient(135deg, var(--primary) 0%, #2563eb 100%)',
-                  color: 'white',
+                  background: 'var(--btn-primary-bg)',
+                  color: 'var(--btn-primary-text)',
                   border: 'none',
                   fontWeight: 700,
                   fontSize: '0.9rem',
-                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                  boxShadow: '0 4px 12px var(--btn-primary-shadow)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(2, 132, 199, 0.35)';
+                  e.currentTarget.style.background = 'var(--btn-primary-hover)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px var(--btn-primary-shadow)';
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.25)';
+                  e.currentTarget.style.background = 'var(--btn-primary-bg)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px var(--btn-primary-shadow)';
                 }}
               >
                 <Plus size={18} /> Add Transaction
@@ -560,7 +562,7 @@ function AppInner() {
       </div>
 
       {/* Floating Action Button (FAB) at bottom-right corner */}
-      {!isPhaseSettled && (
+      {!isPhaseSettled && (activeTab === 'Journal' || activeTab === 'Overview') && (
         <button 
           className="fab-button"
           onClick={() => { setEditingTransaction(null); setShowTransactionForm(true); }}

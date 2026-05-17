@@ -37,6 +37,12 @@
   --stat-label-color: #64748b;
   --scrollbar-thumb: rgba(0, 0, 0, 0.12);
   --scrollbar-thumb-hover: rgba(0, 0, 0, 0.2);
+  
+  /* Premium Solid Button Colors (Light Theme) */
+  --btn-primary-bg: #2563eb;
+  --btn-primary-hover: #1d4ed8;
+  --btn-primary-text: #ffffff;
+  --btn-primary-shadow: rgba(37, 99, 235, 0.25);
 }
 
 [data-theme="dark"] {
@@ -74,6 +80,12 @@
   --stat-label-color: #94a3b8;
   --scrollbar-thumb: rgba(255, 255, 255, 0.12);
   --scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+
+  /* Premium Solid Button Colors (Dark Theme) */
+  --btn-primary-bg: #38bdf8;
+  --btn-primary-hover: #0ea5e9;
+  --btn-primary-text: #020617;
+  --btn-primary-shadow: rgba(56, 189, 248, 0.25);
 }
 
 * {
@@ -124,19 +136,19 @@ button {
 }
 
 .btn-primary {
-  background: var(--primary);
-  color: white;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   padding: 0.8rem 1.6rem;
   border-radius: 12px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+  box-shadow: 0 4px 12px var(--btn-primary-shadow);
   font-size: 0.95rem;
 }
 
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: var(--btn-primary-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+  box-shadow: 0 6px 16px var(--btn-primary-shadow);
 }
 
 .btn-primary:active {
@@ -846,12 +858,12 @@ input:focus, select:focus, textarea:focus {
   width: 56px;
   height: 56px;
   border-radius: 28px;
-  background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%);
-  color: white;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.4);
+  box-shadow: 0 8px 24px var(--btn-primary-shadow);
   border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 999;
   cursor: pointer;
@@ -860,7 +872,8 @@ input:focus, select:focus, textarea:focus {
 
 .fab-button:hover {
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 12px 32px rgba(2, 132, 199, 0.55);
+  background: var(--btn-primary-hover);
+  box-shadow: 0 12px 32px var(--btn-primary-shadow);
 }
 
 .fab-button:active {
