@@ -22,15 +22,57 @@ function AppInner() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
-  const [activeProject, setActiveProject] = useState(null); // {id, name, ...}
-  const [activePhase, setActivePhase] = useState(undefined); // undefined = phase screen, null = all, string = specific
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [activeProject, setActiveProject] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('activeProject');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  }); // {id, name, ...}
+  const [activePhase, setActivePhase] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('activePhase');
+      if (saved === 'null') return null;
+      if (saved === 'undefined' || !saved) return undefined;
+      return JSON.parse(saved);
+    } catch {
+      return undefined;
+    }
+  }); // undefined = phase screen, null = all, string = specific
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('activeTab') || 'Overview';
+  });
   const [showEditModal, setShowEditModal] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Sync state changes to sessionStorage automatically
+  useEffect(() => {
+    if (activeProject) {
+      sessionStorage.setItem('activeProject', JSON.stringify(activeProject));
+    } else {
+      sessionStorage.removeItem('activeProject');
+    }
+  }, [activeProject]);
+
+  useEffect(() => {
+    if (activePhase === undefined) {
+      sessionStorage.removeItem('activePhase');
+    } else if (activePhase === null) {
+      sessionStorage.setItem('activePhase', 'null');
+    } else {
+      sessionStorage.setItem('activePhase', JSON.stringify(activePhase));
+    }
+  }, [activePhase]);
+
+  useEffect(() => {
+    sessionStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
 
   const phasesList = Array.isArray(contextProject?.phases) ? contextProject.phases : Object.values(contextProject?.phases || activeProject?.phases || {});
 
@@ -97,8 +139,12 @@ function AppInner() {
       await authApi.logout();
       setIsAuthenticated(false);
       setActiveProject(null);
+      setActivePhase(undefined);
+      setActiveTab('Overview');
+      sessionStorage.clear();
     } catch(e) { console.error('Failed to logout', e); }
   };
+
 
   const handleDownloadReport = async () => {
     setDownloading(true);
