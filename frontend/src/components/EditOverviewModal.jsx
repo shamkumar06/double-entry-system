@@ -51,7 +51,7 @@ export default function EditOverviewModal({ project, phaseObj, onClose, onComple
         if (!file) return;
         setUploadingLogo(true);
         try {
-            const url = await accountingApi.uploadReceipt(file);
+            const url = await accountingApi.uploadReceipt(file, 'logos');
             setLogoUrl(url);
         } catch (err) {
             console.error(err);

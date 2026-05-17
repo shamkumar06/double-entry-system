@@ -136,16 +136,12 @@ export const accountingApi = {
   uploadReceipt: async (file, folder = 'receipts') => {
     const formData = new FormData();
     formData.append('file', file);
-    const headers = {};
-    const token = localStorage.getItem('token');
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-    const res = await axios.post(`${API_URL}/accounting/upload?folder=${folder}`, formData, {
-      headers,
-      withCredentials: true,
+    const res = await api.post(`/accounting/upload?folder=${folder}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-    return res.data?.data?.url || res.data?.url;
+    return res.url || res.data?.url;
   },
 
   // --- Reports & Reporting ---
