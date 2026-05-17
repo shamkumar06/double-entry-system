@@ -77,7 +77,6 @@ export const authApi = {
 
 // --- Client-side Cache for Static Lookup Data ---
 let categoriesCache = null;
-let phasesCache = {}; // Map of projectId -> phases list
 
 export const accountingApi = {
   // --- Projects ---
@@ -88,25 +87,10 @@ export const accountingApi = {
   deleteProject: (id) => api.delete(`/projects/${id}`),
 
   // --- Phases ---
-  listPhases: (projectId) => {
-    if (phasesCache[projectId]) return Promise.resolve(phasesCache[projectId]);
-    return api.get(`/projects/${projectId}/phases`).then(data => {
-      phasesCache[projectId] = data;
-      return data;
-    });
-  },
-  createPhase: (projectId, data) => {
-    delete phasesCache[projectId];
-    return api.post(`/projects/${projectId}/phases`, data);
-  },
-  updatePhase: (projectId, phaseId, data) => {
-    delete phasesCache[projectId];
-    return api.put(`/projects/${projectId}/phases/${phaseId}`, data);
-  },
-  deletePhase: (projectId, phaseId) => {
-    delete phasesCache[projectId];
-    return api.delete(`/projects/${projectId}/phases/${phaseId}`);
-  },
+  listPhases: (projectId) => api.get(`/projects/${projectId}/phases`),
+  createPhase: (projectId, data) => api.post(`/projects/${projectId}/phases`, data),
+  updatePhase: (projectId, phaseId, data) => api.put(`/projects/${projectId}/phases/${phaseId}`, data),
+  deletePhase: (projectId, phaseId) => api.delete(`/projects/${projectId}/phases/${phaseId}`),
 
   // --- Categories / System ---
   listCategories: () => {
@@ -164,8 +148,6 @@ export const accountingApi = {
   },
 
   getPhasesTotals: async (projectId) => {
-    // Custom wrapper if your UI needs specific sums, but generally use the standard trial-balance API for aggregate sums.
-    // Assuming backend returns phase sums elsewhere or derived here:
     return []; 
   },
 
@@ -185,7 +167,7 @@ export const accountingApi = {
           projectId,
           reportType,
           phaseIds: phaseId ? (Array.isArray(phaseId) ? phaseId : phaseId.split(',').filter(Boolean)) : undefined,
-          params  // ← Bug 1 fix: pass the entire params object to the backend
+          params
         },
         responseType: 'blob',
         withCredentials: true,
