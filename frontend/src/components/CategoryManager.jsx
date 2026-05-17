@@ -162,59 +162,114 @@ export default function CategoryManager({ onRename, userRole }) {
                                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{type}</span>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-                                {cats.map(cat => (
-                                    <div key={cat.id} style={{ 
-                                        display: 'flex', alignItems: 'center', gap: '0.5rem', 
-                                        padding: '0.5rem 0.75rem', borderRadius: '8px', 
-                                        background: 'var(--surface)', border: '1px solid var(--border)',
-                                        opacity: cat.isSystem ? 0.8 : 1
-                                    }}>
-                                        {editingId === cat.id ? (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                <input
-                                                    value={editingName}
-                                                    onChange={e => setEditingName(e.target.value)}
-                                                    autoFocus
-                                                    style={{ height: '1.5rem', fontSize: '0.875rem', padding: '0.2rem', width: '120px' }}
-                                                />
-                                                <button onClick={() => handleRename(cat.id)} disabled={isSavingRename} style={{ color: 'var(--success)' }}>
-                                                    <Check size={14} />
-                                                </button>
-                                                <button onClick={() => setEditingId(null)} style={{ color: 'var(--danger)' }}>
-                                                    <X size={14} />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <span style={{ fontSize: '0.875rem' }}>{cat.name}</span>
-                                                <div style={{ display: 'flex', gap: '0.2rem' }}>
-                                                    {!cat.isSystem && isAdmin && (
-                                                        <>
-                                                            <button onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}
-                                                                style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '2px' }}
-                                                                onMouseEnter={e => e.currentTarget.style.color = 'var(--primary)'}
-                                                                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
-                                                                <Edit2 size={13} />
-                                                            </button>
-                                                            <button onClick={() => handleDelete(cat.id)} disabled={deletingId === cat.id}
-                                                                style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '2px' }}
-                                                                onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
-                                                                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
-                                                                <Trash2 size={13} />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                    {cat.isSystem && (
-                                                        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: '4px' }}>SYSTEM</span>
-                                                    )}
-                                                    {!isAdmin && !cat.isSystem && (
-                                                        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: '4px' }}>RESTRICTED</span>
-                                                    )}
+                                {cats.map(cat => {
+                                    const isEditing = editingId === cat.id;
+                                    return (
+                                        <div key={cat.id} style={{ 
+                                            display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                                            padding: '0.5rem 0.75rem', borderRadius: '8px', 
+                                            background: isEditing ? 'rgba(2, 132, 199, 0.05)' : 'var(--surface)', 
+                                            border: isEditing ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                            boxShadow: isEditing ? '0 0 12px rgba(2, 132, 199, 0.15)' : 'none',
+                                            opacity: cat.isSystem ? 0.8 : 1,
+                                            transition: 'all 0.2s ease'
+                                        }}>
+                                            {isEditing ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <input
+                                                        value={editingName}
+                                                        onChange={e => setEditingName(e.target.value)}
+                                                        autoFocus
+                                                        style={{ 
+                                                            height: 'auto', 
+                                                            fontSize: '0.875rem', 
+                                                            padding: '0', 
+                                                            margin: '0',
+                                                            width: '130px', 
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            borderBottom: '1px dashed var(--primary)',
+                                                            borderRadius: '0',
+                                                            color: 'var(--text-main)',
+                                                            outline: 'none',
+                                                            boxShadow: 'none',
+                                                            fontWeight: 'inherit',
+                                                        }}
+                                                        onKeyDown={e => {
+                                                            if (e.key === 'Enter') handleRename(cat.id);
+                                                            if (e.key === 'Escape') setEditingId(null);
+                                                        }}
+                                                    />
+                                                    <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                                        <button 
+                                                            onClick={() => handleRename(cat.id)} 
+                                                            disabled={isSavingRename} 
+                                                            style={{ 
+                                                                color: 'var(--success)', 
+                                                                background: 'transparent', 
+                                                                border: 'none', 
+                                                                cursor: 'pointer',
+                                                                padding: '2px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                transition: 'transform 0.1s'
+                                                            }}
+                                                            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.85)'}
+                                                            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                                                        >
+                                                            <Check size={14} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setEditingId(null)} 
+                                                            style={{ 
+                                                                color: 'var(--danger)', 
+                                                                background: 'transparent', 
+                                                                border: 'none', 
+                                                                cursor: 'pointer',
+                                                                padding: '2px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                transition: 'transform 0.1s'
+                                                            }}
+                                                            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.85)'}
+                                                            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                                                        >
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
+                                            ) : (
+                                                <>
+                                                    <span style={{ fontSize: '0.875rem' }}>{cat.name}</span>
+                                                    <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                                        {!cat.isSystem && isAdmin && (
+                                                            <>
+                                                                <button onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}
+                                                                    style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '2px', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--primary)'}
+                                                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+                                                                    <Edit2 size={13} />
+                                                                </button>
+                                                                <button onClick={() => handleDelete(cat.id)} disabled={deletingId === cat.id}
+                                                                    style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '2px', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                                                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+                                                                    <Trash2 size={13} />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        {cat.isSystem && (
+                                                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: '4px', fontWeight: 600, letterSpacing: '0.05em' }}>SYSTEM</span>
+                                                        )}
+                                                        {!isAdmin && !cat.isSystem && (
+                                                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: '4px', fontWeight: 600, letterSpacing: '0.05em' }}>RESTRICTED</span>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}
