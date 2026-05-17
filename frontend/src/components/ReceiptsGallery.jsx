@@ -16,30 +16,34 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
         setLoading(true);
         accountingApi.getJournal(projectId, phaseId || null)
             .then(txs => {
-                const parsed = (Array.isArray(txs) ? txs : txs?.data || [])
-                    .filter(tx => tx.attachmentUrl)
-                    .map(tx => {
-                        // Unpack enriched description
-                        let pureDesc = tx.description;
-                        let fromName = '';
-                        let toName = '';
-                        let amount = tx.lines?.[0]?.amount || 0;
-                        let accountName = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '';
+                const list = (Array.isArray(txs) ? txs : txs?.data || []);
+                const parsed = [];
+                
+                list.forEach(tx => {
+                    // Unpack enriched description
+                    let pureDesc = tx.description;
+                    let fromName = '';
+                    let toName = '';
+                    let amount = tx.lines?.[0]?.amount || 0;
+                    let accountName = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '';
 
-                        if (tx.description?.includes('| From:')) {
-                            const parts = tx.description.split('|');
-                            pureDesc = parts[0]?.trim();
-                            const m = parts[1]?.match(/From: (.*?) To: (.*)/);
-                            if (m) { fromName = m[1]?.trim(); toName = m[2]?.trim(); }
-                        }
+                    if (tx.description?.includes('| From:')) {
+                        const parts = tx.description.split('|');
+                        pureDesc = parts[0]?.trim();
+                        const m = parts[1]?.match(/From: (.*?) To: (.*)/);
+                        if (m) { fromName = m[1]?.trim(); toName = m[2]?.trim(); }
+                    }
 
-                        const url = getImageUrl(tx.attachmentUrl);
+                    const createAttachment = (urlPath, type, suffix) => {
+                        const url = getImageUrl(urlPath);
                         const isPdf = url?.toLowerCase().endsWith('.pdf');
-
                         return {
-                            id: tx.id,
+                            id: `${tx.id}-${type}`,
+                            txId: tx.id,
                             url,
                             isPdf,
+                            type,
+                            suffix,
                             description: pureDesc,
                             fromName,
                             toName,
@@ -48,7 +52,19 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                             date: tx.date,
                             phaseName: tx.phase?.name || 'Whole Project',
                         };
-                    });
+                    };
+
+                    if (tx.attachmentUrl) {
+                        parsed.push(createAttachment(tx.attachmentUrl, 'bill', 'Bill / Receipt'));
+                    }
+                    if (tx.gpayScreenshotUrl) {
+                        parsed.push(createAttachment(tx.gpayScreenshotUrl, 'gpay', 'GPay / UPI Screenshot'));
+                    }
+                    if (tx.materialImageUrl) {
+                        parsed.push(createAttachment(tx.materialImageUrl, 'material', 'Material Photo'));
+                    }
+                });
+
                 setReceipts(parsed);
             })
             .catch(e => console.error('Failed to load receipts', e))
@@ -218,6 +234,16 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                         onMouseLeave={e => e.currentTarget.style.opacity = 0}
                                     />
                                 </div>
+                                {/* Type Badge */}
+                                <div style={{ 
+                                    position: 'absolute', top: '8px', left: '8px', 
+                                    background: r.type === 'bill' ? 'rgba(2, 132, 199, 0.95)' : r.type === 'gpay' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(139, 92, 246, 0.95)', 
+                                    color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '20px',
+                                    display: 'flex', alignItems: 'center', gap: '0.2rem',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                                }}>
+                                    {r.type === 'bill' ? '📄 Bill' : r.type === 'gpay' ? '📱 GPay' : '📷 Photo'}
+                                </div>
                                 {/* Phase badge */}
                                 <div style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(2,132,199,0.9)', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '20px' }}>
                                     {r.phaseName}
@@ -226,7 +252,16 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
 
                             {/* Card details */}
                             <div style={{ padding: '0.875rem' }}>
-                                <p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.25rem' }}>
+                                    <span style={{ 
+                                        background: r.type === 'bill' ? 'rgba(2, 132, 199, 0.1)' : r.type === 'gpay' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139, 92, 246, 0.1)', 
+                                        color: r.type === 'bill' ? 'var(--primary)' : r.type === 'gpay' ? '#10b981' : '#8b5cf6',
+                                        padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase'
+                                    }}>
+                                        {r.suffix}
+                                    </span>
+                                </div>
+                                <p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.description}>
                                     {r.description || 'No description'}
                                 </p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -335,6 +370,16 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                             <div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Description</div>
                                 <div style={{ color: 'white', fontWeight: 600, fontSize: '1rem', lineHeight: 1.4 }}>{current.description || 'No description provided'}</div>
+                                <div style={{ marginTop: '0.5rem' }}>
+                                    <span style={{ 
+                                        background: current.type === 'bill' ? 'rgba(2, 132, 199, 0.2)' : current.type === 'gpay' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(139, 92, 246, 0.2)', 
+                                        color: current.type === 'bill' ? '#38bdf8' : current.type === 'gpay' ? '#34d399' : '#c084fc',
+                                        padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+                                        border: '1px solid rgba(255,255,255,0.05)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
+                                    }}>
+                                        {current.type === 'bill' ? '📄 Bill / Receipt' : current.type === 'gpay' ? '📱 GPay / UPI' : '📷 Material Photo'}
+                                    </span>
+                                </div>
                             </div>
                             <div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Date</div>
