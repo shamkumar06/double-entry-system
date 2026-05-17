@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import * as accountingService from '../services/accounting.service';
 import * as reportService from '../services/report.service';
+import fs from 'fs';
+import axios from 'axios';
 
 const parsePhaseIds = (phases?: string): string[] | undefined => {
   if (!phases) return undefined;
@@ -77,7 +79,45 @@ export const uploadFile = async (req: Request, res: Response, next: NextFunction
       res.status(400).json({ success: false, message: 'No file uploaded.' });
       return;
     }
-    // For local dev, serve from /uploads
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+
+    if (supabaseUrl && supabaseKey) {
+      try {
+        const filePath = req.file.path;
+        const fileBuffer = fs.readFileSync(filePath);
+        
+        // Upload to Supabase Storage REST API
+        await axios.post(
+          `${supabaseUrl}/storage/v1/object/attachments/${req.file.filename}`,
+          fileBuffer,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': req.file.mimetype,
+            },
+          }
+        );
+
+        // Delete the temporary file from local uploads folder
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error('Failed to delete temp file:', err);
+        }
+
+        // Return the absolute public URL of the uploaded asset in Supabase bucket
+        const url = `${supabaseUrl}/storage/v1/object/public/attachments/${req.file.filename}`;
+        res.json({ success: true, data: { url } });
+        return;
+      } catch (err: any) {
+        console.error('Supabase upload error, falling back to local storage:', err.message || err);
+      }
+    }
+
+    // Fallback: For local dev, serve from /uploads
     const url = `/uploads/${req.file.filename}`;
     res.json({ success: true, data: { url } });
   } catch (err) { next(err); }
