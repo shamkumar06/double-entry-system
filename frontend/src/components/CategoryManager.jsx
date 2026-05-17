@@ -13,7 +13,8 @@ export default function CategoryManager({ onRename, userRole }) {
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
     const [editingId, setEditingId] = useState(null);
-    const [isSavingRename, setIsSavingRenaming] = useState(false);
+    const [editingName, setEditingName] = useState('');
+    const [isSavingRename, setIsSavingRename] = useState(false);
     const [error, setError] = useState(null);
 
     const fetchCategories = async () => {
