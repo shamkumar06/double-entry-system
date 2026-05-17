@@ -11,10 +11,10 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     
     // Extract legacy fields safely if dealing with a strict Node backend payload
     let initialDesc = initialData?.description || '';
-    let initialFrom = initialData?.from_name || '';
-    let initialTo = initialData?.to_name || '';
-    let initialMode = initialData?.from_payment_mode || 'Cash';
-    let initialRef = initialData?.from_reference || '';
+    let initialFrom = initialData?.fromEntity || initialData?.from_name || '';
+    let initialTo = initialData?.toEntity || initialData?.to_name || '';
+    let initialMode = initialData?.paymentMode || initialData?.from_payment_mode || 'Cash';
+    let initialRef = initialData?.reference || initialData?.from_reference || '';
 
     if (initialData?.description && initialData.description.includes('| From:')) {
         const parts = initialData.description.split('|');
