@@ -1050,3 +1050,9 @@ input:focus, select:focus, textarea:focus {
   transform: rotate(-15deg);
   background: linear-gradient(135deg, #10b981, #065f46);
 }
+
+/* Global option/optgroup styles for native select elements to override native dark/light theme mismatch */
+select option, select optgroup {
+  background-color: var(--surface) !important;
+  color: var(--text-main) !important;
+}

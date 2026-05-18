@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ChevronDown, Search, Check } from 'lucide-react';
 import { accountingApi, getImageUrl } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
 import { useProjectData } from '../context/ProjectDataContext';
@@ -100,6 +101,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         }
     );
     const [loading, setLoading] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const [uploadingReceipt, setUploadingReceipt] = useState(false);
     const [uploadingGpay, setUploadingGpay] = useState(false);
     const [uploadingMaterial, setUploadingMaterial] = useState(false);
@@ -306,6 +309,11 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         }
     };
     const selectedCatType = categories.find(c => c.id === formData.category_id)?.type;
+    const selectedCategory = categories.find(c => c.id === formData.category_id);
+    const filteredCategories = categories.filter(c => 
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.type.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className="modal-overlay animate-in">
@@ -344,30 +352,178 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                 style={{ fontSize: '1.3rem', fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--primary)'}}
                             />
                         </div>
-                        <div>
-                            <label style={labelStyle}>Account / Category</label>
-                            <select
-                                value={formData.category_id}
-                                onChange={e => {
-                                    const uuid = e.target.value;
-                                    const cat = categories.find(c => c.id === uuid);
-                                    setFormData({...formData, category_id: uuid, category_name: cat?.name || ''})
-                                }}
-                            >
-                                {categories.length === 0 && <option disabled>Loading...</option>}
-                                {['EXPENSE', 'REVENUE', 'ASSET', 'LIABILITY', 'EQUITY'].map(type => {
-                                    const typeCats = categories.filter(c => c.type === type);
-                                    if (typeCats.length === 0) return null;
-                                    return (
-                                        <optgroup key={type} label={type} style={{ background: '#0f172a', color: '#94a3b8' }}>
-                                            {typeCats.map(cat => (
-                                                <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                            ))}
-                                        </optgroup>
-                                    );
-                                })}
-                            </select>
-                        </div>
+                            <div style={{ position: 'relative' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.8rem 1.2rem',
+                                        borderRadius: '12px',
+                                        border: dropdownOpen ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                        background: 'var(--input-bg)',
+                                        color: 'var(--text-main)',
+                                        fontFamily: 'inherit',
+                                        fontSize: '0.95rem',
+                                        textAlign: 'left',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        cursor: 'pointer',
+                                        boxShadow: dropdownOpen ? '0 0 0 4px rgba(56, 189, 248, 0.15)' : 'none',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                                        <span style={{ 
+                                            padding: '0.2rem 0.5rem', 
+                                            background: selectedCategory?.type === 'EXPENSE' ? 'rgba(239, 68, 68, 0.1)' : 
+                                                        selectedCategory?.type === 'REVENUE' ? 'rgba(16, 185, 129, 0.1)' : 
+                                                        selectedCategory?.type === 'ASSET' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                                            color: selectedCategory?.type === 'EXPENSE' ? 'var(--danger)' : 
+                                                   selectedCategory?.type === 'REVENUE' ? 'var(--success)' : 
+                                                   selectedCategory?.type === 'ASSET' ? '#3b82f6' : 'var(--text-muted)',
+                                            borderRadius: '6px',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800
+                                        }}>
+                                            {selectedCategory?.type || 'CATEGORY'}
+                                        </span>
+                                        {selectedCategory?.name || 'Select Category...'}
+                                    </span>
+                                    <ChevronDown size={18} style={{ 
+                                        color: 'var(--text-muted)',
+                                        transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                                        transition: 'transform 0.2s'
+                                    }} />
+                                </button>
+
+                                {dropdownOpen && (
+                                    <>
+                                        {/* Fullscreen click-catcher background to close the dropdown */}
+                                        <div 
+                                            onClick={() => { setDropdownOpen(false); setSearchQuery(''); }}
+                                            style={{ position: 'fixed', inset: 0, zIndex: 998 }} 
+                                        />
+
+                                        {/* Floating Dropdown Overlay */}
+                                        <div className="glass-panel animate-in" style={{
+                                            position: 'absolute',
+                                            top: 'calc(100% + 8px)',
+                                            left: 0,
+                                            width: '100%',
+                                            maxHeight: '320px',
+                                            overflowY: 'auto',
+                                            zIndex: 999,
+                                            padding: '0.75rem',
+                                            borderRadius: '16px',
+                                            background: 'var(--surface)',
+                                            border: '1px solid var(--border)',
+                                            boxShadow: 'var(--shadow-lg)',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '0.5rem'
+                                        }}>
+                                            {/* Search Input */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--surface-hover)', borderRadius: '10px', padding: '0.4rem 0.8rem', border: '1px solid var(--border)' }}>
+                                                <Search size={16} style={{ color: 'var(--text-muted)' }} />
+                                                <input
+                                                    type="text"
+                                                    value={searchQuery}
+                                                    onChange={e => setSearchQuery(e.target.value)}
+                                                    placeholder="Search categories..."
+                                                    style={{
+                                                        border: 'none',
+                                                        background: 'transparent',
+                                                        padding: '0.2rem 0',
+                                                        fontSize: '0.85rem',
+                                                        outline: 'none',
+                                                        boxShadow: 'none',
+                                                        width: '100%'
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* List of Categories */}
+                                            <div style={{ overflowY: 'auto', flex: 1, paddingRight: '2px' }}>
+                                                {['EXPENSE', 'REVENUE', 'ASSET', 'LIABILITY', 'EQUITY'].map(type => {
+                                                    const typeCats = filteredCategories.filter(c => c.type === type);
+                                                    if (typeCats.length === 0) return null;
+                                                    return (
+                                                        <div key={type} style={{ marginBottom: '0.75rem' }}>
+                                                            <div style={{ 
+                                                                fontSize: '0.65rem', 
+                                                                fontWeight: 800, 
+                                                                color: type === 'EXPENSE' ? 'var(--danger)' : 
+                                                                       type === 'REVENUE' ? 'var(--success)' : 
+                                                                       type === 'ASSET' ? '#3b82f6' : 'var(--text-muted)', 
+                                                                textTransform: 'uppercase', 
+                                                                letterSpacing: '0.1em',
+                                                                padding: '0.25rem 0.5rem',
+                                                                background: type === 'EXPENSE' ? 'rgba(239, 68, 68, 0.05)' : 
+                                                                           type === 'REVENUE' ? 'rgba(16, 185, 129, 0.05)' : 
+                                                                           type === 'ASSET' ? 'rgba(59, 130, 246, 0.05)' : 'rgba(100, 116, 139, 0.05)',
+                                                                borderRadius: '6px',
+                                                                marginBottom: '0.4rem',
+                                                                display: 'inline-block'
+                                                            }}>
+                                                                {type}
+                                                            </div>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                {typeCats.map(cat => {
+                                                                    const isSelected = cat.id === formData.category_id;
+                                                                    return (
+                                                                        <div
+                                                                            key={cat.id}
+                                                                            onClick={() => {
+                                                                                setFormData({...formData, category_id: cat.id, category_name: cat.name});
+                                                                                setDropdownOpen(false);
+                                                                                setSearchQuery('');
+                                                                            }}
+                                                                            style={{
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'space-between',
+                                                                                padding: '0.6rem 0.75rem',
+                                                                                borderRadius: '10px',
+                                                                                cursor: 'pointer',
+                                                                                background: isSelected ? 'var(--surface-hover)' : 'transparent',
+                                                                                color: 'var(--text-main)',
+                                                                                fontSize: '0.875rem',
+                                                                                fontWeight: isSelected ? 700 : 500,
+                                                                                transition: 'all 0.15s ease'
+                                                                            }}
+                                                                            onMouseEnter={e => {
+                                                                                if (!isSelected) {
+                                                                                    e.currentTarget.style.background = 'var(--surface-hover)';
+                                                                                }
+                                                                            }}
+                                                                            onMouseLeave={e => {
+                                                                                if (!isSelected) {
+                                                                                    e.currentTarget.style.background = 'transparent';
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <span>{cat.name}</span>
+                                                                            {isSelected && <Check size={16} style={{ color: 'var(--primary)' }} />}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {filteredCategories.length === 0 && (
+                                                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                                        No categories match search.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                     </div>
 
                     {/* Phase */}
