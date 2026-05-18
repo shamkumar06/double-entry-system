@@ -24,20 +24,24 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
     const stats = useMemo(() => {
         if (!project) return null;
 
-        let totalFunds = 0, totalSpent = 0;
+        let totalFunds = 0, totalSpent = 0, reallocated = 0, returned = 0;
 
         if (phaseId) {
             // Phase view: use the pre-computed phaseFinances map (from /phase-financials endpoint)
             const pf = phaseFinances[phaseId];
             totalFunds = pf?.received || 0;
             totalSpent = pf?.spent || 0;
+            reallocated = pf?.reallocated || 0;
+            returned = pf?.returned || 0;
         } else {
             // Project overview: use backend-computed aggregates on the project object
             totalFunds = Number(projectFinances?.received) || 0;
             totalSpent = Number(projectFinances?.spent) || 0;
+            reallocated = Object.values(phaseFinances).reduce((sum, pf) => sum + (pf.reallocated || 0), 0);
+            returned = Number(projectFinances?.returned) || 0;
         }
 
-        const remaining = totalFunds - totalSpent;
+        const remaining = (totalFunds + reallocated) - (totalSpent + returned);
 
         // Cast Decimal fields from Prisma with Number() — raw Decimal objects break JS math
         const baseline = phaseId
@@ -45,14 +49,14 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
             : (Number(project.totalFunds) || 0);
 
         // Use received funds as the denominator when baseline is unavailable
-        const denominator = baseline > 0 ? baseline : (Number(projectFinances?.received) || 0);
+        const denominator = baseline > 0 ? baseline : (totalFunds + reallocated);
         const spentPct = denominator > 0 ? Math.min((totalSpent / denominator) * 100, 100) : 0;
 
         const activeJournal = phaseId
             ? journal.filter(tx => tx.phaseId === phaseId || tx.phase?.id === phaseId)
             : journal;
 
-        return { totalFunds, totalSpent, remaining, spentPct, txCount: activeJournal.length, activeJournal };
+        return { totalFunds, totalSpent, remaining, reallocated, returned, spentPct, txCount: activeJournal.length, activeJournal };
     }, [project, journal, phaseFinances, projectFinances, phaseId]);
 
     // Phase breakdown using pre-computed phaseFinances (no loops, O(n) on phases array)
@@ -461,6 +465,15 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         </span>
                     </div>
                     <div className="stat-card-premium">
+                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--accent)' }}>
+                            <TrendingUp size={20} />
+                        </div>
+                        <span className="hero-stat-label">Received Funds</span>
+                        <span className="hero-stat-value" style={{ color: 'var(--accent)' }}>
+                            {formatCurrency(stats?.totalFunds)}
+                        </span>
+                    </div>
+                    <div className="stat-card-premium">
                         <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: isSettled ? 'var(--success)' : 'var(--danger)' }}>
                             <TrendingDown size={20} />
                         </div>
@@ -478,13 +491,22 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             {formatCurrency(stats?.remaining)}
                         </span>
                     </div>
-                    <div className="stat-card-premium">
-                        <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--accent)' }}>
-                            <TrendingUp size={20} />
+                    <div className="stat-card-premium animate-in">
+                        <div className="stat-icon-wrapper" style={{ background: 'rgba(129, 140, 248, 0.1)', color: '#818cf8' }}>
+                            <Layers size={20} />
                         </div>
-                        <span className="hero-stat-label">Received Funds</span>
-                        <span className="hero-stat-value" style={{ color: 'var(--accent)' }}>
-                            {formatCurrency(stats?.totalFunds)}
+                        <span className="hero-stat-label">Reallocated Funds</span>
+                        <span className="hero-stat-value" style={{ color: '#818cf8' }}>
+                            {formatCurrency(stats?.reallocated || 0)}
+                        </span>
+                    </div>
+                    <div className="stat-card-premium animate-in">
+                        <div className="stat-icon-wrapper" style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)' }}>
+                            <Layers size={20} style={{ transform: 'rotate(180deg)' }} />
+                        </div>
+                        <span className="hero-stat-label">Returned Funds</span>
+                        <span className="hero-stat-value" style={{ color: 'var(--danger)' }}>
+                            {formatCurrency(stats?.returned || 0)}
                         </span>
                     </div>
                     <div className="stat-card-premium">
@@ -505,7 +527,8 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         minHeight: '160px',
                         padding: '1.25rem 1.5rem',
                         boxShadow: 'var(--card-shadow-inset)',
-                        justifyContent: 'space-between'
+                        justifyContent: 'space-between',
+                        gridColumn: 'span 2'
                     }}>
                         {/* Header */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -544,30 +567,32 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                         handleCalcKey('C');
                                     }
                                 }}
-                                placeholder="Type equation..."
+                                placeholder="0"
                                 style={{
                                     width: '100%',
-                                    background: 'var(--surface-hover)',
-                                    border: '1px solid var(--border)',
-                                    borderRadius: '10px',
-                                    padding: '0.6rem 0.85rem',
-                                    fontSize: '0.95rem',
-                                    fontWeight: 700,
-                                    color: 'var(--text-main)',
+                                    background: '#070f0b', // Deep retro dark green-black LCD background
+                                    border: '2px solid #1e3a24', // Subtle retro LCD frame border
+                                    borderRadius: '12px',
+                                    padding: '1.25rem 1.5rem', // Large premium inner padding
+                                    fontSize: '2rem', // Large bold display font size
+                                    fontWeight: 'bold',
+                                    color: '#4ade80', // Beautiful bright glowing retro green
                                     textAlign: 'right',
-                                    fontFamily: 'monospace',
+                                    fontFamily: 'monospace', // Digital/monospaced font
+                                    letterSpacing: '0.08em', // Digital display letter spacing
                                     outline: 'none',
-                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
-                                    transition: 'all 0.2s ease',
+                                    boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.8), 0 0 15px rgba(74, 222, 128, 0.15)', // Inside screen shadow & retro glow
+                                    textShadow: '0 0 10px rgba(74, 222, 128, 0.65)', // High-contrast glowing digit text shadow!
+                                    transition: 'all 0.3s ease',
                                     colorScheme: 'dark'
                                 }}
                                 onFocus={(e) => {
-                                    e.target.style.borderColor = 'var(--accent)';
-                                    e.target.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.1), 0 0 8px rgba(56, 189, 248, 0.15)';
+                                    e.target.style.borderColor = '#4ade80';
+                                    e.target.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.8), 0 0 20px rgba(74, 222, 128, 0.3)';
                                 }}
                                 onBlur={(e) => {
-                                    e.target.style.borderColor = 'var(--border)';
-                                    e.target.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.1)';
+                                    e.target.style.borderColor = '#1e3a24';
+                                    e.target.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.8), 0 0 15px rgba(74, 222, 128, 0.15)';
                                 }}
                             />
                         </div>
@@ -578,13 +603,16 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             color: 'var(--text-muted)', 
                             lineHeight: '1.4',
                             display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.1rem',
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
                             fontFamily: 'monospace'
                         }}>
                             <span style={{ color: 'var(--success)' }}>⌨️ Keyboard Active</span>
-                            <span>• Enter = Calculate</span>
-                            <span>• Esc = Clear Display</span>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <span>• Enter = Calculate</span>
+                                <span>• Esc = Clear</span>
+                            </div>
                         </div>
                     </div>
                 </div>

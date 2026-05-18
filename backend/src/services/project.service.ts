@@ -1,5 +1,6 @@
 import prisma from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
+import { Prisma } from '@prisma/client';
 
 export const listProjects = async () => {
   const projects = await prisma.project.findMany({
@@ -83,6 +84,8 @@ export const listPhases = async (projectId: string) => {
       paymentMode: phase.paymentMode,
       reference: phase.reference,
       requestLetterUrl: phase.requestLetterUrl,
+      returnedAmount: Number(phase.returnedAmount || 0),
+      reallocatedAmount: Number(phase.reallocatedAmount || 0),
       isSettled: phase.isSettled,
       createdAt: phase.createdAt,
       updatedAt: phase.updatedAt,
@@ -194,9 +197,184 @@ export const getPhaseFinancials = async (projectId: string) => {
       name: phase.name,
       estimatedBudget: Number(phase.estimatedBudget),
       receivedAmount: Number(phase.receivedAmount),
+      returnedAmount: Number(phase.returnedAmount || 0),
+      reallocatedAmount: Number(phase.reallocatedAmount || 0),
       totalExpense,
-      balance: Number(phase.receivedAmount) - totalExpense,
+      balance: (Number(phase.receivedAmount) + Number(phase.reallocatedAmount || 0)) - (totalExpense + Number(phase.returnedAmount || 0)),
       isSettled: phase.isSettled,
     };
+  });
+};
+
+export const settlePhase = async (projectId: string, phaseId: string) => {
+  const phase = await prisma.phase.findFirst({
+    where: { id: phaseId, projectId },
+    include: {
+      transactions: {
+        where: { isDeleted: false },
+        include: { lines: true }
+      }
+    }
+  });
+  if (!phase) throw new AppError('Phase not found.', 404);
+  if (phase.isSettled) throw new AppError('Phase is already settled.', 400);
+
+  // 1. Calculate spent_amount
+  let spentAmount = 0;
+  phase.transactions.forEach((tx) => {
+    tx.lines.forEach((line) => {
+      if (line.type === 'DEBIT') {
+        spentAmount += Number(line.amount);
+      }
+    });
+  });
+
+  // 2. Compute current balance: (receivedAmount + reallocatedAmount) - spentAmount
+  const currentBalance = (Number(phase.receivedAmount) + Number(phase.reallocatedAmount || 0)) - spentAmount;
+  if (currentBalance < 0) {
+    throw new AppError('Cannot settle a phase with a negative balance.', 400);
+  }
+
+  // 3. Find categories
+  const settlementCategory = await prisma.accountCategory.findFirst({
+    where: { name: 'Settlement Amount' }
+  });
+  const bankCategory = await prisma.accountCategory.findFirst({
+    where: { name: 'Bank' }
+  });
+  
+  if (!settlementCategory || !bankCategory) {
+    throw new AppError('System categories for settlement (Settlement Amount or Bank) not seeded.', 500);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // 4. Update phase
+    const updatedPhase = await tx.phase.update({
+      where: { id: phaseId },
+      data: {
+        isSettled: true,
+        returnedAmount: currentBalance,
+      }
+    });
+
+    // 5. If balance > 0, automate system transaction
+    if (currentBalance > 0) {
+      await tx.transaction.create({
+        data: {
+          projectId,
+          phaseId,
+          date: new Date(),
+          description: `SYSTEM AUTOMATED SETTLEMENT: Returned surplus of ₹${currentBalance.toLocaleString('en-IN')} to College Management`,
+          fromEntity: phase.name,
+          toEntity: 'College Management',
+          paymentMode: 'AUTO',
+          reference: 'SETTLE-' + phaseId.slice(0, 8).toUpperCase(),
+          lines: {
+            create: [
+              {
+                accountId: settlementCategory.id,
+                type: 'DEBIT',
+                amount: new Prisma.Decimal(currentBalance),
+              },
+              {
+                accountId: bankCategory.id,
+                type: 'CREDIT',
+                amount: new Prisma.Decimal(currentBalance),
+              }
+            ]
+          }
+        }
+      });
+    }
+
+    return updatedPhase;
+  });
+};
+
+export const reallocateSurplus = async (
+  projectId: string,
+  targetPhaseId: string,
+  sourcePhaseId: string
+) => {
+  const targetPhase = await prisma.phase.findFirst({ where: { id: targetPhaseId, projectId } });
+  const sourcePhase = await prisma.phase.findFirst({ where: { id: sourcePhaseId, projectId } });
+
+  if (!targetPhase) throw new AppError('Target phase not found.', 404);
+  if (!sourcePhase) throw new AppError('Source phase not found.', 404);
+  if (!sourcePhase.isSettled) throw new AppError('Source phase is not settled yet.', 400);
+
+  const surplus = Number(sourcePhase.returnedAmount || 0);
+  if (surplus <= 0) {
+    throw new AppError('Source phase has no returned surplus to reallocate.', 400);
+  }
+
+  // Check if already reallocated
+  const existingReallocation = await prisma.phase.findFirst({
+    where: {
+      projectId,
+      reallocatedAmount: sourcePhase.returnedAmount,
+      transactions: {
+        some: {
+          description: {
+            contains: `Rolled-over surplus from ${sourcePhase.name}`
+          }
+        }
+      }
+    }
+  });
+  if (existingReallocation) {
+    throw new AppError(`The surplus of ${sourcePhase.name} has already been reallocated to ${existingReallocation.name}.`, 400);
+  }
+
+  // Find system categories
+  const reallocatedCategory = await prisma.accountCategory.findFirst({
+    where: { name: 'Reallocated Fund' }
+  });
+  const bankCategory = await prisma.accountCategory.findFirst({
+    where: { name: 'Bank' }
+  });
+
+  if (!reallocatedCategory || !bankCategory) {
+    throw new AppError('System categories for reallocation (Reallocated Fund or Bank) not seeded.', 500);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Update target phase
+    const updatedTargetPhase = await tx.phase.update({
+      where: { id: targetPhaseId },
+      data: {
+        reallocatedAmount: surplus
+      }
+    });
+
+    // 2. Automate double-entry transaction
+    await tx.transaction.create({
+      data: {
+        projectId,
+        phaseId: targetPhaseId,
+        date: new Date(),
+        description: `SYSTEM AUTOMATED REALLOCATION: Rolled-over surplus from ${sourcePhase.name} to ${targetPhase.name}`,
+        fromEntity: sourcePhase.name,
+        toEntity: targetPhase.name,
+        paymentMode: 'AUTO',
+        reference: 'REALLOC-' + sourcePhaseId.slice(0, 8).toUpperCase(),
+        lines: {
+          create: [
+            {
+              accountId: bankCategory.id,
+              type: 'DEBIT',
+              amount: new Prisma.Decimal(surplus),
+            },
+            {
+              accountId: reallocatedCategory.id,
+              type: 'CREDIT',
+              amount: new Prisma.Decimal(surplus),
+            }
+          ]
+        }
+      }
+    });
+
+    return updatedTargetPhase;
   });
 };

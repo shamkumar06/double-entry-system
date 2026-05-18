@@ -19,4 +19,7 @@ router.post('/:projectId/phases', authenticate, requireAdmin, project.createPhas
 router.put('/:projectId/phases/:phaseId', authenticate, requireAdmin, project.updatePhase);
 router.delete('/:projectId/phases/:phaseId', authenticate, requireAdmin, project.deletePhase);
 
+router.post('/:projectId/phases/:phaseId/settle', authenticate, requireAdmin, project.settlePhase);
+router.post('/:projectId/phases/:phaseId/reallocate', authenticate, requireAdmin, project.reallocateSurplus);
+
 export default router;

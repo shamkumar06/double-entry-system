@@ -18,13 +18,15 @@ const categories = [
   // Revenue
   { code: 4001, name: 'Grants Received', type: 'REVENUE', isSystem: true, description: 'Funding or sponsorship grants' },
   { code: 4002, name: 'Project Income', type: 'REVENUE', isSystem: true, description: 'Revenue earned from project activities' },
+  { code: 4003, name: 'Reallocated Fund', type: 'REVENUE', isSystem: true, description: 'Surplus funds reallocated from previous phases' },
   
   // Expenses
   { code: 5001, name: 'Transport Expense', type: 'EXPENSE', isSystem: true, description: 'Travel, freight and transport costs' },
   { code: 5002, name: 'Food Expense', type: 'EXPENSE', isSystem: true, description: 'Catering and food purchases' },
   { code: 5003, name: 'Materials Expense', type: 'EXPENSE', isSystem: true, description: 'Raw materials and component costs' },
   { code: 5004, name: 'Labour Expense', type: 'EXPENSE', isSystem: true, description: 'Wages and salaries' },
-  { code: 5005, name: 'Utilities Expense', type: 'EXPENSE', isSystem: true, description: 'Rent, electricity and minor amenities' }
+  { code: 5005, name: 'Utilities Expense', type: 'EXPENSE', isSystem: true, description: 'Rent, electricity and minor amenities' },
+  { code: 5006, name: 'Settlement Amount', type: 'EXPENSE', isSystem: true, description: 'Unspent surplus returned to college management' }
 ];
 
 async function main() {

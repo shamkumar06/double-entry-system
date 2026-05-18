@@ -74,3 +74,25 @@ export const getPhaseFinancials = async (req: Request, res: Response, next: Next
     res.json({ success: true, data });
   } catch (err) { next(err); }
 };
+
+export const settlePhase = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await projectService.settlePhase(
+      req.params.projectId as string,
+      req.params.phaseId as string
+    );
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+export const reallocateSurplus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sourcePhaseId } = req.body;
+    const data = await projectService.reallocateSurplus(
+      req.params.projectId as string,
+      req.params.phaseId as string, // targetPhaseId
+      sourcePhaseId as string
+    );
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};

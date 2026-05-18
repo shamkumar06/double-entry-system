@@ -14,11 +14,11 @@ import Reports from './components/Reports';
 import LoginScreen from './components/LoginScreen';
 import ReceiptsGallery from './components/ReceiptsGallery';
 import { accountingApi, authApi, getImageUrl } from './services/api';
-import { useSettings } from './context/SettingsContext';
+import { useSettings, useCurrency } from './context/SettingsContext';
 import { ProjectDataProvider, useProjectData } from './context/ProjectDataContext';
 
 function AppInner() {
-  const { project: contextProject, loadProject, invalidate } = useProjectData();
+  const { project: contextProject, journal, phaseFinances, loadProject, invalidate } = useProjectData();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
@@ -49,6 +49,13 @@ function AppInner() {
   const [downloading, setDownloading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [showReallocateModal, setShowReallocateModal] = useState(false);
+  const [selectedSourcePhaseId, setSelectedSourcePhaseId] = useState('');
+  const [settleLoading, setSettleLoading] = useState(false);
+  const [reallocateLoading, setReallocateLoading] = useState(false);
+  const [settleError, setSettleError] = useState('');
+  const [reallocateError, setReallocateError] = useState('');
 
   // Sync state changes to sessionStorage automatically
   useEffect(() => {
@@ -93,6 +100,7 @@ function AppInner() {
   const [selectedPhases, setSelectedPhases] = useState([]);
   const [activeAccount, setActiveAccount] = useState('Cash');
   const { settings } = useSettings();
+  const { formatCurrency } = useCurrency();
 
   const fetchUser = async () => {
     try {
@@ -175,6 +183,43 @@ function AppInner() {
     }
   };
 
+  const handleSettlePhase = async () => {
+    setSettleLoading(true);
+    setSettleError('');
+    try {
+      await accountingApi.settlePhase(activeProject.id, activePhase.id);
+      setShowSettleModal(false);
+      // Invalidate context to reload everything cleanly!
+      invalidate(activeProject.id, activePhase?.id || null);
+      setRefreshKey(prev => prev + 1);
+    } catch (e) {
+      setSettleError(e.response?.data?.message || e.message || 'Failed to settle phase');
+    } finally {
+      setSettleLoading(false);
+    }
+  };
+
+  const handleReallocateSurplus = async () => {
+    if (!selectedSourcePhaseId) {
+      setReallocateError('Please select a source phase.');
+      return;
+    }
+    setReallocateLoading(true);
+    setReallocateError('');
+    try {
+      await accountingApi.reallocateSurplus(activeProject.id, activePhase.id, selectedSourcePhaseId);
+      setShowReallocateModal(false);
+      setSelectedSourcePhaseId('');
+      // Invalidate context to reload everything cleanly!
+      invalidate(activeProject.id, activePhase?.id || null);
+      setRefreshKey(prev => prev + 1);
+    } catch (e) {
+      setReallocateError(e.response?.data?.message || e.message || 'Failed to reallocate surplus');
+    } finally {
+      setReallocateLoading(false);
+    }
+  };
+
   const handleCategoryRename = (oldName, newName) => {
     if (activeAccount === oldName) {
       setActiveAccount(newName);
@@ -253,6 +298,7 @@ function AppInner() {
     return (
       <PhaseSelector
         project={activeProject}
+        user={user}
         onSelectPhase={(phase) => { 
           // phase is now an object { name, phase_id } from PhaseSelector
           setActivePhase(phase); 
@@ -267,6 +313,22 @@ function AppInner() {
     const isPhaseSettled = activePhase?.name && phasesList.length > 0
         ? phasesList.find(p => p.id === activePhase.id)?.isSettled 
         : false;
+
+    const activePhaseDataForSettle = activePhase?.id && phaseFinances ? phaseFinances[activePhase.id] : null;
+    const currentBalanceForSettle = activePhaseDataForSettle ? activePhaseDataForSettle.balance : 0;
+
+    const reallocatedSourceNamesForModal = Array.isArray(journal) 
+      ? journal
+          .filter(tx => tx.description && tx.description.includes('SYSTEM AUTOMATED REALLOCATION'))
+          .map(tx => tx.fromEntity)
+      : [];
+
+    const eligiblePhasesForReallocateModal = phasesList.filter(p => {
+      return p.isSettled && 
+             p.id !== activePhase?.id && 
+             Number(p.returnedAmount || 0) > 0 &&
+             !reallocatedSourceNamesForModal.includes(p.name);
+    });
 
     // Project dashboard
     return (
@@ -401,6 +463,65 @@ function AppInner() {
               <button className="btn-circle-glass" onClick={() => setShowEditModal(true)} title="Edit Details">
                  <Edit3 size={20} />
               </button>
+            )}
+
+            {activeTab === 'Overview' && activePhase && !isPhaseSettled && user?.role === 'ADMIN' && (
+              <>
+                <button
+                  onClick={() => setShowReallocateModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.65rem 1.25rem',
+                    borderRadius: '12px',
+                    background: 'rgba(129, 140, 248, 0.1)',
+                    color: '#818cf8',
+                    border: '1px solid rgba(129, 140, 248, 0.2)',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.background = 'rgba(129, 140, 248, 0.18)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.background = 'rgba(129, 140, 248, 0.1)';
+                  }}
+                >
+                  <Layers size={16} /> Reallocate Rollover
+                </button>
+                <button
+                  onClick={() => setShowSettleModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.65rem 1.25rem',
+                    borderRadius: '12px',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: 'var(--success)',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.18)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                  }}
+                >
+                  <CheckCircle size={16} /> Settle Phase
+                </button>
+              </>
             )}
 
             {!isPhaseSettled && (activeTab === 'Journal' || activeTab === 'Overview') && (
@@ -539,6 +660,212 @@ function AppInner() {
               } catch(e) { console.error(e); }
             }}
           />
+        )}
+
+        {showSettleModal && (
+            <div className="modal-overlay" style={{
+                position: 'fixed', inset: 0, 
+                background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+                <div className="modal-content glass-panel animate-in" style={{ 
+                    width: '100%', maxWidth: '480px', padding: '2rem', 
+                    background: 'var(--background)', borderRadius: '24px', overflow: 'hidden',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    display: 'flex', flexDirection: 'column', gap: '1.5rem',
+                    border: '1px solid var(--border)'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Settle & Return Surplus</h3>
+                        <button onClick={() => { setShowSettleModal(false); setSettleError(''); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.925rem', lineHeight: '1.6' }}>
+                        You are about to settle <strong style={{ color: 'var(--text-main)' }}>{activePhase?.name}</strong>. 
+                        This action will officially close the accounts session for this phase.
+                        Any remaining surplus balance will be automatically returned to College Management.
+                    </div>
+
+                    <div style={{ 
+                        background: 'rgba(16, 185, 129, 0.08)', 
+                        border: '1px solid rgba(16, 185, 129, 0.15)',
+                        borderRadius: '16px',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.25rem'
+                    }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--success)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Surplus to return</span>
+                        <span style={{ fontSize: '2rem', fontWeight: 850, color: 'var(--success)', fontFamily: 'monospace' }}>
+                            {formatCurrency(currentBalanceForSettle)}
+                        </span>
+                    </div>
+
+                    {settleError && (
+                        <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 600 }}>
+                            ⚠️ {settleError}
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                        <button 
+                            onClick={() => { setShowSettleModal(false); setSettleError(''); }} 
+                            className="btn-secondary"
+                            style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontWeight: 700 }}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={handleSettlePhase} 
+                            disabled={settleLoading}
+                            style={{ 
+                                flex: 1, 
+                                padding: '0.75rem', 
+                                borderRadius: '12px', 
+                                fontWeight: 700,
+                                background: settleLoading ? 'var(--surface-hover)' : 'var(--success)',
+                                color: '#000000',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                opacity: settleLoading ? 0.6 : 1
+                            }}
+                        >
+                            {settleLoading ? 'Processing...' : 'Confirm Settlement'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {showReallocateModal && (
+            <div className="modal-overlay" style={{
+                position: 'fixed', inset: 0, 
+                background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+                <div className="modal-content glass-panel animate-in" style={{ 
+                    width: '100%', maxWidth: '520px', padding: '2rem', 
+                    background: 'var(--background)', borderRadius: '24px', overflow: 'hidden',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    display: 'flex', flexDirection: 'column', gap: '1.5rem',
+                    border: '1px solid var(--border)'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Reallocate Surplus Fund</h3>
+                        <button onClick={() => { setShowReallocateModal(false); setSelectedSourcePhaseId(''); setReallocateError(''); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.925rem', lineHeight: '1.6' }}>
+                        Select a closed (settled) phase below to roll over its unspent surplus directly into <strong style={{ color: 'var(--text-main)' }}>{activePhase?.name}</strong>.
+                    </div>
+
+                    {eligiblePhasesForReallocateModal.length === 0 ? (
+                        <div style={{ 
+                            padding: '2rem 1rem', 
+                            background: 'var(--surface-hover)', 
+                            borderRadius: '16px',
+                            border: '1px dashed var(--border)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            textAlign: 'center',
+                            gap: '0.5rem'
+                        }}>
+                            <span style={{ fontSize: '2rem' }}>📭</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>No Eligible Settled Phases</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>There are no closed phases with an available unspent surplus to reallocate.</span>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Source Phase</label>
+                            <div style={{ 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                gap: '0.5rem', 
+                                maxHeight: '200px', 
+                                overflowY: 'auto',
+                                paddingRight: '4px'
+                            }}>
+                                {eligiblePhasesForReallocateModal.map(p => (
+                                    <div 
+                                        key={p.id}
+                                        onClick={() => setSelectedSourcePhaseId(p.id)}
+                                        style={{
+                                            padding: '1rem',
+                                            borderRadius: '14px',
+                                            background: selectedSourcePhaseId === p.id ? 'rgba(129, 140, 248, 0.08)' : 'var(--surface-hover)',
+                                            border: selectedSourcePhaseId === p.id ? '2px solid #818cf8' : '1px solid var(--border)',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-main)' }}>{p.name}</span>
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Settled on {new Date(p.updatedAt).toLocaleDateString()}</span>
+                                        </div>
+                                        <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--success)', fontFamily: 'monospace' }}>
+                                            +{formatCurrency(Number(p.returnedAmount))}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {reallocateError && (
+                        <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 600 }}>
+                            ⚠️ {reallocateError}
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                        <button 
+                            onClick={() => { setShowReallocateModal(false); setSelectedSourcePhaseId(''); setReallocateError(''); }} 
+                            className="btn-secondary"
+                            style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontWeight: 700 }}
+                        >
+                            Cancel
+                        </button>
+                        {eligiblePhasesForReallocateModal.length > 0 && (
+                            <button 
+                                onClick={handleReallocateSurplus} 
+                                disabled={reallocateLoading || !selectedSourcePhaseId}
+                                style={{ 
+                                    flex: 1, 
+                                    padding: '0.75rem', 
+                                    borderRadius: '12px', 
+                                    fontWeight: 700,
+                                    background: reallocateLoading || !selectedSourcePhaseId ? 'var(--surface-hover)' : '#818cf8',
+                                    color: '#000000',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.5rem',
+                                    opacity: reallocateLoading || !selectedSourcePhaseId ? 0.6 : 1
+                                }}
+                            >
+                                {reallocateLoading ? 'Processing...' : 'Confirm Reallocation'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
         )}
 
       {/* Mobile Bottom Navigation */}

@@ -95,18 +95,24 @@ export function ProjectDataProvider({ children }) {
             const phaseFinances = {};
             let totalProjectSpent = 0;
             let totalProjectReceived = 0;
+            let totalProjectReturned = 0;
 
-            // Initialize phases with their actual database receivedAmount and estimatedBudget
+            // Initialize phases with their actual database receivedAmount, reallocatedAmount, returnedAmount and estimatedBudget
             (project.phases || []).forEach(ph => {
                 const phReceived = Number(ph.receivedAmount) || 0;
+                const phReallocated = Number(ph.reallocatedAmount) || 0;
+                const phReturned = Number(ph.returnedAmount) || 0;
                 phaseFinances[ph.id] = {
                     id: ph.id,
                     name: ph.name,
                     received: phReceived,
+                    reallocated: phReallocated,
+                    returned: phReturned,
                     spent: 0,
-                    balance: phReceived
+                    balance: (phReceived + phReallocated) - phReturned
                 };
                 totalProjectReceived += phReceived;
+                totalProjectReturned += phReturned;
             });
 
             // Aggregate spent and received amounts from the journal
@@ -119,30 +125,37 @@ export function ProjectDataProvider({ children }) {
                     
                     // Outflows/Spent: DEBIT lines to EXPENSE accounts
                     if (line.account?.type === 'EXPENSE') {
-                        if (line.type === 'DEBIT') {
-                            txSpent += amt;
-                        } else if (line.type === 'CREDIT') {
-                            txSpent -= amt; // Refund reduces spent
+                        // Skip system automated Settlement Amount to avoid bloating direct project expense metrics
+                        if (line.account?.name !== 'Settlement Amount') {
+                            if (line.type === 'DEBIT') {
+                                txSpent += amt;
+                            } else if (line.type === 'CREDIT') {
+                                txSpent -= amt; // Refund reduces spent
+                            }
                         }
                     }
 
                     // Inflows/Received: CREDIT lines to EQUITY, REVENUE, or LIABILITY accounts
                     if (['EQUITY', 'REVENUE', 'LIABILITY'].includes(line.account?.type)) {
-                        if (line.type === 'CREDIT') {
-                            txReceived += amt;
-                        } else if (line.type === 'DEBIT') {
-                            txReceived -= amt; // Debit reduces received
+                        // Skip system automated Reallocated Fund to avoid double-counting rolled-over amounts as fresh capital
+                        if (line.account?.name !== 'Reallocated Fund') {
+                            if (line.type === 'CREDIT') {
+                                txReceived += amt;
+                            } else if (line.type === 'DEBIT') {
+                                txReceived -= amt; // Debit reduces received
+                            }
                         }
                     }
                 });
 
                 totalProjectSpent += txSpent;
-                totalProjectReceived += txReceived;
 
                 if (tx.phaseId && phaseFinances[tx.phaseId]) {
                     phaseFinances[tx.phaseId].spent += txSpent;
                     phaseFinances[tx.phaseId].received += txReceived;
-                    phaseFinances[tx.phaseId].balance = phaseFinances[tx.phaseId].received - phaseFinances[tx.phaseId].spent;
+                    phaseFinances[tx.phaseId].balance = 
+                        (phaseFinances[tx.phaseId].received + phaseFinances[tx.phaseId].reallocated) - 
+                        (phaseFinances[tx.phaseId].spent + phaseFinances[tx.phaseId].returned);
                 }
             });
             
@@ -150,7 +163,8 @@ export function ProjectDataProvider({ children }) {
             const projectFinances = {
                 received: totalProjectReceived,
                 spent: totalProjectSpent,
-                balance: totalProjectReceived - totalProjectSpent,
+                returned: totalProjectReturned,
+                balance: totalProjectReceived - (totalProjectSpent + totalProjectReturned),
             };
 
             dispatch({

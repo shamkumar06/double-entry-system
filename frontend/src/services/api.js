@@ -91,6 +91,8 @@ export const accountingApi = {
   createPhase: (projectId, data) => api.post(`/projects/${projectId}/phases`, data),
   updatePhase: (projectId, phaseId, data) => api.put(`/projects/${projectId}/phases/${phaseId}`, data),
   deletePhase: (projectId, phaseId) => api.delete(`/projects/${projectId}/phases/${phaseId}`),
+  settlePhase: (projectId, phaseId) => api.post(`/projects/${projectId}/phases/${phaseId}/settle`),
+  reallocateSurplus: (projectId, phaseId, sourcePhaseId) => api.post(`/projects/${projectId}/phases/${phaseId}/reallocate`, { sourcePhaseId }),
 
   // --- Categories / System ---
   listCategories: () => {

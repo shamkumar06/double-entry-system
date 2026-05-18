@@ -4,7 +4,7 @@ import { GitBranch, Plus, Trash2, ArrowRight, ChevronLeft, Edit2 } from 'lucide-
 import { useCurrency } from '../context/SettingsContext';
 import ConfirmationDialog from './ConfirmationDialog';
 
-export default function PhaseSelector({ project, onSelectPhase, onBack }) {
+export default function PhaseSelector({ project, user, onSelectPhase, onBack }) {
     const { formatCurrency, symbol } = useCurrency();
     const [phases, setPhases] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -55,6 +55,33 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
         });
     };
 
+    const [showReallocateModal, setShowReallocateModal] = useState(false);
+    const [targetPhaseId, setTargetPhaseId] = useState(null);
+    const [selectedSourcePhaseId, setSelectedSourcePhaseId] = useState('');
+    const [reallocateLoading, setReallocateLoading] = useState(false);
+    const [reallocateError, setReallocateError] = useState('');
+    const [journal, setJournal] = useState([]);
+
+    const handleReallocateSurplus = async () => {
+        if (!selectedSourcePhaseId || !targetPhaseId) {
+            setReallocateError('Please select a source phase.');
+            return;
+        }
+        setReallocateLoading(true);
+        setReallocateError('');
+        try {
+            await accountingApi.reallocateSurplus(project.id, targetPhaseId, selectedSourcePhaseId);
+            setShowReallocateModal(false);
+            setTargetPhaseId(null);
+            setSelectedSourcePhaseId('');
+            fetchPhases();
+        } catch (e) {
+            setReallocateError(e.response?.data?.message || e.message || 'Failed to reallocate surplus');
+        } finally {
+            setReallocateLoading(false);
+        }
+    };
+
     const fetchPhases = async () => {
         setLoading(true);
         try {
@@ -63,6 +90,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                 accountingApi.getJournal(project.id, null)
             ]);
             const list = Array.isArray(txs) ? txs : (txs?.data || []);
+            setJournal(list);
             const phasesArray = Array.isArray(phasesData) ? phasesData : (phasesData?.data || []);
 
             const mappedPhases = phasesArray.map(phase => {
@@ -593,14 +621,32 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                     )}
                                 </div>
 
-                                <div style={{ margin: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <div style={{ margin: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                                         <span style={{ color: 'var(--text-muted)' }}>Budget</span>
                                         <span style={{ fontWeight: 700 }}>{formatCurrency(phase.estimatedBudget || 0)}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--success)' }}>
-                                        <span style={{ fontWeight: 600 }}>Received</span>
-                                        <span style={{ fontWeight: 800 }}>{formatCurrency(phase.receivedAmount || 0)}</span>
+                                        <span style={{ color: 'var(--text-muted)' }}>Received (Allocated)</span>
+                                        <span style={{ fontWeight: 700 }}>{formatCurrency(phase.receivedAmount || 0)}</span>
+                                    </div>
+                                    {Number(phase.reallocatedAmount) > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#818cf8' }}>
+                                            <span style={{ fontWeight: 600 }}>Reallocated (+)</span>
+                                            <span style={{ fontWeight: 700 }}>{formatCurrency(phase.reallocatedAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(phase.returnedAmount) > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--danger)' }}>
+                                            <span style={{ fontWeight: 600 }}>Returned (-)</span>
+                                            <span style={{ fontWeight: 700 }}>{formatCurrency(phase.returnedAmount)}</span>
+                                        </div>
+                                    )}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', borderTop: '1px solid var(--border)', paddingTop: '0.25rem', marginTop: '0.25rem' }}>
+                                        <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Current Balance</span>
+                                        <span style={{ fontWeight: 800, color: 'var(--success)' }}>
+                                            {formatCurrency((Number(phase.receivedAmount) + Number(phase.reallocatedAmount || 0)) - (Number(phase.spent_amount) + Number(phase.returnedAmount || 0)))}
+                                        </span>
                                     </div>
                                     
                                     {/* Utilization Bar */}
@@ -608,27 +654,94 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                                             <span>{phase.isSettled ? 'Settled' : 'Utilization'}</span>
                                             <span>{(() => {
-                                                const received = parseFloat(phase.receivedAmount) || 0;
+                                                const totalFunds = (parseFloat(phase.receivedAmount) || 0) + (parseFloat(phase.reallocatedAmount) || 0);
                                                 const spent = parseFloat(phase.spent_amount) || 0;
-                                                if (received <= 0) return '0%';
-                                                return Math.round((spent / received) * 100) + '%';
+                                                if (totalFunds <= 0) return '0%';
+                                                return Math.round((spent / totalFunds) * 100) + '%';
                                             })()}</span>
                                         </div>
                                         <div style={{ height: '6px', background: 'var(--surface-hover)', borderRadius: '3px', overflow: 'hidden', border: '1px solid var(--border)' }}>
                                             <div style={{ 
                                                 height: '100%', 
                                                 width: `${(() => {
-                                                    const received = parseFloat(phase.receivedAmount) || 0;
+                                                    const totalFunds = (parseFloat(phase.receivedAmount) || 0) + (parseFloat(phase.reallocatedAmount) || 0);
                                                     const spent = parseFloat(phase.spent_amount) || 0;
-                                                    if (received <= 0) return 0;
-                                                    return Math.min(100, (spent / received) * 100);
+                                                    if (totalFunds <= 0) return 0;
+                                                    return Math.min(100, (spent / totalFunds) * 100);
                                                 })()}%`,
-                                                background: phase.isSettled ? '#10b981' : (parseFloat(phase.spent_amount || 0) > parseFloat(phase.receivedAmount || 0)) ? 'var(--danger)' : 'var(--primary)',
+                                                background: phase.isSettled ? '#10b981' : (parseFloat(phase.spent_amount || 0) > ((parseFloat(phase.receivedAmount || 0)) + (parseFloat(phase.reallocatedAmount || 0)))) ? 'var(--danger)' : 'var(--primary)',
                                                 transition: 'width 0.3s ease'
                                             }} />
                                         </div>
                                     </div>
                                 </div>
+
+                                    {user?.role === 'ADMIN' && !phase.isSettled && (
+                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', marginBottom: '0.5rem' }}>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setTargetPhaseId(phase.id);
+                                                    setShowReallocateModal(true);
+                                                }}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '0.5rem',
+                                                    borderRadius: '8px',
+                                                    background: 'rgba(129, 140, 248, 0.1)',
+                                                    color: '#818cf8',
+                                                    border: '1px solid rgba(129, 140, 248, 0.2)',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '0.25rem'
+                                                }}
+                                            >
+                                                🔄 Reallocate
+                                            </button>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const bal = (Number(phase.receivedAmount) + Number(phase.reallocatedAmount || 0)) - (Number(phase.spent_amount) + Number(phase.returnedAmount || 0));
+                                                    triggerConfirm({
+                                                        title: 'Settle Phase & Return Surplus',
+                                                        message: `Are you sure you want to settle "${phase.name}"? This action will officially close this phase, and its unspent surplus of ${formatCurrency(bal)} will be returned to College Management.`,
+                                                        confirmText: 'Confirm Settlement',
+                                                        cancelText: 'Cancel',
+                                                        type: 'success',
+                                                        onConfirm: async () => {
+                                                            try {
+                                                                await accountingApi.settlePhase(project.id, phase.id);
+                                                                fetchPhases();
+                                                            } catch (err) {
+                                                                alert(err.message || 'Failed to settle phase');
+                                                            }
+                                                        }
+                                                    });
+                                                }}
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '0.5rem',
+                                                    borderRadius: '8px',
+                                                    background: 'rgba(16, 185, 129, 0.1)',
+                                                    color: 'var(--success)',
+                                                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '0.25rem'
+                                                }}
+                                            >
+                                                ✅ Settle
+                                            </button>
+                                        </div>
+                                    )}
 
                                 <button onClick={() => onSelectPhase(phase)} className="btn-primary" style={{ marginTop: 'auto', width: '100%', padding: '0.8rem' }}>
                                     Open Records <ArrowRight size={16} />
@@ -760,6 +873,147 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     </div>
                 )}
             </div>
+
+            {showReallocateModal && (() => {
+                const reallocatedSourceNames = Array.isArray(journal) 
+                  ? journal
+                      .filter(tx => tx.description && tx.description.includes('SYSTEM AUTOMATED REALLOCATION'))
+                      .map(tx => tx.fromEntity)
+                  : [];
+
+                const eligiblePhases = phases.filter(p => {
+                  return p.isSettled && 
+                         p.id !== targetPhaseId && 
+                         Number(p.returnedAmount || 0) > 0 &&
+                         !reallocatedSourceNames.includes(p.name);
+                });
+
+                const targetPhaseName = phases.find(p => p.id === targetPhaseId)?.name || '';
+
+                return (
+                  <div className="modal-overlay" style={{
+                      position: 'fixed', inset: 0, 
+                      background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(8px)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+                  }}>
+                      <div className="modal-content glass-panel animate-in" style={{ 
+                          width: '100%', maxWidth: '520px', padding: '2rem', 
+                          background: 'var(--background)', borderRadius: '24px', overflow: 'hidden',
+                          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                          display: 'flex', flexDirection: 'column', gap: '1.5rem',
+                          border: '1px solid var(--border)',
+                          textAlign: 'left'
+                      }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>Reallocate Surplus Fund</h3>
+                              <button onClick={() => { setShowReallocateModal(false); setTargetPhaseId(null); setSelectedSourcePhaseId(''); setReallocateError(''); }} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                  <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>×</span>
+                              </button>
+                          </div>
+
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.925rem', lineHeight: '1.6' }}>
+                              Select a closed (settled) phase below to roll over its unspent surplus directly into <strong style={{ color: 'var(--text-main)' }}>{targetPhaseName}</strong>.
+                          </div>
+
+                          {eligiblePhases.length === 0 ? (
+                              <div style={{ 
+                                  padding: '2rem 1rem', 
+                                  background: 'var(--surface-hover)', 
+                                  borderRadius: '16px',
+                                  border: '1px dashed var(--border)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  textAlign: 'center',
+                                  gap: '0.5rem'
+                              }}>
+                                  <span style={{ fontSize: '2rem' }}>📭</span>
+                                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>No Eligible Settled Phases</span>
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>There are no closed phases with an available unspent surplus to reallocate.</span>
+                              </div>
+                          ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                  <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Select Source Phase</label>
+                                  <div style={{ 
+                                      display: 'flex', 
+                                      flexDirection: 'column', 
+                                      gap: '0.5rem', 
+                                      maxHeight: '200px', 
+                                      overflowY: 'auto',
+                                      paddingRight: '4px'
+                                  }}>
+                                      {eligiblePhases.map(p => (
+                                          <div 
+                                              key={p.id}
+                                              onClick={() => setSelectedSourcePhaseId(p.id)}
+                                              style={{
+                                                  padding: '1rem',
+                                                  borderRadius: '14px',
+                                                  background: selectedSourcePhaseId === p.id ? 'rgba(129, 140, 248, 0.08)' : 'var(--surface-hover)',
+                                                  border: selectedSourcePhaseId === p.id ? '2px solid #818cf8' : '1px solid var(--border)',
+                                                  cursor: 'pointer',
+                                                  display: 'flex',
+                                                  justifyContent: 'space-between',
+                                                  alignItems: 'center',
+                                                  transition: 'all 0.2s ease'
+                                              }}
+                                          >
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                                  <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-main)' }}>{p.name}</span>
+                                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Settled on {new Date(p.updatedAt).toLocaleDateString()}</span>
+                                              </div>
+                                              <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--success)', fontFamily: 'monospace' }}>
+                                                  +{formatCurrency(Number(p.returnedAmount))}
+                                              </span>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                          )}
+
+                          {reallocateError && (
+                              <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                  ⚠️ {reallocateError}
+                              </div>
+                          )}
+
+                          <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                              <button 
+                                  onClick={() => { setShowReallocateModal(false); setTargetPhaseId(null); setSelectedSourcePhaseId(''); setReallocateError(''); }} 
+                                  className="btn-secondary"
+                                  style={{ flex: 1, padding: '0.75rem', borderRadius: '12px', fontWeight: 700 }}
+                              >
+                                  Cancel
+                              </button>
+                              {eligiblePhases.length > 0 && (
+                                  <button 
+                                      onClick={handleReallocateSurplus} 
+                                      disabled={reallocateLoading || !selectedSourcePhaseId}
+                                      style={{ 
+                                          flex: 1, 
+                                          padding: '0.75rem', 
+                                          borderRadius: '12px', 
+                                          fontWeight: 700,
+                                          background: reallocateLoading || !selectedSourcePhaseId ? 'var(--surface-hover)' : '#818cf8',
+                                          color: '#000000',
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          gap: '0.5rem',
+                                          opacity: reallocateLoading || !selectedSourcePhaseId ? 0.6 : 1
+                                      }}
+                                  >
+                                      {reallocateLoading ? 'Processing...' : 'Confirm Reallocation'}
+                                  </button>
+                              )}
+                          </div>
+                      </div>
+                  </div>
+                );
+            })()}
 
             {/* Custom Confirmation Dialog */}
             <ConfirmationDialog 

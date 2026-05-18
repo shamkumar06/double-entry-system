@@ -81,6 +81,8 @@ model Phase {
   paymentMode      String?
   reference        String?
   requestLetterUrl String?
+  returnedAmount   Decimal  @default(0) @db.Decimal(15, 2)
+  reallocatedAmount Decimal  @default(0) @db.Decimal(15, 2)
   isSettled        Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
