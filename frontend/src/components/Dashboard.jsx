@@ -116,13 +116,13 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
 
     // Calculator state and operational key handler
     const [calcInput, setCalcInput] = useState('');
-    
+
     const handleCalcKey = (key) => {
         if (key === 'C') {
             setCalcInput('');
         } else if (key === '=') {
             if (!calcInput) return;
-            
+
             // Clean up and adjust negative numbers at the beginning
             let expr = calcInput.replace(/\s+/g, '');
             if (expr.startsWith('-')) {
@@ -130,12 +130,12 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
             } else if (expr.startsWith('+')) {
                 expr = '0' + expr;
             }
-            
+
             if (!/^[0-9+\-*/.]*$/.test(expr)) {
                 setCalcInput('Error');
                 return;
             }
-            
+
             try {
                 // Tokenize digits/decimals vs operators
                 const tokens = expr.match(/(\d+(?:\.\d+)?)|[+\-*/]/g);
@@ -143,7 +143,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                     setCalcInput('0');
                     return;
                 }
-                
+
                 // 1. Resolve multiplication and division first
                 const intermediate = [];
                 for (let i = 0; i < tokens.length; i++) {
@@ -164,14 +164,14 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         intermediate.push(token);
                     }
                 }
-                
+
                 // 2. Resolve addition and subtraction
                 let result = parseFloat(intermediate[0]);
                 if (isNaN(result)) {
                     setCalcInput('Error');
                     return;
                 }
-                
+
                 for (let i = 1; i < intermediate.length; i += 2) {
                     const operator = intermediate[i];
                     const nextVal = parseFloat(intermediate[i + 1]);
@@ -179,7 +179,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         setCalcInput('Error');
                         return;
                     }
-                    
+
                     if (operator === '+') {
                         result += nextVal;
                     } else if (operator === '-') {
@@ -189,7 +189,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         return;
                     }
                 }
-                
+
                 setCalcInput(Number.isFinite(result) ? String(Number(result.toFixed(8))) : 'Error');
             } catch (err) {
                 setCalcInput('Error');
@@ -271,10 +271,10 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
             if (tableHeaders.length > 0 || tableRows.length > 0) {
                 elements.push(
                     <div key={`table-${key}`} style={{ overflowX: 'auto', margin: '1.25rem 0', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                        <table style={{ 
-                            width: '100%', 
-                            borderCollapse: 'collapse', 
-                            background: 'var(--surface-hover)', 
+                        <table style={{
+                            width: '100%',
+                            borderCollapse: 'collapse',
+                            background: 'var(--surface-hover)',
                             fontSize: '0.9rem',
                             color: 'var(--text-main)'
                         }}>
@@ -317,11 +317,11 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                 inTable = true;
                 const cells = line.split('|').slice(1, -1).map(c => c.trim());
                 const isDivider = cells.every(c => /^:-*|-*:-*|-*:$/.test(c) || c === '---');
-                
+
                 if (isDivider) {
                     continue;
                 }
-                
+
                 if (tableHeaders.length === 0 && tableRows.length === 0) {
                     tableHeaders = cells;
                 } else {
@@ -348,19 +348,19 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                 const textContent = line.slice(6);
                 elements.push(
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: '0.4rem 0' }}>
-                        <input 
-                            type="checkbox" 
-                            checked={checked} 
-                            readOnly 
-                            style={{ 
+                        <input
+                            type="checkbox"
+                            checked={checked}
+                            readOnly
+                            style={{
                                 cursor: 'default',
                                 accentColor: 'var(--accent)',
                                 width: '16px',
                                 height: '16px'
-                            }} 
+                            }}
                         />
-                        <span style={{ 
-                            textDecoration: checked ? 'line-through' : 'none', 
+                        <span style={{
+                            textDecoration: checked ? 'line-through' : 'none',
                             color: checked ? 'var(--text-muted)' : 'var(--text-main)',
                             fontSize: '0.92rem'
                         }}>
@@ -440,14 +440,14 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                     </div>
                 )}
 
-                <UsageCircle 
-                    percent={stats?.spentPct || 0} 
-                    size={220} 
+                <UsageCircle
+                    percent={stats?.spentPct || 0}
+                    size={220}
                     strokeWidth={5}
                     label={isSettled ? "Settled" : "Utilization"}
                     isSettled={isSettled}
                 />
-                
+
                 <div className="hero-stats-content">
                     <div className="stat-card-premium">
                         <div className="stat-icon-wrapper" style={{ background: 'var(--surface-hover)', color: 'var(--primary)' }}>
@@ -503,11 +503,12 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         flexDirection: 'column', 
                         height: '100%', 
                         minHeight: '160px',
-                        padding: '1rem 1.25rem',
+                        padding: '1.25rem 1.5rem',
                         boxShadow: 'var(--card-shadow-inset)',
+                        justifyContent: 'space-between'
                     }}>
                         {/* Header */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <div className="stat-icon-wrapper" style={{ 
                                 background: 'var(--surface-hover)', 
                                 color: 'var(--success)',
@@ -523,87 +524,67 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             <span className="hero-stat-label" style={{ margin: 0, fontSize: '0.68rem' }}>Calculator</span>
                         </div>
 
-                        {/* Calculator Display */}
-                        <div style={{ 
-                            background: 'var(--surface-hover)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '10px',
-                            padding: '0.35rem 0.75rem',
-                            minHeight: '28px',
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            alignItems: 'center',
-                            fontSize: '0.9rem',
-                            fontWeight: 700,
-                            color: 'var(--text-main)',
-                            overflowX: 'auto',
-                            whiteSpace: 'nowrap',
-                            textAlign: 'right',
-                            marginBottom: '0.5rem',
-                            fontFamily: 'monospace',
-                            colorScheme: 'dark',
-                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-                        }}>
-                            {calcInput || '0'}
+                        {/* Interactive Calculator Input Display */}
+                        <div style={{ margin: '0.5rem 0' }}>
+                            <input 
+                                type="text"
+                                value={calcInput}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (/^[0-9+\-*/.\s]*$/.test(val)) {
+                                        setCalcInput(val);
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleCalcKey('=');
+                                    } else if (e.key === 'Escape') {
+                                        e.preventDefault();
+                                        handleCalcKey('C');
+                                    }
+                                }}
+                                placeholder="Type equation..."
+                                style={{
+                                    width: '100%',
+                                    background: 'var(--surface-hover)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '10px',
+                                    padding: '0.6rem 0.85rem',
+                                    fontSize: '0.95rem',
+                                    fontWeight: 700,
+                                    color: 'var(--text-main)',
+                                    textAlign: 'right',
+                                    fontFamily: 'monospace',
+                                    outline: 'none',
+                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
+                                    transition: 'all 0.2s ease',
+                                    colorScheme: 'dark'
+                                }}
+                                onFocus={(e) => {
+                                    e.target.style.borderColor = 'var(--accent)';
+                                    e.target.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.1), 0 0 8px rgba(56, 189, 248, 0.15)';
+                                }}
+                                onBlur={(e) => {
+                                    e.target.style.borderColor = 'var(--border)';
+                                    e.target.style.boxShadow = 'inset 0 2px 4px rgba(0,0,0,0.1)';
+                                }}
+                            />
                         </div>
 
-                        {/* Calculator Keys Grid */}
+                        {/* Keyboard shortcut tips */}
                         <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(4, 1fr)', 
-                            gap: '0.25rem',
-                            flex: 1
+                            fontSize: '0.65rem', 
+                            color: 'var(--text-muted)', 
+                            lineHeight: '1.4',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.1rem',
+                            fontFamily: 'monospace'
                         }}>
-                            {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', 'C', '0', '=', '+'].map(key => {
-                                const isOperator = ['/', '*', '-', '+', '='].includes(key);
-                                const isClear = key === 'C';
-                                return (
-                                    <button 
-                                        key={key}
-                                        onClick={() => handleCalcKey(key)}
-                                        style={{
-                                            padding: '0.35rem 0',
-                                            borderRadius: '6px',
-                                            border: 'none',
-                                            background: isClear 
-                                                ? 'rgba(239, 68, 68, 0.15)' 
-                                                : isOperator 
-                                                    ? 'rgba(56, 189, 248, 0.15)' 
-                                                    : 'var(--surface-hover)',
-                                            color: isClear 
-                                                ? '#f87171' 
-                                                : isOperator 
-                                                    ? '#38bdf8' 
-                                                    : 'var(--text-main)',
-                                            fontWeight: 700,
-                                            fontSize: '0.8rem',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.15s ease',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                        }}
-                                        onMouseEnter={e => {
-                                            e.currentTarget.style.transform = 'scale(1.05)';
-                                            e.currentTarget.style.background = isClear 
-                                                ? 'rgba(239, 68, 68, 0.25)' 
-                                                : isOperator 
-                                                    ? 'rgba(56, 189, 248, 0.25)' 
-                                                    : 'var(--border)';
-                                        }}
-                                        onMouseLeave={e => {
-                                            e.currentTarget.style.transform = 'scale(1)';
-                                            e.currentTarget.style.background = isClear 
-                                                ? 'rgba(239, 68, 68, 0.15)' 
-                                                : isOperator 
-                                                    ? 'rgba(56, 189, 248, 0.15)' 
-                                                    : 'var(--surface-hover)';
-                                        }}
-                                    >
-                                        {key}
-                                    </button>
-                                );
-                            })}
+                            <span style={{ color: 'var(--success)' }}>⌨️ Keyboard Active</span>
+                            <span>• Enter = Calculate</span>
+                            <span>• Esc = Clear Display</span>
                         </div>
                     </div>
                 </div>
@@ -622,13 +603,13 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         </div>
 
                         {/* Segmented Mode Selector */}
-                        <div style={{ 
-                            background: 'var(--surface-hover)', 
-                            border: '1px solid var(--border)', 
-                            borderRadius: '10px', 
-                            padding: '2px', 
-                            display: 'flex', 
-                            gap: '2px' 
+                        <div style={{
+                            background: 'var(--surface-hover)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '10px',
+                            padding: '2px',
+                            display: 'flex',
+                            gap: '2px'
                         }}>
                             <button
                                 onClick={() => setEditorMode('edit')}
@@ -664,11 +645,11 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             </button>
                         </div>
                     </div>
-                    
+
                     {/* Auto-save Indicator badge */}
-                    <span style={{ 
-                        fontSize: '0.68rem', 
-                        fontWeight: 700, 
+                    <span style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
                         color: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
                         opacity: 0.85,
                         background: saveStatus === 'saved' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(56, 189, 248, 0.1)',
@@ -681,10 +662,10 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em'
                     }}>
-                        <span style={{ 
-                            width: '6px', 
-                            height: '6px', 
-                            borderRadius: '50%', 
+                        <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
                             background: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
                             display: 'inline-block',
                             animation: saveStatus === 'saving' ? 'pulse 1s infinite' : 'none'
@@ -695,14 +676,14 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
 
                 {/* Editor Toolbar (Only shown in Write mode) */}
                 {editorMode === 'edit' && (
-                    <div style={{ 
-                        display: 'flex', 
-                        gap: '0.5rem', 
-                        padding: '0.5rem 0.75rem', 
-                        background: 'var(--surface-hover)', 
-                        border: '1px solid var(--border)', 
+                    <div style={{
+                        display: 'flex',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        background: 'var(--surface-hover)',
+                        border: '1px solid var(--border)',
                         borderBottom: 'none',
-                        borderTopLeftRadius: '16px', 
+                        borderTopLeftRadius: '16px',
                         borderTopRightRadius: '16px',
                         alignItems: 'center',
                         flexWrap: 'wrap',
@@ -746,12 +727,12 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                     backdropFilter: 'blur(25px)',
                                     width: '136px'
                                 }}>
-                                    <p style={{ 
-                                        fontSize: '0.62rem', 
-                                        fontWeight: 800, 
-                                        textTransform: 'uppercase', 
-                                        color: 'var(--text-muted)', 
-                                        marginBottom: '0.5rem', 
+                                    <p style={{
+                                        fontSize: '0.62rem',
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        color: 'var(--text-muted)',
+                                        marginBottom: '0.5rem',
                                         textAlign: 'center',
                                         letterSpacing: '0.05em'
                                     }}>
@@ -766,7 +747,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                                         const c = cIdx + 1;
                                                         const active = c <= hoveredGrid.c && r <= hoveredGrid.r;
                                                         return (
-                                                            <div 
+                                                            <div
                                                                 key={cIdx}
                                                                 onMouseEnter={() => setHoveredGrid({ r, c })}
                                                                 onClick={() => handleGridSelect(c, r)}
@@ -787,7 +768,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                         })}
                                     </div>
                                     <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }}>
-                                        <button 
+                                        <button
                                             onClick={() => setShowTableMenu(false)}
                                             style={{
                                                 background: 'transparent',
@@ -957,11 +938,11 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             <div key={ph.id}
                                 onClick={() => onSelectPhase && onSelectPhase(ph)}
                                 className="glass-panel phase-card premium-hover"
-                                style={{ 
-                                    padding: '1.25rem 1.5rem', 
-                                    cursor: 'pointer', 
-                                    border: ph.isSettled ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border)', 
-                                    borderRadius: '16px', 
+                                style={{
+                                    padding: '1.25rem 1.5rem',
+                                    cursor: 'pointer',
+                                    border: ph.isSettled ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid var(--border)',
+                                    borderRadius: '16px',
                                     background: ph.isSettled ? 'linear-gradient(135deg, var(--surface) 0%, rgba(16, 185, 129, 0.01) 100%)' : 'var(--surface)'
                                 }}
                             >
@@ -1016,25 +997,25 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         {recentTxs.map(tx => {
                             // Determine primary transaction type by analyzing its lines
                             const isInflow = tx.lines?.some(l => l.type === 'CREDIT' && ['REVENUE', 'LIABILITY', 'EQUITY'].includes(l.account?.type));
-                            
+
                             // Find the most descriptive line (Expense or Revenue account) else fallback to the first
                             const primaryLine = tx.lines?.find(l => ['EXPENSE', 'REVENUE'].includes(l.account?.type)) || tx.lines?.[0];
                             const categoryName = primaryLine?.account?.name || 'Transaction';
                             const amount = primaryLine ? parseFloat(primaryLine.amount) : 0;
-                            
+
                             // Format the date properly
-                            const dateStr = new Date(tx.date).toLocaleDateString(undefined, { 
-                                day: '2-digit', month: 'short', year: 'numeric' 
+                            const dateStr = new Date(tx.date).toLocaleDateString(undefined, {
+                                day: '2-digit', month: 'short', year: 'numeric'
                             });
 
                             return (
-                                <div key={tx.id} className="transaction-row premium-hover" style={{ 
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                                <div key={tx.id} className="transaction-row premium-hover" style={{
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                                     padding: '1rem 1.25rem', borderRadius: '16px', background: 'var(--surface)',
                                     border: '1px solid var(--border)', transition: 'all 0.2s ease', cursor: 'pointer'
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <div style={{ 
+                                        <div style={{
                                             width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             background: isInflow ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
                                             color: isInflow ? 'var(--success)' : 'var(--danger)'
