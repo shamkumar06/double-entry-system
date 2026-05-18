@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 import path from 'path';
+import fs from 'fs';
 
 // Initialize Google Auth
 let auth: any;
@@ -20,14 +21,18 @@ if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
 
 if (!auth) {
   const KEY_PATH = path.join(__dirname, '../../google-service-account.json');
-  auth = new google.auth.GoogleAuth({
-    keyFile: KEY_PATH,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
-  console.log('Google Auth initialized using local keyFile.');
+  if (fs.existsSync(KEY_PATH)) {
+    auth = new google.auth.GoogleAuth({
+      keyFile: KEY_PATH,
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+    console.log('Google Auth initialized using local keyFile.');
+  } else {
+    console.warn('Google Service Account key file not found at:', KEY_PATH);
+  }
 }
 
-const drive = google.drive({ version: 'v3', auth });
+const drive = auth ? google.drive({ version: 'v3', auth }) : null;
 
 
 // Optional parent folder ID - can fall back to root of service account if not configured
@@ -43,6 +48,12 @@ export async function uploadToDrive(
   customName?: string
 ): Promise<{ fileId: string; viewUrl: string }> {
   try {
+    if (!drive) {
+      throw new Error(
+        "Google Drive credentials are not configured on Render. To fix this, please configure the 'GOOGLE_SERVICE_ACCOUNT_JSON' Environment Variable on Render (with the JSON content), or add 'backend/google-service-account.json' as a 'Secret File' in the Render Dashboard."
+      );
+    }
+
     const fileMetadata: any = {
       name: customName || `${Date.now()}-${file.originalname}`,
     };
@@ -105,6 +116,10 @@ export async function uploadToDrive(
  */
 export async function deleteFromDrive(fileId: string): Promise<void> {
   try {
+    if (!drive) {
+      console.warn("Google Drive credentials not configured, skipping file deletion for ID:", fileId);
+      return;
+    }
     await drive.files.delete({
       fileId: fileId,
     });
@@ -114,3 +129,4 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
     // Soft fail so that DB row deletions don't get blocked if the file was manually removed in Drive
   }
 }
+
