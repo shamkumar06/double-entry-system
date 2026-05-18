@@ -215,10 +215,10 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                        {activeTab === 'letters' ? '✉️ Phase Request Letters' : '🧾 Transaction Receipts'}
+                        {activeTab === 'letters' ? '✉️ Phase Request Letters' : '🧾 Transaction Attachments'}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {filtered.length} {activeTab === 'letters' ? `request letter${filtered.length !== 1 ? 's' : ''}` : `receipt${filtered.length !== 1 ? 's' : ''}`} found
+                        {filtered.length} {activeTab === 'letters' ? `request letter${filtered.length !== 1 ? 's' : ''}` : `attachment${filtered.length !== 1 ? 's' : ''}`} found
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -330,7 +330,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                         transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                 >
-                    <span>🧾</span> Transaction Receipts
+                    <span>🧾</span> Transaction Attachments
                 </button>
             </div>
 
@@ -338,7 +338,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             {loading && (
                 <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
-                    Loading {activeTab === 'letters' ? 'request letters...' : 'receipts...'}
+                    Loading {activeTab === 'letters' ? 'request letters...' : 'attachments...'}
                 </div>
             )}
 
@@ -349,12 +349,12 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                         {activeTab === 'letters' ? '✉️' : '🧾'}
                     </div>
                     <p style={{ fontSize: '1.1rem', fontWeight: 500, marginBottom: '0.5rem' }}>
-                        {activeTab === 'letters' ? 'No Request Letters yet' : 'No Transaction Receipts yet'}
+                        {activeTab === 'letters' ? 'No Request Letters yet' : 'No Transaction Attachments yet'}
                     </p>
                     <p style={{ fontSize: '0.875rem' }}>
                         {activeTab === 'letters' 
                             ? 'Attach request letters when creating or editing project phases' 
-                            : 'Upload receipts or bills when adding transactions'}
+                            : 'Upload attachments or bills when adding transactions'}
                     </p>
                 </div>
             )}

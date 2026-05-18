@@ -334,7 +334,7 @@ function AppInner() {
             <button style={navActive('Ledger')} onClick={() => { setActiveTab('Ledger'); setIsSidebarOpen(false); }}><Layers size={18} /> Ledger</button>
             <button style={navActive('Trial Balance')} onClick={() => { setActiveTab('Trial Balance'); setIsSidebarOpen(false); }}><Scale size={18} /> Trial Balance</button>
             <button style={navActive('Reports')} onClick={() => { setActiveTab('Reports'); setIsSidebarOpen(false); }}><FileText size={18} /> Reports</button>
-            <button style={navActive('Receipts')} onClick={() => { setActiveTab('Receipts'); setIsSidebarOpen(false); }}><Image size={18} /> Receipts</button>
+            <button style={navActive('Attachments')} onClick={() => { setActiveTab('Attachments'); setIsSidebarOpen(false); }}><Image size={18} /> Attachments</button>
             
             <div style={{ height: '1px', background: 'var(--border)', margin: '1rem 0.5rem' }} />
             <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 1rem 0.4rem' }}>Management</p>
@@ -495,7 +495,7 @@ function AppInner() {
                 key={`reports-${refreshKey}`} 
             />
         )}
-        {activeTab === 'Receipts' && (
+        {activeTab === 'Attachments' && (
             <ReceiptsGallery
                 projectId={activeProject?.id}
                 phaseId={activePhase?.id}
