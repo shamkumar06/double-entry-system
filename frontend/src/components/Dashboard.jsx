@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { TrendingDown, TrendingUp, DollarSign, FileText, Activity, Layers, CheckCircle, PieChart, Edit3, Wallet, Target } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
 import { useProjectData } from '../context/ProjectDataContext';
@@ -84,6 +84,36 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
 
 
 
+    // Auto-saving Notepad state
+    const [note, setNote] = useState('');
+    const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving'
+
+    // Load note for the specific project / phase
+    useEffect(() => {
+        if (!projectId) return;
+        const key = `notepad-note-${projectId}-${phaseId || 'all'}`;
+        const savedNote = localStorage.getItem(key);
+        setNote(savedNote || '');
+        setSaveStatus('saved');
+    }, [projectId, phaseId]);
+
+    // Auto-save logic on change with a 500ms debounce
+    const handleNoteChange = (e) => {
+        const val = e.target.value;
+        setNote(val);
+        setSaveStatus('saving');
+    };
+
+    useEffect(() => {
+        if (!projectId) return;
+        const key = `notepad-note-${projectId}-${phaseId || 'all'}`;
+        const timer = setTimeout(() => {
+            localStorage.setItem(key, note);
+            setSaveStatus('saved');
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [note, projectId, phaseId]);
+
     if (loading || !stats) return (
         <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem' }}>
             <UsageCircle percent={0} size={120} label="Loading..." />
@@ -167,6 +197,82 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         <span className="hero-stat-value" style={{ color: 'var(--text-main)' }}>
                             {stats?.txCount || 0}
                         </span>
+                    </div>
+
+                    {/* Glassmorphic Quick Notepad */}
+                    <div className="stat-card-premium" style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        height: '100%', 
+                        minHeight: '160px',
+                        padding: '1.25rem 1.5rem',
+                        boxShadow: 'var(--card-shadow-inset)',
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div className="stat-icon-wrapper" style={{ 
+                                    background: 'var(--surface-hover)', 
+                                    color: 'var(--accent)',
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Edit3 size={15} />
+                                </div>
+                                <span className="hero-stat-label" style={{ margin: 0, fontSize: '0.68rem' }}>Quick Notes</span>
+                            </div>
+                            
+                            {/* Auto-save Indicator badge */}
+                            <span style={{ 
+                                fontSize: '0.62rem', 
+                                fontWeight: 700, 
+                                color: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
+                                opacity: 0.85,
+                                background: saveStatus === 'saved' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(56, 189, 248, 0.1)',
+                                padding: '2px 8px',
+                                borderRadius: '20px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                transition: 'all 0.3s ease',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em'
+                            }}>
+                                <span style={{ 
+                                    width: '5px', 
+                                    height: '5px', 
+                                    borderRadius: '50%', 
+                                    background: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
+                                    display: 'inline-block',
+                                    animation: saveStatus === 'saving' ? 'pulse 1s infinite' : 'none'
+                                }} />
+                                {saveStatus === 'saved' ? 'Saved' : 'Saving...'}
+                            </span>
+                        </div>
+                        
+                        <textarea
+                            value={note}
+                            onChange={handleNoteChange}
+                            placeholder="Type quick tasks, estimates, or reminders here..."
+                            style={{
+                                width: '100%',
+                                flex: 1,
+                                minHeight: '80px',
+                                background: 'transparent',
+                                border: 'none',
+                                outline: 'none',
+                                resize: 'none',
+                                color: 'var(--text-main)',
+                                fontSize: '0.8rem',
+                                lineHeight: '1.4',
+                                fontFamily: 'inherit',
+                                padding: '0.25rem 0',
+                                colorScheme: 'dark',
+                            }}
+                        />
                     </div>
                 </div>
             </div>
