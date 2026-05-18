@@ -51,6 +51,11 @@ export const deleteProject = async (id: string) => {
 // --- Phases ---
 
 export const listPhases = async (projectId: string) => {
+  const settlementCategory = await prisma.accountCategory.findFirst({
+    where: { name: 'Settlement Amount' }
+  });
+  const settlementCategoryId = settlementCategory?.id;
+
   const phases = await prisma.phase.findMany({
     where: { projectId },
     include: {
@@ -64,13 +69,20 @@ export const listPhases = async (projectId: string) => {
 
   return phases.map((phase) => {
     let spent_amount = 0;
+    let manualSettlementAmount = 0;
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
         if (line.type === 'DEBIT') {
-          spent_amount += Number(line.amount);
+          if (settlementCategoryId && line.accountId === settlementCategoryId) {
+            manualSettlementAmount += Number(line.amount);
+          } else {
+            spent_amount += Number(line.amount);
+          }
         }
       });
     });
+
+    const dynamicReturnedAmount = Math.max(Number(phase.returnedAmount || 0), manualSettlementAmount);
 
     return {
       id: phase.id,
@@ -84,9 +96,9 @@ export const listPhases = async (projectId: string) => {
       paymentMode: phase.paymentMode,
       reference: phase.reference,
       requestLetterUrl: phase.requestLetterUrl,
-      returnedAmount: Number(phase.returnedAmount || 0),
+      returnedAmount: dynamicReturnedAmount,
       reallocatedAmount: Number(phase.reallocatedAmount || 0),
-      isSettled: phase.isSettled,
+      isSettled: phase.isSettled || dynamicReturnedAmount > 0,
       createdAt: phase.createdAt,
       updatedAt: phase.updatedAt,
       spent_amount,
@@ -173,6 +185,11 @@ export const deletePhase = async (projectId: string, phaseId: string) => {
 // --- Phase Financials (aggregated) ---
 
 export const getPhaseFinancials = async (projectId: string) => {
+  const settlementCategory = await prisma.accountCategory.findFirst({
+    where: { name: 'Settlement Amount' }
+  });
+  const settlementCategoryId = settlementCategory?.id;
+
   const phases = await prisma.phase.findMany({
     where: { projectId },
     include: {
@@ -185,23 +202,32 @@ export const getPhaseFinancials = async (projectId: string) => {
 
   return phases.map((phase) => {
     let totalExpense = 0;
+    let manualSettlementAmount = 0;
+    
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
         if (line.type === 'DEBIT') {
-          totalExpense += Number(line.amount);
+          if (settlementCategoryId && line.accountId === settlementCategoryId) {
+            manualSettlementAmount += Number(line.amount);
+          } else {
+            totalExpense += Number(line.amount);
+          }
         }
       });
     });
+
+    const dynamicReturnedAmount = Math.max(Number(phase.returnedAmount || 0), manualSettlementAmount);
+
     return {
       id: phase.id,
       name: phase.name,
       estimatedBudget: Number(phase.estimatedBudget),
       receivedAmount: Number(phase.receivedAmount),
-      returnedAmount: Number(phase.returnedAmount || 0),
+      returnedAmount: dynamicReturnedAmount,
       reallocatedAmount: Number(phase.reallocatedAmount || 0),
       totalExpense,
-      balance: (Number(phase.receivedAmount) + Number(phase.reallocatedAmount || 0)) - (totalExpense + Number(phase.returnedAmount || 0)),
-      isSettled: phase.isSettled,
+      balance: (Number(phase.receivedAmount) + Number(phase.reallocatedAmount || 0)) - (totalExpense + dynamicReturnedAmount),
+      isSettled: phase.isSettled || dynamicReturnedAmount > 0,
     };
   });
 };
@@ -297,13 +323,40 @@ export const reallocateSurplus = async (
   sourcePhaseId: string
 ) => {
   const targetPhase = await prisma.phase.findFirst({ where: { id: targetPhaseId, projectId } });
-  const sourcePhase = await prisma.phase.findFirst({ where: { id: sourcePhaseId, projectId } });
+  const sourcePhase = await prisma.phase.findFirst({
+    where: { id: sourcePhaseId, projectId },
+    include: {
+      transactions: {
+        where: { isDeleted: false },
+        include: { lines: true }
+      }
+    }
+  });
 
   if (!targetPhase) throw new AppError('Target phase not found.', 404);
   if (!sourcePhase) throw new AppError('Source phase not found.', 404);
-  if (!sourcePhase.isSettled) throw new AppError('Source phase is not settled yet.', 400);
 
-  const surplus = Number(sourcePhase.returnedAmount || 0);
+  const settlementCategory = await prisma.accountCategory.findFirst({
+    where: { name: 'Settlement Amount' }
+  });
+  const settlementCategoryId = settlementCategory?.id;
+
+  let manualSettlementAmount = 0;
+  sourcePhase.transactions.forEach((tx) => {
+    tx.lines.forEach((line) => {
+      if (line.type === 'DEBIT' && settlementCategoryId && line.accountId === settlementCategoryId) {
+        manualSettlementAmount += Number(line.amount);
+      }
+    });
+  });
+
+  const dynamicReturnedAmount = Math.max(Number(sourcePhase.returnedAmount || 0), manualSettlementAmount);
+
+  if (!sourcePhase.isSettled && dynamicReturnedAmount === 0) {
+    throw new AppError('Source phase is not settled yet.', 400);
+  }
+
+  const surplus = dynamicReturnedAmount;
   if (surplus <= 0) {
     throw new AppError('Source phase has no returned surplus to reallocate.', 400);
   }
@@ -312,7 +365,7 @@ export const reallocateSurplus = async (
   const existingReallocation = await prisma.phase.findFirst({
     where: {
       projectId,
-      reallocatedAmount: sourcePhase.returnedAmount,
+      reallocatedAmount: surplus,
       transactions: {
         some: {
           description: {
