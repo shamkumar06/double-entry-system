@@ -61,55 +61,6 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                     });
                 }
             });
-
-            // 2. Unpack Transaction Attachments
-            list.forEach(tx => {
-                // Unpack enriched description
-                let pureDesc = tx.description;
-                let fromName = '';
-                let toName = '';
-                let amount = tx.lines?.[0]?.amount || 0;
-                let accountName = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '';
-
-                if (tx.description?.includes('| From:')) {
-                    const parts = tx.description.split('|');
-                    pureDesc = parts[0]?.trim();
-                    const m = parts[1]?.match(/From: (.*?) To: (.*)/);
-                    if (m) { fromName = m[1]?.trim(); toName = m[2]?.trim(); }
-                }
-
-                const createAttachment = (urlPath, type, suffix) => {
-                    const url = getImageUrl(urlPath);
-                    const isPdf = url?.toLowerCase().endsWith('.pdf');
-                    return {
-                        id: `${tx.id}-${type}`,
-                        txId: tx.id,
-                        url,
-                        isPdf,
-                        type,
-                        suffix,
-                        description: pureDesc,
-                        fromName,
-                        toName,
-                        amount,
-                        accountName,
-                        date: tx.date,
-                        phaseName: tx.phase?.name || 'Whole Project',
-                        phaseId: tx.phaseId || tx.phase?.id || null
-                    };
-                };
-
-                if (tx.attachmentUrl) {
-                    parsed.push(createAttachment(tx.attachmentUrl, 'bill', 'Bill / Receipt'));
-                }
-                if (tx.gpayScreenshotUrl) {
-                    parsed.push(createAttachment(tx.gpayScreenshotUrl, 'gpay', 'GPay / UPI Screenshot'));
-                }
-                if (tx.materialImageUrl) {
-                    parsed.push(createAttachment(tx.materialImageUrl, 'material', 'Material Photo'));
-                }
-            });
-
             setReceipts(parsed);
         })
         .catch(e => console.error('Failed to load receipts', e))
@@ -169,10 +120,10 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                        🧾 Receipts & Attachments
+                        ✉️ Phase Request Letters
                     </h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {filtered.length} attachment{filtered.length !== 1 ? 's' : ''} found
+                        {filtered.length} request letter{filtered.length !== 1 ? 's' : ''} found
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -211,7 +162,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                     {/* Search */}
                     <input
                         type="text"
-                        placeholder="Search receipts..."
+                        placeholder="Search letters..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.875rem', width: '200px' }}
@@ -241,16 +192,16 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             {loading && (
                 <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
-                    Loading receipts...
+                    Loading request letters...
                 </div>
             )}
 
             {/* Empty state */}
             {!loading && filtered.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🗂️</div>
-                    <p style={{ fontSize: '1.1rem', fontWeight: 500, marginBottom: '0.5rem' }}>No attachments yet</p>
-                    <p style={{ fontSize: '0.875rem' }}>Upload receipts or bills when adding transactions</p>
+                    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✉️</div>
+                    <p style={{ fontSize: '1.1rem', fontWeight: 500, marginBottom: '0.5rem' }}>No Request Letters yet</p>
+                    <p style={{ fontSize: '0.875rem' }}>Attach request letters when creating or editing project phases</p>
                 </div>
             )}
 
@@ -321,12 +272,12 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                 {/* Type Badge */}
                                 <div style={{ 
                                     position: 'absolute', top: '8px', left: '8px', 
-                                    background: r.type === 'bill' ? 'rgba(2, 132, 199, 0.95)' : r.type === 'gpay' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(139, 92, 246, 0.95)', 
+                                    background: 'rgba(139, 92, 246, 0.95)', 
                                     color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '20px',
                                     display: 'flex', alignItems: 'center', gap: '0.2rem',
                                     boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
                                 }}>
-                                    {r.type === 'bill' ? '📄 Bill' : r.type === 'gpay' ? '📱 GPay' : '📷 Photo'}
+                                    ✉️ Request Letter
                                 </div>
                                 {/* Phase badge */}
                                 <div style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(2,132,199,0.9)', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '20px' }}>
@@ -456,12 +407,12 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                 <div style={{ color: 'white', fontWeight: 600, fontSize: '1rem', lineHeight: 1.4 }}>{current.description || 'No description provided'}</div>
                                 <div style={{ marginTop: '0.5rem' }}>
                                     <span style={{ 
-                                        background: current.type === 'bill' ? 'rgba(2, 132, 199, 0.2)' : current.type === 'gpay' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(139, 92, 246, 0.2)', 
-                                        color: current.type === 'bill' ? '#38bdf8' : current.type === 'gpay' ? '#34d399' : '#c084fc',
+                                        background: 'rgba(139, 92, 246, 0.2)', 
+                                        color: '#c084fc',
                                         padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
                                         border: '1px solid rgba(255,255,255,0.05)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
                                     }}>
-                                        {current.type === 'bill' ? '📄 Bill / Receipt' : current.type === 'gpay' ? '📱 GPay / UPI' : '📷 Material Photo'}
+                                        ✉️ Request Letter
                                     </span>
                                 </div>
                             </div>
