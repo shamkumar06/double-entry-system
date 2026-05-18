@@ -2,16 +2,33 @@ import { google } from 'googleapis';
 import { Readable } from 'stream';
 import path from 'path';
 
-// Define key path to the Service Account file
-const KEY_PATH = path.join(__dirname, '../../google-service-account.json');
-
 // Initialize Google Auth
-const auth = new google.auth.GoogleAuth({
-  keyFile: KEY_PATH,
-  scopes: ['https://www.googleapis.com/auth/drive'],
-});
+let auth: any;
+
+if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+  try {
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+    console.log('Google Auth initialized successfully using GOOGLE_SERVICE_ACCOUNT_JSON environment variable.');
+  } catch (err: any) {
+    console.error('Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON env variable, falling back to keyFile:', err.message);
+  }
+}
+
+if (!auth) {
+  const KEY_PATH = path.join(__dirname, '../../google-service-account.json');
+  auth = new google.auth.GoogleAuth({
+    keyFile: KEY_PATH,
+    scopes: ['https://www.googleapis.com/auth/drive'],
+  });
+  console.log('Google Auth initialized using local keyFile.');
+}
 
 const drive = google.drive({ version: 'v3', auth });
+
 
 // Optional parent folder ID - can fall back to root of service account if not configured
 // The user can configure this in Render env or .env, or we can upload directly
