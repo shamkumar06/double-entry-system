@@ -96,11 +96,33 @@ export async function uploadToDrive(
       requestBody: fileMetadata,
       media: media,
       fields: 'id, webViewLink, webContentLink',
-    });
+      supportsAllDrives: true, // Enable Shared Drive support
+    } as any);
 
     const fileId = response.data.id;
     if (!fileId) {
       throw new Error('No File ID returned from Google Drive API');
+    }
+
+    // Optional: Transfer ownership of the file to a real user Gmail if provided
+    // This resolves the Service Account 0 bytes quota limit on personal drives
+    const ownerEmail = process.env.GOOGLE_DRIVE_OWNER_EMAIL;
+    if (ownerEmail) {
+      try {
+        await drive.permissions.create({
+          fileId: fileId,
+          transferOwnership: true,
+          requestBody: {
+            role: 'owner',
+            type: 'user',
+            emailAddress: ownerEmail,
+          },
+          supportsAllDrives: true,
+        } as any);
+        console.log(`Successfully transferred ownership of file ${fileId} to: ${ownerEmail}`);
+      } catch (ownErr: any) {
+        console.warn(`Could not transfer ownership of file to ${ownerEmail}. Continuing as viewer permission... Error:`, ownErr.message);
+      }
     }
 
     // Grant read permission to "anyone" so the direct link resolves in the browser
@@ -111,10 +133,12 @@ export async function uploadToDrive(
           role: 'reader',
           type: 'anyone',
         },
-      });
+        supportsAllDrives: true, // Enable Shared Drive support
+      } as any);
     } catch (permErr: any) {
       console.warn('Could not set public permission on Google Drive file. Previews might fail:', permErr.message);
     }
+
 
     // Create a webContentLink or webViewLink. For direct image rendering in img src,
     // Google Drive direct export links are formatted as: https://drive.google.com/uc?export=view&id={fileId}
@@ -141,7 +165,9 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
     }
     await drive.files.delete({
       fileId: fileId,
-    });
+      supportsAllDrives: true,
+    } as any);
+
     console.log(`Successfully deleted file ${fileId} from Google Drive.`);
   } catch (error: any) {
     console.error(`Google Drive Service Delete Error for ${fileId}:`, error.message);
