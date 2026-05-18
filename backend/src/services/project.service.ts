@@ -23,12 +23,17 @@ export const listProjects = async () => {
     const mappedPhases = project.phases.map((phase) => {
       let spent_amount = 0;
       let manualSettlement = 0;
+      let manualReallocation = 0;
 
       phase.transactions.forEach((tx) => {
         tx.lines.forEach((line) => {
           if (line.account?.name === 'Settlement Amount') {
             if (line.type === 'DEBIT') {
               manualSettlement += Number(line.amount);
+            }
+          } else if (line.account?.name === 'Reallocated Fund') {
+            if (line.type === 'CREDIT') {
+              manualReallocation += Number(line.amount);
             }
           } else if (line.type === 'DEBIT') {
             spent_amount += Number(line.amount);
@@ -37,6 +42,7 @@ export const listProjects = async () => {
       });
 
       const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
+      const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
       const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
 
       return {
@@ -52,7 +58,7 @@ export const listProjects = async () => {
         reference: phase.reference,
         requestLetterUrl: phase.requestLetterUrl,
         returnedAmount: effectiveReturned,
-        reallocatedAmount: Number(phase.reallocatedAmount || 0),
+        reallocatedAmount: effectiveReallocated,
         isSettled: effectiveIsSettled,
         createdAt: phase.createdAt,
         updatedAt: phase.updatedAt,
@@ -87,12 +93,17 @@ export const getProject = async (id: string) => {
   const mappedPhases = project.phases.map((phase) => {
     let spent_amount = 0;
     let manualSettlement = 0;
+    let manualReallocation = 0;
 
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
         if (line.account?.name === 'Settlement Amount') {
           if (line.type === 'DEBIT') {
             manualSettlement += Number(line.amount);
+          }
+        } else if (line.account?.name === 'Reallocated Fund') {
+          if (line.type === 'CREDIT') {
+            manualReallocation += Number(line.amount);
           }
         } else if (line.type === 'DEBIT') {
           spent_amount += Number(line.amount);
@@ -101,6 +112,7 @@ export const getProject = async (id: string) => {
     });
 
     const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
+    const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
     const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
 
     return {
@@ -116,7 +128,7 @@ export const getProject = async (id: string) => {
       reference: phase.reference,
       requestLetterUrl: phase.requestLetterUrl,
       returnedAmount: effectiveReturned,
-      reallocatedAmount: Number(phase.reallocatedAmount || 0),
+      reallocatedAmount: effectiveReallocated,
       isSettled: effectiveIsSettled,
       createdAt: phase.createdAt,
       updatedAt: phase.updatedAt,
@@ -171,12 +183,17 @@ export const listPhases = async (projectId: string) => {
   return phases.map((phase) => {
     let spent_amount = 0;
     let manualSettlement = 0;
+    let manualReallocation = 0;
 
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
         if (line.account?.name === 'Settlement Amount') {
           if (line.type === 'DEBIT') {
             manualSettlement += Number(line.amount);
+          }
+        } else if (line.account?.name === 'Reallocated Fund') {
+          if (line.type === 'CREDIT') {
+            manualReallocation += Number(line.amount);
           }
         } else if (line.type === 'DEBIT') {
           spent_amount += Number(line.amount);
@@ -185,6 +202,7 @@ export const listPhases = async (projectId: string) => {
     });
 
     const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
+    const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
     const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
 
     return {
@@ -200,7 +218,7 @@ export const listPhases = async (projectId: string) => {
       reference: phase.reference,
       requestLetterUrl: phase.requestLetterUrl,
       returnedAmount: effectiveReturned,
-      reallocatedAmount: Number(phase.reallocatedAmount || 0),
+      reallocatedAmount: effectiveReallocated,
       isSettled: effectiveIsSettled,
       createdAt: phase.createdAt,
       updatedAt: phase.updatedAt,
@@ -301,12 +319,17 @@ export const getPhaseFinancials = async (projectId: string) => {
   return phases.map((phase) => {
     let totalExpense = 0;
     let manualSettlement = 0;
+    let manualReallocation = 0;
 
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
         if (line.account?.name === 'Settlement Amount') {
           if (line.type === 'DEBIT') {
             manualSettlement += Number(line.amount);
+          }
+        } else if (line.account?.name === 'Reallocated Fund') {
+          if (line.type === 'CREDIT') {
+            manualReallocation += Number(line.amount);
           }
         } else if (line.type === 'DEBIT') {
           totalExpense += Number(line.amount);
@@ -315,6 +338,7 @@ export const getPhaseFinancials = async (projectId: string) => {
     });
 
     const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
+    const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
     const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
 
     return {
@@ -323,9 +347,9 @@ export const getPhaseFinancials = async (projectId: string) => {
       estimatedBudget: Number(phase.estimatedBudget),
       receivedAmount: Number(phase.receivedAmount),
       returnedAmount: effectiveReturned,
-      reallocatedAmount: Number(phase.reallocatedAmount || 0),
+      reallocatedAmount: effectiveReallocated,
       totalExpense,
-      balance: (Number(phase.receivedAmount) + Number(phase.reallocatedAmount || 0)) - (totalExpense + effectiveReturned),
+      balance: (Number(phase.receivedAmount) + effectiveReallocated) - (totalExpense + effectiveReturned),
       isSettled: effectiveIsSettled,
     };
   });

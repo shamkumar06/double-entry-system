@@ -109,17 +109,19 @@ export function ProjectDataProvider({ children }) {
                     reallocated: phReallocated,
                     returned: phReturned,
                     manualReturned: 0,
+                    manualReallocated: 0,
                     spent: 0,
                     balance: (phReceived + phReallocated) - phReturned
                 };
                 totalProjectReceived += phReceived;
             });
 
-            // Aggregate spent, received, and returned amounts from the journal
+            // Aggregate spent, received, returned, and reallocated amounts from the journal
             (journal || []).forEach(tx => {
                 let txSpent = 0;
                 let txReceived = 0;
                 let txReturned = 0;
+                let txReallocated = 0;
 
                 (tx.lines || []).forEach(line => {
                     const amt = Number(line.amount) || 0;
@@ -144,8 +146,14 @@ export function ProjectDataProvider({ children }) {
 
                     // Inflows/Received: CREDIT lines to EQUITY, REVENUE, or LIABILITY accounts
                     if (['EQUITY', 'REVENUE', 'LIABILITY'].includes(line.account?.type)) {
-                        // Skip system automated Reallocated Fund to avoid double-counting rolled-over amounts as fresh capital
-                        if (line.account?.name !== 'Reallocated Fund') {
+                        // If it is 'Reallocated Fund', track it as manual reallocation!
+                        if (line.account?.name === 'Reallocated Fund') {
+                            if (line.type === 'CREDIT') {
+                                txReallocated += amt;
+                            } else if (line.type === 'DEBIT') {
+                                txReallocated -= amt; // Debit reduces reallocated
+                            }
+                        } else {
                             if (line.type === 'CREDIT') {
                                 txReceived += amt;
                             } else if (line.type === 'DEBIT') {
@@ -161,11 +169,13 @@ export function ProjectDataProvider({ children }) {
                     phaseFinances[tx.phaseId].spent += txSpent;
                     phaseFinances[tx.phaseId].received += txReceived;
                     phaseFinances[tx.phaseId].manualReturned += txReturned;
+                    phaseFinances[tx.phaseId].manualReallocated += txReallocated;
                 }
             });
 
-            // Recalculate phases to take maximum of database returnedAmount and manual settlement
+            // Recalculate phases to take maximum of database values and manual transactions
             let recomputedProjectReturned = 0;
+            let recomputedProjectReallocated = 0;
             Object.keys(phaseFinances).forEach(pid => {
                 const dbReturned = phaseFinances[pid].returned;
                 const manReturned = phaseFinances[pid].manualReturned || 0;
@@ -173,18 +183,26 @@ export function ProjectDataProvider({ children }) {
                 
                 phaseFinances[pid].returned = finalReturned;
 
+                const dbReallocated = phaseFinances[pid].reallocated;
+                const manReallocated = phaseFinances[pid].manualReallocated || 0;
+                const finalReallocated = Math.max(dbReallocated, manReallocated);
+
+                phaseFinances[pid].reallocated = finalReallocated;
+
                 // Sync the phase object inside the array so lists and modals show matching values
                 const phaseObj = (project.phases || []).find(p => p.id === pid);
                 if (phaseObj) {
                     phaseObj.returnedAmount = finalReturned;
+                    phaseObj.reallocatedAmount = finalReallocated;
                     phaseObj.isSettled = phaseObj.isSettled || manReturned > 0;
                 }
 
                 phaseFinances[pid].balance = 
-                    (phaseFinances[pid].received + phaseFinances[pid].reallocated) - 
+                    (phaseFinances[pid].received + finalReallocated) - 
                     (phaseFinances[pid].spent + finalReturned);
 
                 recomputedProjectReturned += finalReturned;
+                recomputedProjectReallocated += finalReallocated;
             });
             
             // Calculate overall project finances
@@ -192,7 +210,8 @@ export function ProjectDataProvider({ children }) {
                 received: totalProjectReceived,
                 spent: totalProjectSpent,
                 returned: recomputedProjectReturned,
-                balance: totalProjectReceived - (totalProjectSpent + recomputedProjectReturned),
+                reallocated: recomputedProjectReallocated,
+                balance: (totalProjectReceived + recomputedProjectReallocated) - (totalProjectSpent + recomputedProjectReturned),
             };
 
             dispatch({
