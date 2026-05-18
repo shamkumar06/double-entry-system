@@ -452,7 +452,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                             e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
                         }}
                     >
-                        <span>📂 Open Overall Project Ledger & Dashboard (All Stages)</span>
+                        <span>📂 All phases</span>
                         <span style={{ fontSize: '1.1rem', transition: 'transform 0.2s' }} className="arrow-icon">➔</span>
                     </button>
                 )}
