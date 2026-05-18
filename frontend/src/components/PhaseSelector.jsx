@@ -67,17 +67,36 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
 
             const mappedPhases = phasesArray.map(phase => {
                 let spent_amount = 0;
+                let received_amount = Number(phase.receivedAmount) || 0;
+                
                 list.forEach(tx => {
                     if (tx.phaseId === phase.id || tx.phase?.id === phase.id) {
                         tx.lines?.forEach(line => {
-                            if (line.type === 'DEBIT') {
-                                spent_amount += parseFloat(line.amount) || 0;
+                            const amt = Number(line.amount) || 0;
+                            
+                            // Outflows/Spent: DEBIT lines to EXPENSE accounts
+                            if (line.account?.type === 'EXPENSE') {
+                                if (line.type === 'DEBIT') {
+                                    spent_amount += amt;
+                                } else if (line.type === 'CREDIT') {
+                                    spent_amount -= amt; // Refund reduces spent
+                                }
+                            }
+
+                            // Inflows/Received: CREDIT lines to EQUITY, REVENUE, or LIABILITY accounts
+                            if (['EQUITY', 'REVENUE', 'LIABILITY'].includes(line.account?.type)) {
+                                if (line.type === 'CREDIT') {
+                                    received_amount += amt;
+                                } else if (line.type === 'DEBIT') {
+                                    received_amount -= amt; // Debit reduces received
+                                }
                             }
                         });
                     }
                 });
                 return {
                     ...phase,
+                    receivedAmount: received_amount,
                     spent_amount
                 };
             });
@@ -305,7 +324,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     <div className="glass-panel animate-in" style={{ 
                         padding: '1.75rem', 
                         borderRadius: '24px', 
-                        background: 'var(--surface-card, #0f172a)', 
+                        background: 'var(--glass-bg)', 
                         border: '1px solid var(--border)', 
                         boxShadow: 'var(--shadow-md)',
                         marginBottom: '1rem'
