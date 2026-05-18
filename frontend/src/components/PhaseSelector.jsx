@@ -95,7 +95,8 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
 
             const mappedPhases = phasesArray.map(phase => {
                 let spent_amount = 0;
-                let received_amount = Number(phase.receivedAmount) || 0;
+                let db_received = Number(phase.receivedAmount) || 0;
+                let manual_received = 0;
                 
                 list.forEach(tx => {
                     if (tx.phaseId === phase.id || tx.phase?.id === phase.id) {
@@ -114,9 +115,9 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                             // Inflows/Received: CREDIT lines to EQUITY, REVENUE, or LIABILITY accounts
                             if (['EQUITY', 'REVENUE', 'LIABILITY'].includes(line.account?.type)) {
                                 if (line.type === 'CREDIT') {
-                                    received_amount += amt;
+                                    manual_received += amt;
                                 } else if (line.type === 'DEBIT') {
-                                    received_amount -= amt; // Debit reduces received
+                                    manual_received -= amt; // Debit reduces received
                                 }
                             }
                         });
@@ -124,7 +125,7 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                 });
                 return {
                     ...phase,
-                    receivedAmount: received_amount,
+                    receivedAmount: Math.max(db_received, manual_received),
                     spent_amount
                 };
             });

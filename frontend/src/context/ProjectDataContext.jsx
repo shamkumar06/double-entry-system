@@ -110,6 +110,7 @@ export function ProjectDataProvider({ children }) {
                     returned: phReturned,
                     manualReturned: 0,
                     manualReallocated: 0,
+                    manualReceived: 0,
                     spent: 0,
                     balance: (phReceived + phReallocated) - phReturned
                 };
@@ -167,7 +168,7 @@ export function ProjectDataProvider({ children }) {
 
                 if (tx.phaseId && phaseFinances[tx.phaseId]) {
                     phaseFinances[tx.phaseId].spent += txSpent;
-                    phaseFinances[tx.phaseId].received += txReceived;
+                    phaseFinances[tx.phaseId].manualReceived += txReceived;
                     phaseFinances[tx.phaseId].manualReturned += txReturned;
                     phaseFinances[tx.phaseId].manualReallocated += txReallocated;
                 }
@@ -176,6 +177,7 @@ export function ProjectDataProvider({ children }) {
             // Recalculate phases to take maximum of database values and manual transactions
             let recomputedProjectReturned = 0;
             let recomputedProjectReallocated = 0;
+            let recomputedProjectReceived = 0;
             Object.keys(phaseFinances).forEach(pid => {
                 const dbReturned = phaseFinances[pid].returned;
                 const manReturned = phaseFinances[pid].manualReturned || 0;
@@ -189,16 +191,24 @@ export function ProjectDataProvider({ children }) {
 
                 phaseFinances[pid].reallocated = finalReallocated;
 
+                const dbReceived = phaseFinances[pid].received;
+                const manReceived = phaseFinances[pid].manualReceived || 0;
+                const finalReceived = Math.max(dbReceived, manReceived);
+
+                phaseFinances[pid].received = finalReceived;
+                recomputedProjectReceived += finalReceived;
+
                 // Sync the phase object inside the array so lists and modals show matching values
                 const phaseObj = (project.phases || []).find(p => p.id === pid);
                 if (phaseObj) {
+                    phaseObj.receivedAmount = finalReceived;
                     phaseObj.returnedAmount = finalReturned;
                     phaseObj.reallocatedAmount = finalReallocated;
                     phaseObj.isSettled = phaseObj.isSettled || manReturned > 0;
                 }
 
                 phaseFinances[pid].balance = 
-                    (phaseFinances[pid].received + finalReallocated) - 
+                    (finalReceived + finalReallocated) - 
                     (phaseFinances[pid].spent + finalReturned);
 
                 recomputedProjectReturned += finalReturned;
@@ -207,11 +217,11 @@ export function ProjectDataProvider({ children }) {
             
             // Calculate overall project finances
             const projectFinances = {
-                received: totalProjectReceived,
+                received: recomputedProjectReceived,
                 spent: totalProjectSpent,
                 returned: recomputedProjectReturned,
                 reallocated: recomputedProjectReallocated,
-                balance: (totalProjectReceived + recomputedProjectReallocated) - (totalProjectSpent + recomputedProjectReturned),
+                balance: (recomputedProjectReceived + recomputedProjectReallocated) - (totalProjectSpent + recomputedProjectReturned),
             };
 
             dispatch({
