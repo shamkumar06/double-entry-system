@@ -570,46 +570,45 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                                 placeholder="0"
                                 style={{
                                     width: '100%',
-                                    background: '#070f0b', // Deep retro dark green-black LCD background
-                                    border: '2px solid #1e3a24', // Subtle retro LCD frame border
-                                    borderRadius: '12px',
-                                    padding: '1.25rem 1.5rem', // Large premium inner padding
-                                    fontSize: '2rem', // Large bold display font size
-                                    fontWeight: 'bold',
-                                    color: '#4ade80', // Beautiful bright glowing retro green
+                                    background: 'var(--background)', // Theme-aware background
+                                    border: '1px solid var(--border)', // Clean theme-aware border
+                                    borderRadius: '16px',
+                                    padding: '1.2rem 1.5rem', // Spacious premium padding
+                                    fontSize: '2.25rem', // Large elegant digital size
+                                    fontWeight: '600',
+                                    color: 'var(--text-main)', // High-contrast theme-aware color
                                     textAlign: 'right',
-                                    fontFamily: 'monospace', // Digital/monospaced font
-                                    letterSpacing: '0.08em', // Digital display letter spacing
+                                    fontFamily: '"SF Pro Mono", Consolas, Monaco, monospace', // Clean professional monospace
+                                    letterSpacing: '-0.02em',
                                     outline: 'none',
-                                    boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.8), 0 0 15px rgba(74, 222, 128, 0.15)', // Inside screen shadow & retro glow
-                                    textShadow: '0 0 10px rgba(74, 222, 128, 0.65)', // High-contrast glowing digit text shadow!
-                                    transition: 'all 0.3s ease',
-                                    colorScheme: 'dark'
+                                    boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.04)', // Minimal, super soft inset shadow
+                                    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                                 }}
                                 onFocus={(e) => {
-                                    e.target.style.borderColor = '#4ade80';
-                                    e.target.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.8), 0 0 20px rgba(74, 222, 128, 0.3)';
+                                    e.target.style.borderColor = 'var(--primary)';
+                                    e.target.style.boxShadow = 'inset 0 2px 8px rgba(0, 0, 0, 0.04), 0 0 0 3px rgba(56, 189, 248, 0.1)';
                                 }}
                                 onBlur={(e) => {
-                                    e.target.style.borderColor = '#1e3a24';
-                                    e.target.style.boxShadow = 'inset 0 4px 10px rgba(0,0,0,0.8), 0 0 15px rgba(74, 222, 128, 0.15)';
+                                    e.target.style.borderColor = 'var(--border)';
+                                    e.target.style.boxShadow = 'inset 0 2px 8px rgba(0, 0, 0, 0.04)';
                                 }}
                             />
                         </div>
 
                         {/* Keyboard shortcut tips */}
                         <div style={{ 
-                            fontSize: '0.65rem', 
+                            fontSize: '0.68rem', 
                             color: 'var(--text-muted)', 
                             lineHeight: '1.4',
                             display: 'flex',
                             flexDirection: 'row',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            fontFamily: 'monospace'
+                            fontFamily: 'inherit',
+                            fontWeight: '500'
                         }}>
-                            <span style={{ color: 'var(--success)' }}>⌨️ Keyboard Active</span>
-                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>⌨️ Keyboard Active</span>
+                            <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)' }}>
                                 <span>• Enter = Calculate</span>
                                 <span>• Esc = Clear</span>
                             </div>
