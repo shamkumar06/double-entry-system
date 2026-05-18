@@ -64,65 +64,89 @@ function reducer(state, action) {
 // ── Context ────────────────────────────────────────────────────────────────
 const ProjectDataContext = createContext(null);
 
+// Module-level cache for static categories to accelerate frequent updates
+let cachedCategories = null;
+
 export function ProjectDataProvider({ children }) {
     const [state, dispatch] = useReducer(reducer, initialState);
 
     /**
-     * Loads all project data in 3 parallel API calls.
-     * Fires: getProject, getJournal, getPhaseFinancials
+     * Loads all project data.
+     * Fires parallel calls to getProject, getJournal, getPhaseFinancials
      */
     const loadProject = useCallback(async (projectId, phaseId = null) => {
         if (!projectId) return;
         dispatch({ type: 'LOAD_START' });
         try {
-            const [project, journal, categories, phaseFinancesArr] = await Promise.all([
+            const categoriesPromise = cachedCategories
+                ? Promise.resolve(cachedCategories)
+                : accountingApi.listCategories().then(cats => {
+                    cachedCategories = cats;
+                    return cats;
+                });
+
+            const [project, journal, categories] = await Promise.all([
                 accountingApi.getProject(projectId),
                 accountingApi.getJournal(projectId, phaseId),
-                accountingApi.listCategories(),
-                accountingApi.getPhaseFinancials(projectId).catch(() => []),
+                categoriesPromise,
             ]);
 
             // Dynamically calculate finances directly from the journal to guarantee 100% sync
             const phaseFinances = {};
             let totalProjectSpent = 0;
+            let totalProjectReceived = 0;
 
-            // Initialize phases
+            // Initialize phases with their actual database receivedAmount and estimatedBudget
             (project.phases || []).forEach(ph => {
+                const phReceived = Number(ph.receivedAmount) || 0;
                 phaseFinances[ph.id] = {
                     id: ph.id,
                     name: ph.name,
-                    received: Number(ph.estimatedBudget) || 0, // Fallback to estimated budget as allocation
+                    received: phReceived,
                     spent: 0,
-                    balance: Number(ph.estimatedBudget) || 0
+                    balance: phReceived
                 };
+                totalProjectReceived += phReceived;
             });
 
-            // Aggregate spent amounts from the journal
+            // Aggregate spent and received amounts from the journal
             (journal || []).forEach(tx => {
-                let txExpense = 0;
-                // Sum all DEBIT lines that represent an actual outflow/expense (typically EXPENSE accounts)
+                let txSpent = 0;
+                let txReceived = 0;
+
                 (tx.lines || []).forEach(line => {
-                    if (line.type === 'DEBIT' && line.account?.type === 'EXPENSE') {
-                        txExpense += Number(line.amount);
+                    const amt = Number(line.amount) || 0;
+                    
+                    // Outflows/Spent: DEBIT lines to EXPENSE accounts
+                    if (line.account?.type === 'EXPENSE') {
+                        if (line.type === 'DEBIT') {
+                            txSpent += amt;
+                        } else if (line.type === 'CREDIT') {
+                            txSpent -= amt; // Refund reduces spent
+                        }
+                    }
+
+                    // Inflows/Received: CREDIT lines to EQUITY, REVENUE, or LIABILITY accounts
+                    if (['EQUITY', 'REVENUE', 'LIABILITY'].includes(line.account?.type)) {
+                        if (line.type === 'CREDIT') {
+                            txReceived += amt;
+                        } else if (line.type === 'DEBIT') {
+                            txReceived -= amt; // Debit reduces received
+                        }
                     }
                 });
 
-                // If no direct expense was found, fallback to the primary debit line amount to ensure we don't show $0
-                if (txExpense === 0 && tx.lines?.length > 0) {
-                    const debitLine = tx.lines.find(l => l.type === 'DEBIT');
-                    if (debitLine) txExpense = Number(debitLine.amount);
-                }
-                
-                totalProjectSpent += txExpense;
-                
+                totalProjectSpent += txSpent;
+                totalProjectReceived += txReceived;
+
                 if (tx.phaseId && phaseFinances[tx.phaseId]) {
-                    phaseFinances[tx.phaseId].spent += txExpense;
+                    phaseFinances[tx.phaseId].spent += txSpent;
+                    phaseFinances[tx.phaseId].received += txReceived;
                     phaseFinances[tx.phaseId].balance = phaseFinances[tx.phaseId].received - phaseFinances[tx.phaseId].spent;
                 }
             });
             
             // Calculate overall project finances
-            const totalProjectReceived = Number(project.totalFunds) || 0;
             const projectFinances = {
                 received: totalProjectReceived,
                 spent: totalProjectSpent,
