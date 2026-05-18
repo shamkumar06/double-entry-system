@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { TrendingDown, TrendingUp, DollarSign, FileText, Activity, Layers, CheckCircle, PieChart, Edit3, Wallet, Target, Calculator } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
 import { useProjectData } from '../context/ProjectDataContext';
@@ -204,6 +204,214 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
         }
     };
 
+    // Notepad Markdown features, Table picker state, and Live Preview rendering
+    const notepadTextareaRef = useRef(null);
+    const [editorMode, setEditorMode] = useState('edit'); // 'edit' | 'preview'
+    const [showTableMenu, setShowTableMenu] = useState(false);
+    const [hoveredGrid, setHoveredGrid] = useState({ r: 0, c: 0 });
+
+    const insertAtCursor = (textToInsert) => {
+        const textarea = notepadTextareaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const before = text.substring(0, start);
+        const after = text.substring(end, text.length);
+
+        const newText = before + textToInsert + after;
+        setNote(newText);
+        setSaveStatus('saving');
+
+        // Restore focus and cursor position
+        setTimeout(() => {
+            textarea.focus();
+            const newCursorPos = start + textToInsert.length;
+            textarea.setSelectionRange(newCursorPos, newCursorPos);
+        }, 50);
+    };
+
+    const generateMarkdownTable = (cols, rows) => {
+        let md = '\n';
+        // Headers row
+        md += '| ' + Array.from({ length: cols }, (_, i) => `Header ${i + 1}`).join(' | ') + ' |\n';
+        // Separator row
+        md += '| ' + Array.from({ length: cols }, () => '---').join(' | ') + ' |\n';
+        // Content rows
+        for (let r = 0; r < rows; r++) {
+            md += '| ' + Array.from({ length: cols }, () => ' ').join(' | ') + ' |\n';
+        }
+        return md + '\n';
+    };
+
+    const handleGridSelect = (cols, rows) => {
+        const mdTable = generateMarkdownTable(cols, rows);
+        insertAtCursor(mdTable);
+        setShowTableMenu(false);
+    };
+
+    // Custom lightweight Markdown & Table parser
+    const renderMarkdown = (text) => {
+        if (!text) {
+            return (
+                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic', margin: 0, fontSize: '0.9rem' }}>
+                    No notes content yet. Switch to "Write" to add guidelines, reminders, checklists, or tables.
+                </p>
+            );
+        }
+
+        const lines = text.split('\n');
+        const elements = [];
+        let inTable = false;
+        let tableHeaders = [];
+        let tableRows = [];
+
+        const flushTable = (key) => {
+            if (tableHeaders.length > 0 || tableRows.length > 0) {
+                elements.push(
+                    <div key={`table-${key}`} style={{ overflowX: 'auto', margin: '1.25rem 0', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                        <table style={{ 
+                            width: '100%', 
+                            borderCollapse: 'collapse', 
+                            background: 'var(--surface-hover)', 
+                            fontSize: '0.9rem',
+                            color: 'var(--text-main)'
+                        }}>
+                            {tableHeaders.length > 0 && (
+                                <thead>
+                                    <tr style={{ background: 'rgba(56, 189, 248, 0.08)', borderBottom: '2px solid var(--border)' }}>
+                                        {tableHeaders.map((h, i) => (
+                                            <th key={i} style={{ padding: '0.85rem 1.25rem', textAlign: 'left', fontWeight: 800, borderRight: '1px solid var(--border)', letterSpacing: '0.02em' }}>
+                                                {h}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                            )}
+                            <tbody>
+                                {tableRows.map((row, ri) => (
+                                    <tr key={ri} style={{ borderBottom: '1px solid var(--border)', background: ri % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
+                                        {row.map((cell, ci) => (
+                                            <td key={ci} style={{ padding: '0.85rem 1.25rem', borderRight: '1px solid var(--border)' }}>
+                                                {parseInlineMarkdown(cell)}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+                tableHeaders = [];
+                tableRows = [];
+            }
+            inTable = false;
+        };
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            // Table parsing
+            if (line.startsWith('|') && line.endsWith('|')) {
+                inTable = true;
+                const cells = line.split('|').slice(1, -1).map(c => c.trim());
+                const isDivider = cells.every(c => /^:-*|-*:-*|-*:$/.test(c) || c === '---');
+                
+                if (isDivider) {
+                    continue;
+                }
+                
+                if (tableHeaders.length === 0 && tableRows.length === 0) {
+                    tableHeaders = cells;
+                } else {
+                    tableRows.push(cells);
+                }
+                continue;
+            } else {
+                if (inTable) {
+                    flushTable(i);
+                }
+            }
+
+            // Headers
+            if (line.startsWith('# ')) {
+                elements.push(<h1 key={i} style={{ fontSize: '1.6rem', fontWeight: 800, margin: '1.25rem 0 0.5rem', color: 'var(--text-main)' }}>{parseInlineMarkdown(line.slice(2))}</h1>);
+            } else if (line.startsWith('## ')) {
+                elements.push(<h2 key={i} style={{ fontSize: '1.3rem', fontWeight: 700, margin: '1rem 0 0.5rem', color: 'var(--text-main)' }}>{parseInlineMarkdown(line.slice(3))}</h2>);
+            } else if (line.startsWith('### ')) {
+                elements.push(<h3 key={i} style={{ fontSize: '1.1rem', fontWeight: 700, margin: '1rem 0 0.5rem', color: 'var(--text-main)' }}>{parseInlineMarkdown(line.slice(4))}</h3>);
+            }
+            // Checklists
+            else if (line.startsWith('- [ ] ') || line.startsWith('- [x] ')) {
+                const checked = line.startsWith('- [x] ');
+                const textContent = line.slice(6);
+                elements.push(
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: '0.4rem 0' }}>
+                        <input 
+                            type="checkbox" 
+                            checked={checked} 
+                            readOnly 
+                            style={{ 
+                                cursor: 'default',
+                                accentColor: 'var(--accent)',
+                                width: '16px',
+                                height: '16px'
+                            }} 
+                        />
+                        <span style={{ 
+                            textDecoration: checked ? 'line-through' : 'none', 
+                            color: checked ? 'var(--text-muted)' : 'var(--text-main)',
+                            fontSize: '0.92rem'
+                        }}>
+                            {parseInlineMarkdown(textContent)}
+                        </span>
+                    </div>
+                );
+            }
+            // Lists
+            else if (line.startsWith('- ') || line.startsWith('* ')) {
+                elements.push(
+                    <li key={i} style={{ marginLeft: '1.25rem', margin: '0.35rem 0', fontSize: '0.92rem', color: 'var(--text-main)', listStyleType: 'disc' }}>
+                        {parseInlineMarkdown(line.slice(2))}
+                    </li>
+                );
+            }
+            // Empty spaces
+            else if (line === '') {
+                elements.push(<div key={i} style={{ height: '0.6rem' }} />);
+            }
+            // Normal paragraph text
+            else {
+                elements.push(
+                    <p key={i} style={{ fontSize: '0.92rem', lineHeight: '1.6', color: 'var(--text-main)', margin: '0.45rem 0' }}>
+                        {parseInlineMarkdown(line)}
+                    </p>
+                );
+            }
+        }
+
+        if (inTable) {
+            flushTable(lines.length);
+        }
+
+        return elements;
+    };
+
+    // Helper to format inline bold (**text**)
+    const parseInlineMarkdown = (text) => {
+        const boldSplits = text.split(/\*\*(.*?)\*\*/g);
+        if (boldSplits.length > 1) {
+            return boldSplits.map((part, index) => {
+                if (index % 2 === 1) {
+                    return <strong key={index} style={{ fontWeight: 800, color: 'var(--accent)' }}>{part}</strong>;
+                }
+                return part;
+            });
+        }
+        return text;
+    };
+
     if (loading || !stats) return (
         <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem' }}>
             <UsageCircle percent={0} size={120} label="Loading..." />
@@ -402,13 +610,59 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
             </div>
 
             {/* Quick Notepad Panel */}
-            <div className="glass-panel" style={{ padding: '2rem', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '10px' }}>
-                            <Edit3 size={20} color="var(--accent)" />
+            <div className="glass-panel" style={{ padding: '2rem', border: '1px solid var(--border)', position: 'relative' }}>
+                {/* Header Section */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '10px' }}>
+                                <Edit3 size={20} color="var(--accent)" />
+                            </div>
+                            <h3 style={{ fontWeight: 700, fontSize: '1.25rem' }}>Workspace Quick Notes</h3>
                         </div>
-                        <h3 style={{ fontWeight: 700, fontSize: '1.25rem' }}>Workspace Quick Notes</h3>
+
+                        {/* Segmented Mode Selector */}
+                        <div style={{ 
+                            background: 'var(--surface-hover)', 
+                            border: '1px solid var(--border)', 
+                            borderRadius: '10px', 
+                            padding: '2px', 
+                            display: 'flex', 
+                            gap: '2px' 
+                        }}>
+                            <button
+                                onClick={() => setEditorMode('edit')}
+                                style={{
+                                    border: 'none',
+                                    background: editorMode === 'edit' ? 'var(--accent)' : 'transparent',
+                                    color: editorMode === 'edit' ? '#000000' : 'var(--text-muted)',
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    padding: '6px 14px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                }}
+                            >
+                                ✍️ Write
+                            </button>
+                            <button
+                                onClick={() => setEditorMode('preview')}
+                                style={{
+                                    border: 'none',
+                                    background: editorMode === 'preview' ? 'var(--accent)' : 'transparent',
+                                    color: editorMode === 'preview' ? '#000000' : 'var(--text-muted)',
+                                    fontWeight: 700,
+                                    fontSize: '0.75rem',
+                                    padding: '6px 14px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                }}
+                            >
+                                👁️ Preview
+                            </button>
+                        </div>
                     </div>
                     
                     {/* Auto-save Indicator badge */}
@@ -438,31 +692,255 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         {saveStatus === 'saved' ? 'All changes auto-saved' : 'Saving draft...'}
                     </span>
                 </div>
-                
-                <textarea
-                    value={note}
-                    onChange={handleNoteChange}
-                    placeholder="Write anything here—reminders, phase milestones, draft estimates, checklist items, or budget calculations. Your notes are stored securely and saved instantly as you type."
-                    style={{
+
+                {/* Editor Toolbar (Only shown in Write mode) */}
+                {editorMode === 'edit' && (
+                    <div style={{ 
+                        display: 'flex', 
+                        gap: '0.5rem', 
+                        padding: '0.5rem 0.75rem', 
+                        background: 'var(--surface-hover)', 
+                        border: '1px solid var(--border)', 
+                        borderBottom: 'none',
+                        borderTopLeftRadius: '16px', 
+                        borderTopRightRadius: '16px',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        position: 'relative'
+                    }}>
+                        {/* Table Creator Popover Button */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                onClick={() => setShowTableMenu(!showTableMenu)}
+                                style={{
+                                    background: showTableMenu ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                    color: 'var(--accent)',
+                                    fontWeight: 700,
+                                    fontSize: '0.78rem',
+                                    padding: '6px 10px',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    transition: 'all 0.2s ease',
+                                    border: '1px solid rgba(56, 189, 248, 0.2)'
+                                }}
+                            >
+                                📊 Table Inserter
+                            </button>
+
+                            {/* visual 5x5 grid picker */}
+                            {showTableMenu && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: '0',
+                                    zIndex: 50,
+                                    background: 'var(--surface)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '12px',
+                                    padding: '0.85rem',
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+                                    marginTop: '0.5rem',
+                                    backdropFilter: 'blur(25px)',
+                                    width: '136px'
+                                }}>
+                                    <p style={{ 
+                                        fontSize: '0.62rem', 
+                                        fontWeight: 800, 
+                                        textTransform: 'uppercase', 
+                                        color: 'var(--text-muted)', 
+                                        marginBottom: '0.5rem', 
+                                        textAlign: 'center',
+                                        letterSpacing: '0.05em'
+                                    }}>
+                                        {hoveredGrid.c > 0 && hoveredGrid.r > 0 ? `${hoveredGrid.c} Cols × ${hoveredGrid.r} Rows` : 'Select Size'}
+                                    </p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                                        {Array.from({ length: 5 }).map((_, rIdx) => {
+                                            const r = rIdx + 1;
+                                            return (
+                                                <div key={rIdx} style={{ display: 'flex', gap: '4px' }}>
+                                                    {Array.from({ length: 5 }).map((_, cIdx) => {
+                                                        const c = cIdx + 1;
+                                                        const active = c <= hoveredGrid.c && r <= hoveredGrid.r;
+                                                        return (
+                                                            <div 
+                                                                key={cIdx}
+                                                                onMouseEnter={() => setHoveredGrid({ r, c })}
+                                                                onClick={() => handleGridSelect(c, r)}
+                                                                style={{
+                                                                    width: '16px',
+                                                                    height: '16px',
+                                                                    borderRadius: '3px',
+                                                                    background: active ? 'var(--accent)' : 'rgba(255,255,255,0.05)',
+                                                                    border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'all 0.1s ease'
+                                                                }}
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }}>
+                                        <button 
+                                            onClick={() => setShowTableMenu(false)}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: 'var(--text-muted)',
+                                                fontSize: '0.65rem',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline'
+                                            }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Format buttons */}
+                        <button
+                            onClick={() => insertAtCursor('\n- [ ] Checklist Item\n')}
+                            style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-main)',
+                                fontSize: '0.78rem',
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                            ✅ Checklist
+                        </button>
+                        <button
+                            onClick={() => insertAtCursor('**bold text**')}
+                            style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-main)',
+                                fontSize: '0.78rem',
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: 800,
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                            <b>Bold</b>
+                        </button>
+                        <button
+                            onClick={() => insertAtCursor('*italic text*')}
+                            style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-main)',
+                                fontSize: '0.78rem',
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontStyle: 'italic',
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                            <i>Italic</i>
+                        </button>
+                        <button
+                            onClick={() => insertAtCursor('\n# Header 1\n')}
+                            style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-main)',
+                                fontSize: '0.78rem',
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                            H1
+                        </button>
+                        <button
+                            onClick={() => insertAtCursor('\n## Header 2\n')}
+                            style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: 'var(--text-main)',
+                                fontSize: '0.78rem',
+                                padding: '6px 10px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                            H2
+                        </button>
+                    </div>
+                )}
+
+                {/* Main Notepad Area */}
+                {editorMode === 'edit' ? (
+                    <textarea
+                        ref={notepadTextareaRef}
+                        value={note}
+                        onChange={handleNoteChange}
+                        placeholder="Write anything here—reminders, phase milestones, draft estimates, checklist items, or budget calculations. Your notes are stored securely and saved instantly as you type."
+                        style={{
+                            width: '100%',
+                            minHeight: '200px',
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                            borderTopLeftRadius: '0px',
+                            borderTopRightRadius: '0px',
+                            borderBottomLeftRadius: '16px',
+                            borderBottomRightRadius: '16px',
+                            outline: 'none',
+                            resize: 'vertical',
+                            color: 'var(--text-main)',
+                            fontSize: '0.92rem',
+                            lineHeight: '1.6',
+                            fontFamily: 'inherit',
+                            padding: '1.25rem',
+                            colorScheme: 'dark',
+                            boxShadow: 'var(--card-shadow-inset)',
+                            transition: 'border-color 0.2s ease',
+                        }}
+                        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                        onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                    />
+                ) : (
+                    <div style={{
                         width: '100%',
-                        minHeight: '140px',
+                        minHeight: '200px',
                         background: 'var(--surface)',
                         border: '1px solid var(--border)',
                         borderRadius: '16px',
-                        outline: 'none',
-                        resize: 'vertical',
+                        padding: '1.5rem 1.75rem',
                         color: 'var(--text-main)',
-                        fontSize: '0.92rem',
-                        lineHeight: '1.6',
-                        fontFamily: 'inherit',
-                        padding: '1.25rem',
-                        colorScheme: 'dark',
                         boxShadow: 'var(--card-shadow-inset)',
-                        transition: 'border-color 0.2s ease',
-                    }}
-                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                />
+                        overflowY: 'auto'
+                    }}>
+                        {renderMarkdown(note)}
+                    </div>
+                )}
             </div>
 
             {/* Phase-wise breakdown (only in All Phases view) */}
