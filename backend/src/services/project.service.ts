@@ -55,7 +55,11 @@ export const listPhases = async (projectId: string) => {
     include: {
       transactions: {
         where: { isDeleted: false },
-        include: { lines: true },
+        include: {
+          lines: {
+            include: { account: true },
+          },
+        },
       },
     },
     orderBy: { createdAt: 'asc' },
@@ -65,7 +69,13 @@ export const listPhases = async (projectId: string) => {
     let spent_amount = 0;
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
-        if (line.type === 'DEBIT') {
+        if (
+          line.type === 'DEBIT' &&
+          (line.account.type === 'EXPENSE' ||
+            (line.account.type === 'ASSET' &&
+              line.account.code !== 1001 &&
+              line.account.code !== 1002))
+        ) {
           spent_amount += Number(line.amount);
         }
       });
@@ -315,7 +325,11 @@ export const getPhaseFinancials = async (projectId: string) => {
     include: {
       transactions: {
         where: { isDeleted: false },
-        include: { lines: true },
+        include: {
+          lines: {
+            include: { account: true },
+          },
+        },
       },
     },
   });
@@ -324,7 +338,13 @@ export const getPhaseFinancials = async (projectId: string) => {
     let totalExpense = 0;
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
-        if (line.type === 'DEBIT') {
+        if (
+          line.type === 'DEBIT' &&
+          (line.account.type === 'EXPENSE' ||
+            (line.account.type === 'ASSET' &&
+              line.account.code !== 1001 &&
+              line.account.code !== 1002))
+        ) {
           totalExpense += Number(line.amount);
         }
       });
