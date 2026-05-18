@@ -210,7 +210,7 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
 
     // Notepad Markdown features, Table picker state, and Live Preview rendering
     const notepadTextareaRef = useRef(null);
-    const [editorMode, setEditorMode] = useState('edit'); // 'edit' | 'preview'
+    const [editorMode, setEditorMode] = useState('preview'); // 'edit' | 'preview'
     const [showTableMenu, setShowTableMenu] = useState(false);
     const [hoveredGrid, setHoveredGrid] = useState({ r: 0, c: 0 });
 
