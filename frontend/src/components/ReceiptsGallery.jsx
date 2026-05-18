@@ -29,62 +29,91 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
     useEffect(() => {
         if (!projectId) return;
         setLoading(true);
-        accountingApi.getJournal(projectId, phaseId || null)
-            .then(txs => {
-                const list = (Array.isArray(txs) ? txs : txs?.data || []);
-                const parsed = [];
-                
-                list.forEach(tx => {
-                    // Unpack enriched description
-                    let pureDesc = tx.description;
-                    let fromName = '';
-                    let toName = '';
-                    let amount = tx.lines?.[0]?.amount || 0;
-                    let accountName = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '';
+        Promise.all([
+            accountingApi.listPhases(projectId),
+            accountingApi.getJournal(projectId, phaseId || null)
+        ])
+        .then(([phasesData, txs]) => {
+            const phaseList = Array.isArray(phasesData) ? phasesData : (phasesData?.data || []);
+            const list = (Array.isArray(txs) ? txs : txs?.data || []);
+            const parsed = [];
+            
+            // 1. Unpack Phase Request Letters
+            phaseList.forEach(phase => {
+                if (phase.requestLetterUrl) {
+                    const url = getImageUrl(phase.requestLetterUrl);
+                    const isPdf = url?.toLowerCase().endsWith('.pdf');
+                    parsed.push({
+                        id: `${phase.id}-request-letter`,
+                        txId: null,
+                        url,
+                        isPdf,
+                        type: 'letter',
+                        suffix: 'Phase Request Letter',
+                        description: `Official Funding Request Letter for Stage: "${phase.name}"`,
+                        fromName: phase.receivedFrom || 'External Funder',
+                        toName: phase.receivedTo || 'Project Entity',
+                        amount: Number(phase.receivedAmount) || 0,
+                        accountName: 'Initial Funding Deposit',
+                        date: phase.createdAt || new Date(),
+                        phaseName: phase.name,
+                        phaseId: phase.id
+                    });
+                }
+            });
 
-                    if (tx.description?.includes('| From:')) {
-                        const parts = tx.description.split('|');
-                        pureDesc = parts[0]?.trim();
-                        const m = parts[1]?.match(/From: (.*?) To: (.*)/);
-                        if (m) { fromName = m[1]?.trim(); toName = m[2]?.trim(); }
-                    }
+            // 2. Unpack Transaction Attachments
+            list.forEach(tx => {
+                // Unpack enriched description
+                let pureDesc = tx.description;
+                let fromName = '';
+                let toName = '';
+                let amount = tx.lines?.[0]?.amount || 0;
+                let accountName = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '';
 
-                    const createAttachment = (urlPath, type, suffix) => {
-                        const url = getImageUrl(urlPath);
-                        const isPdf = url?.toLowerCase().endsWith('.pdf');
-                        return {
-                            id: `${tx.id}-${type}`,
-                            txId: tx.id,
-                            url,
-                            isPdf,
-                            type,
-                            suffix,
-                            description: pureDesc,
-                            fromName,
-                            toName,
-                            amount,
-                            accountName,
-                            date: tx.date,
-                            phaseName: tx.phase?.name || 'Whole Project',
-                            phaseId: tx.phaseId || tx.phase?.id || null
-                        };
+                if (tx.description?.includes('| From:')) {
+                    const parts = tx.description.split('|');
+                    pureDesc = parts[0]?.trim();
+                    const m = parts[1]?.match(/From: (.*?) To: (.*)/);
+                    if (m) { fromName = m[1]?.trim(); toName = m[2]?.trim(); }
+                }
+
+                const createAttachment = (urlPath, type, suffix) => {
+                    const url = getImageUrl(urlPath);
+                    const isPdf = url?.toLowerCase().endsWith('.pdf');
+                    return {
+                        id: `${tx.id}-${type}`,
+                        txId: tx.id,
+                        url,
+                        isPdf,
+                        type,
+                        suffix,
+                        description: pureDesc,
+                        fromName,
+                        toName,
+                        amount,
+                        accountName,
+                        date: tx.date,
+                        phaseName: tx.phase?.name || 'Whole Project',
+                        phaseId: tx.phaseId || tx.phase?.id || null
                     };
+                };
 
-                    if (tx.attachmentUrl) {
-                        parsed.push(createAttachment(tx.attachmentUrl, 'bill', 'Bill / Receipt'));
-                    }
-                    if (tx.gpayScreenshotUrl) {
-                        parsed.push(createAttachment(tx.gpayScreenshotUrl, 'gpay', 'GPay / UPI Screenshot'));
-                    }
-                    if (tx.materialImageUrl) {
-                        parsed.push(createAttachment(tx.materialImageUrl, 'material', 'Material Photo'));
-                    }
-                });
+                if (tx.attachmentUrl) {
+                    parsed.push(createAttachment(tx.attachmentUrl, 'bill', 'Bill / Receipt'));
+                }
+                if (tx.gpayScreenshotUrl) {
+                    parsed.push(createAttachment(tx.gpayScreenshotUrl, 'gpay', 'GPay / UPI Screenshot'));
+                }
+                if (tx.materialImageUrl) {
+                    parsed.push(createAttachment(tx.materialImageUrl, 'material', 'Material Photo'));
+                }
+            });
 
-                setReceipts(parsed);
-            })
-            .catch(e => console.error('Failed to load receipts', e))
-            .finally(() => setLoading(false));
+            setReceipts(parsed);
+        })
+        .catch(e => console.error('Failed to load receipts', e))
+        .finally(() => setLoading(false));
     }, [projectId, phaseId]);
 
     const filtered = receipts.filter(r => {
