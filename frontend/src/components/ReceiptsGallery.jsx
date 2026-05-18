@@ -8,10 +8,11 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
     const [receipts, setReceipts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [lightboxIndex, setLightboxIndex] = useState(null);
-    const [filter, setFilter] = useState('all'); // 'all' | 'image' | 'pdf'
+    const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [phases, setPhases] = useState([]);
     const [selectedPhaseId, setSelectedPhaseId] = useState(phaseId || 'all');
+    const [activeTab, setActiveTab] = useState('letters'); // 'letters' | 'transactions'
 
     useEffect(() => {
         setSelectedPhaseId(phaseId || 'all');
@@ -46,6 +47,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                     parsed.push({
                         id: `${phase.id}-request-letter`,
                         txId: null,
+                        tab: 'letters',
                         url,
                         isPdf,
                         type: 'letter',
@@ -61,6 +63,55 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                     });
                 }
             });
+
+            // 2. Unpack Transaction Attachments
+            list.forEach(tx => {
+                let pureDesc = tx.description;
+                let fromName = '';
+                let toName = '';
+                let amount = tx.lines?.[0]?.amount || 0;
+                let accountName = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '';
+
+                if (tx.description?.includes('| From:')) {
+                    const parts = tx.description.split('|');
+                    pureDesc = parts[0]?.trim();
+                    const m = parts[1]?.match(/From: (.*?) To: (.*)/);
+                    if (m) { fromName = m[1]?.trim(); toName = m[2]?.trim(); }
+                }
+
+                const createAttachment = (urlPath, type, suffix) => {
+                    const url = getImageUrl(urlPath);
+                    const isPdf = url?.toLowerCase().endsWith('.pdf');
+                    return {
+                        id: `${tx.id}-${type}`,
+                        txId: tx.id,
+                        tab: 'transactions',
+                        url,
+                        isPdf,
+                        type,
+                        suffix,
+                        description: pureDesc,
+                        fromName,
+                        toName,
+                        amount,
+                        accountName,
+                        date: tx.date,
+                        phaseName: tx.phase?.name || 'Whole Project',
+                        phaseId: tx.phaseId || tx.phase?.id || null
+                    };
+                };
+
+                if (tx.attachmentUrl) {
+                    parsed.push(createAttachment(tx.attachmentUrl, 'bill', 'Bill / Receipt'));
+                }
+                if (tx.gpayScreenshotUrl) {
+                    parsed.push(createAttachment(tx.gpayScreenshotUrl, 'gpay', 'GPay / UPI Screenshot'));
+                }
+                if (tx.materialImageUrl) {
+                    parsed.push(createAttachment(tx.materialImageUrl, 'material', 'Material Photo'));
+                }
+            });
+
             setReceipts(parsed);
         })
         .catch(e => console.error('Failed to load receipts', e))
@@ -68,11 +119,42 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
     }, [projectId, phaseId]);
 
     const filtered = receipts.filter(r => {
-        const matchFilter = filter === 'all' || (filter === 'pdf' && r.isPdf) || (filter === 'image' && !r.isPdf);
-        const matchSearch = !searchTerm || r.description?.toLowerCase().includes(searchTerm.toLowerCase()) || r.accountName?.toLowerCase().includes(searchTerm.toLowerCase()) || r.fromName?.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchPhase = selectedPhaseId === 'all' || r.phaseId === selectedPhaseId;
-        return matchFilter && matchSearch && matchPhase;
+        // Tab filtering
+        if (r.tab !== activeTab) return false;
+
+        // Phase filtering
+        if (selectedPhaseId !== 'all' && r.phaseId && String(r.phaseId) !== String(selectedPhaseId)) {
+            return false;
+        }
+
+        // Type filtering
+        if (filter === 'image' && r.isPdf) return false;
+        if (filter === 'pdf' && !r.isPdf) return false;
+        if (filter === 'bill' && r.type !== 'bill') return false;
+        if (filter === 'gpay' && r.type !== 'gpay') return false;
+        if (filter === 'material' && r.type !== 'material') return false;
+
+        // Search filtering
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            const desc = (r.description || '').toLowerCase();
+            const suffix = (r.suffix || '').toLowerCase();
+            const from = (r.fromName || '').toLowerCase();
+            const to = (r.toName || '').toLowerCase();
+            const ph = (r.phaseName || '').toLowerCase();
+            const acc = (r.accountName || '').toLowerCase();
+            return desc.includes(term) || suffix.includes(term) || from.includes(term) || to.includes(term) || ph.includes(term) || acc.includes(term);
+        }
+
+        return true;
     });
+
+    const handleTabChange = (tab) => {
+        setActiveTab(tab);
+        setFilter('all');
+        setSearchTerm('');
+        setLightboxIndex(null);
+    };
 
     const openLightbox = (idx) => setLightboxIndex(idx);
     const closeLightbox = () => setLightboxIndex(null);
@@ -105,7 +187,6 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             window.URL.revokeObjectURL(blobUrl);
         } catch (error) {
             console.error('Download failed', error);
-            // Fallback to opening in new tab
             window.open(url, '_blank');
         } finally {
             setDownloadingId(null);
@@ -114,16 +195,30 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
 
     const current = lightboxIndex !== null ? filtered[lightboxIndex] : null;
 
+    const pills = activeTab === 'letters'
+        ? [
+            { id: 'all', label: '🗂 All' },
+            { id: 'image', label: '🖼 Images' },
+            { id: 'pdf', label: '📄 PDFs' }
+          ]
+        : [
+            { id: 'all', label: '🗂 All Attachments' },
+            { id: 'bill', label: '📄 Bills / Invoices' },
+            { id: 'gpay', label: '📱 GPay / UPI' },
+            { id: 'material', label: '📷 Material Photos' },
+            { id: 'pdf', label: '📕 PDFs' }
+          ];
+
     return (
         <div className="glass-panel" style={{ padding: '2rem' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                        ✉️ Phase Request Letters
+                        {activeTab === 'letters' ? '✉️ Phase Request Letters' : '🧾 Transaction Receipts'}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        {filtered.length} request letter{filtered.length !== 1 ? 's' : ''} found
+                        {filtered.length} {activeTab === 'letters' ? `request letter${filtered.length !== 1 ? 's' : ''}` : `receipt${filtered.length !== 1 ? 's' : ''}`} found
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -162,46 +257,105 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                     {/* Search */}
                     <input
                         type="text"
-                        placeholder="Search letters..."
+                        placeholder={activeTab === 'letters' ? "Search letters..." : "Search receipts..."}
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.875rem', width: '200px' }}
                     />
                     {/* Filter pills */}
-                    {['all', 'image', 'pdf'].map(f => (
-                        <button key={f} onClick={() => setFilter(f)}
+                    {pills.map(p => (
+                        <button key={p.id} onClick={() => setFilter(p.id)}
                             style={{
                                 padding: '0.4rem 1rem',
                                 borderRadius: '20px',
                                 border: '1px solid var(--border)',
-                                background: filter === f ? 'var(--primary)' : 'var(--surface)',
-                                color: filter === f ? '#fff' : 'var(--text-muted)',
-                                fontWeight: filter === f ? 600 : 400,
+                                background: filter === p.id ? 'var(--primary)' : 'var(--surface)',
+                                color: filter === p.id ? '#fff' : 'var(--text-muted)',
+                                fontWeight: filter === p.id ? 600 : 400,
                                 cursor: 'pointer',
                                 fontSize: '0.8rem',
                                 textTransform: 'capitalize',
                                 transition: 'all 0.15s ease',
                             }}>
-                            {f === 'all' ? '🗂 All' : f === 'image' ? '🖼 Images' : '📄 PDFs'}
+                            {p.label}
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* Premium Glassmorphic Tabs */}
+            <div style={{ 
+                display: 'flex', 
+                gap: '0.5rem', 
+                background: 'rgba(255, 255, 255, 0.03)', 
+                border: '1px solid var(--border)', 
+                padding: '0.35rem', 
+                borderRadius: '12px', 
+                marginBottom: '2rem',
+                width: 'fit-content'
+            }}>
+                <button 
+                    onClick={() => handleTabChange('letters')}
+                    style={{
+                        padding: '0.6rem 1.5rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: activeTab === 'letters' ? 'var(--primary)' : 'transparent',
+                        color: activeTab === 'letters' ? '#fff' : 'var(--text-muted)',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                >
+                    <span>✉️</span> Phase Request Letters
+                </button>
+                <button 
+                    onClick={() => handleTabChange('transactions')}
+                    style={{
+                        padding: '0.6rem 1.5rem',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: activeTab === 'transactions' ? 'var(--primary)' : 'transparent',
+                        color: activeTab === 'transactions' ? '#fff' : 'var(--text-muted)',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}
+                >
+                    <span>🧾</span> Transaction Receipts
+                </button>
             </div>
 
             {/* Loading */}
             {loading && (
                 <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
-                    Loading request letters...
+                    Loading {activeTab === 'letters' ? 'request letters...' : 'receipts...'}
                 </div>
             )}
 
             {/* Empty state */}
             {!loading && filtered.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>✉️</div>
-                    <p style={{ fontSize: '1.1rem', fontWeight: 500, marginBottom: '0.5rem' }}>No Request Letters yet</p>
-                    <p style={{ fontSize: '0.875rem' }}>Attach request letters when creating or editing project phases</p>
+                    <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>
+                        {activeTab === 'letters' ? '✉️' : '🧾'}
+                    </div>
+                    <p style={{ fontSize: '1.1rem', fontWeight: 500, marginBottom: '0.5rem' }}>
+                        {activeTab === 'letters' ? 'No Request Letters yet' : 'No Transaction Receipts yet'}
+                    </p>
+                    <p style={{ fontSize: '0.875rem' }}>
+                        {activeTab === 'letters' 
+                            ? 'Attach request letters when creating or editing project phases' 
+                            : 'Upload receipts or bills when adding transactions'}
+                    </p>
                 </div>
             )}
 
@@ -272,12 +426,12 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                 {/* Type Badge */}
                                 <div style={{ 
                                     position: 'absolute', top: '8px', left: '8px', 
-                                    background: 'rgba(139, 92, 246, 0.95)', 
+                                    background: r.type === 'bill' ? 'rgba(2, 132, 199, 0.95)' : r.type === 'gpay' ? 'rgba(16, 185, 129, 0.95)' : r.type === 'material' ? 'rgba(59, 130, 246, 0.95)' : 'rgba(139, 92, 246, 0.95)', 
                                     color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '20px',
                                     display: 'flex', alignItems: 'center', gap: '0.2rem',
                                     boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
                                 }}>
-                                    ✉️ Request Letter
+                                    {r.type === 'bill' ? '📄 Bill' : r.type === 'gpay' ? '📱 GPay' : r.type === 'material' ? '📷 Photo' : '✉️ Request Letter'}
                                 </div>
                                 {/* Phase badge */}
                                 <div style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(2,132,199,0.9)', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '20px' }}>
@@ -289,8 +443,8 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                             <div style={{ padding: '0.875rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.25rem' }}>
                                     <span style={{ 
-                                        background: r.type === 'bill' ? 'rgba(2, 132, 199, 0.1)' : r.type === 'gpay' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139, 92, 246, 0.1)', 
-                                        color: r.type === 'bill' ? 'var(--primary)' : r.type === 'gpay' ? '#10b981' : '#8b5cf6',
+                                        background: r.type === 'bill' ? 'rgba(2, 132, 199, 0.1)' : r.type === 'gpay' ? 'rgba(16, 185, 129, 0.1)' : r.type === 'material' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(139, 92, 246, 0.1)', 
+                                        color: r.type === 'bill' ? 'var(--primary)' : r.type === 'gpay' ? '#10b981' : r.type === 'material' ? '#3b82f6' : '#8b5cf6',
                                         padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase'
                                     }}>
                                         {r.suffix}
@@ -407,12 +561,12 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                 <div style={{ color: 'white', fontWeight: 600, fontSize: '1rem', lineHeight: 1.4 }}>{current.description || 'No description provided'}</div>
                                 <div style={{ marginTop: '0.5rem' }}>
                                     <span style={{ 
-                                        background: 'rgba(139, 92, 246, 0.2)', 
-                                        color: '#c084fc',
+                                        background: current.type === 'bill' ? 'rgba(2, 132, 199, 0.2)' : current.type === 'gpay' ? 'rgba(16, 185, 129, 0.2)' : current.type === 'material' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(139, 92, 246, 0.2)', 
+                                        color: current.type === 'bill' ? '#38bdf8' : current.type === 'gpay' ? '#34d399' : current.type === 'material' ? '#60a5fa' : '#c084fc',
                                         padding: '3px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
                                         border: '1px solid rgba(255,255,255,0.05)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
                                     }}>
-                                        ✉️ Request Letter
+                                        {current.type === 'bill' ? '📄 Bill / Receipt' : current.type === 'gpay' ? '📱 GPay / UPI' : current.type === 'material' ? '📷 Material Photo' : '✉️ Request Letter'}
                                     </span>
                                 </div>
                             </div>
