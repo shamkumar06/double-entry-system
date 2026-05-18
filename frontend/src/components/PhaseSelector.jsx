@@ -70,7 +70,13 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                 list.forEach(tx => {
                     if (tx.phaseId === phase.id || tx.phase?.id === phase.id) {
                         tx.lines?.forEach(line => {
-                            if (line.type === 'DEBIT') {
+                            if (
+                                line.type === 'DEBIT' &&
+                                (line.account?.type === 'EXPENSE' ||
+                                    (line.account?.type === 'ASSET' &&
+                                        line.account?.code !== 1001 &&
+                                        line.account?.code !== 1002))
+                            ) {
                                 spent_amount += parseFloat(line.amount) || 0;
                             }
                         });
