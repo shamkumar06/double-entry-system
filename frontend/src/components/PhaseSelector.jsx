@@ -70,13 +70,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                 list.forEach(tx => {
                     if (tx.phaseId === phase.id || tx.phase?.id === phase.id) {
                         tx.lines?.forEach(line => {
-                            if (
-                                line.type === 'DEBIT' &&
-                                (line.account?.type === 'EXPENSE' ||
-                                    (line.account?.type === 'ASSET' &&
-                                        line.account?.code !== 1001 &&
-                                        line.account?.code !== 1002))
-                            ) {
+                            if (line.type === 'DEBIT') {
                                 spent_amount += parseFloat(line.amount) || 0;
                             }
                         });
@@ -311,7 +305,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     <div className="glass-panel animate-in" style={{ 
                         padding: '1.75rem', 
                         borderRadius: '24px', 
-                        background: 'var(--card-bg)', 
+                        background: 'var(--surface-card, #0f172a)', 
                         border: '1px solid var(--border)', 
                         boxShadow: 'var(--shadow-md)',
                         marginBottom: '1rem'

@@ -55,11 +55,7 @@ export const listPhases = async (projectId: string) => {
     include: {
       transactions: {
         where: { isDeleted: false },
-        include: {
-          lines: {
-            include: { account: true },
-          },
-        },
+        include: { lines: true },
       },
     },
     orderBy: { createdAt: 'asc' },
@@ -69,13 +65,7 @@ export const listPhases = async (projectId: string) => {
     let spent_amount = 0;
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
-        if (
-          line.type === 'DEBIT' &&
-          (line.account.type === 'EXPENSE' ||
-            (line.account.type === 'ASSET' &&
-              line.account.code !== 1001 &&
-              line.account.code !== 1002))
-        ) {
+        if (line.type === 'DEBIT') {
           spent_amount += Number(line.amount);
         }
       });
@@ -130,48 +120,6 @@ export const createPhase = async (
     }
   });
 
-  const amt = Number(data.receivedAmount || 0);
-  if (amt > 0) {
-    const cashAcc = await prisma.accountCategory.findFirst({ where: { code: 1001 } });
-    const bankAcc = await prisma.accountCategory.findFirst({ where: { code: 1002 } });
-    const fundingAcc = await prisma.accountCategory.findFirst({ where: { code: 3001 } });
-
-    if (fundingAcc && (cashAcc || bankAcc)) {
-      const isCash = data.paymentMode?.toLowerCase() === 'cash';
-      const debitAcc = isCash ? cashAcc : (bankAcc || cashAcc);
-
-      if (debitAcc) {
-        await prisma.transaction.create({
-          data: {
-            projectId,
-            phaseId: phase.id,
-            date: new Date(),
-            description: `Initial funding received for Phase: "${data.name}"`,
-            fromEntity: data.receivedFrom || 'External Funder',
-            toEntity: data.receivedTo || 'Project Entity',
-            paymentMode: data.paymentMode || 'Bank Transfer',
-            reference: data.reference || null,
-            attachmentUrl: data.requestLetterUrl || null,
-            lines: {
-              create: [
-                {
-                  accountId: debitAcc.id,
-                  type: 'DEBIT',
-                  amount: amt
-                },
-                {
-                  accountId: fundingAcc.id,
-                  type: 'CREDIT',
-                  amount: amt
-                }
-              ]
-            }
-          }
-        });
-      }
-    }
-  }
-
   return phase;
 };
 
@@ -210,104 +158,6 @@ export const updatePhase = async (
     }
   });
 
-  const amt = data.receivedAmount !== undefined ? Number(data.receivedAmount) : Number(phase.receivedAmount);
-
-  // Sync journal entry
-  const existingFundingTx = await prisma.transaction.findFirst({
-    where: {
-      phaseId,
-      isDeleted: false,
-      description: { startsWith: 'Initial funding received' }
-    }
-  });
-
-  if (existingFundingTx) {
-    if (amt === 0) {
-      await prisma.transaction.update({
-        where: { id: existingFundingTx.id },
-        data: { isDeleted: true, deletedAt: new Date() }
-      });
-    } else {
-      const cashAcc = await prisma.accountCategory.findFirst({ where: { code: 1001 } });
-      const bankAcc = await prisma.accountCategory.findFirst({ where: { code: 1002 } });
-      const fundingAcc = await prisma.accountCategory.findFirst({ where: { code: 3001 } });
-
-      if (fundingAcc && (cashAcc || bankAcc)) {
-        const isCash = (data.paymentMode !== undefined ? data.paymentMode : (phase.paymentMode || '')).toLowerCase() === 'cash';
-        const debitAcc = isCash ? cashAcc : (bankAcc || cashAcc);
-
-        if (debitAcc) {
-          await prisma.transactionLine.deleteMany({ where: { transactionId: existingFundingTx.id } });
-
-          await prisma.transaction.update({
-            where: { id: existingFundingTx.id },
-            data: {
-              description: `Initial funding received for Phase: "${data.name || phase.name}"`,
-              fromEntity: data.receivedFrom !== undefined ? data.receivedFrom : phase.receivedFrom,
-              toEntity: data.receivedTo !== undefined ? data.receivedTo : phase.receivedTo,
-              paymentMode: data.paymentMode !== undefined ? data.paymentMode : phase.paymentMode,
-              reference: data.reference !== undefined ? data.reference : phase.reference,
-              attachmentUrl: data.requestLetterUrl !== undefined ? data.requestLetterUrl : phase.requestLetterUrl,
-              lines: {
-                create: [
-                  {
-                    accountId: debitAcc.id,
-                    type: 'DEBIT',
-                    amount: amt
-                  },
-                  {
-                    accountId: fundingAcc.id,
-                    type: 'CREDIT',
-                    amount: amt
-                  }
-                ]
-              }
-            }
-          });
-        }
-      }
-    }
-  } else if (amt > 0) {
-    const cashAcc = await prisma.accountCategory.findFirst({ where: { code: 1001 } });
-    const bankAcc = await prisma.accountCategory.findFirst({ where: { code: 1002 } });
-    const fundingAcc = await prisma.accountCategory.findFirst({ where: { code: 3001 } });
-
-    if (fundingAcc && (cashAcc || bankAcc)) {
-      const isCash = (data.paymentMode !== undefined ? data.paymentMode : (phase.paymentMode || '')).toLowerCase() === 'cash';
-      const debitAcc = isCash ? cashAcc : (bankAcc || cashAcc);
-
-      if (debitAcc) {
-        await prisma.transaction.create({
-          data: {
-            projectId,
-            phaseId: updatedPhase.id,
-            date: new Date(),
-            description: `Initial funding received for Phase: "${updatedPhase.name}"`,
-            fromEntity: updatedPhase.receivedFrom || 'External Funder',
-            toEntity: updatedPhase.receivedTo || 'Project Entity',
-            paymentMode: updatedPhase.paymentMode || 'Bank Transfer',
-            reference: updatedPhase.reference || null,
-            attachmentUrl: updatedPhase.requestLetterUrl || null,
-            lines: {
-              create: [
-                {
-                  accountId: debitAcc.id,
-                  type: 'DEBIT',
-                  amount: amt
-                },
-                {
-                  accountId: fundingAcc.id,
-                  type: 'CREDIT',
-                  amount: amt
-                }
-              ]
-            }
-          }
-        });
-      }
-    }
-  }
-
   return updatedPhase;
 };
 
@@ -325,11 +175,7 @@ export const getPhaseFinancials = async (projectId: string) => {
     include: {
       transactions: {
         where: { isDeleted: false },
-        include: {
-          lines: {
-            include: { account: true },
-          },
-        },
+        include: { lines: true },
       },
     },
   });
@@ -338,13 +184,7 @@ export const getPhaseFinancials = async (projectId: string) => {
     let totalExpense = 0;
     phase.transactions.forEach((tx) => {
       tx.lines.forEach((line) => {
-        if (
-          line.type === 'DEBIT' &&
-          (line.account.type === 'EXPENSE' ||
-            (line.account.type === 'ASSET' &&
-              line.account.code !== 1001 &&
-              line.account.code !== 1002))
-        ) {
+        if (line.type === 'DEBIT') {
           totalExpense += Number(line.amount);
         }
       });

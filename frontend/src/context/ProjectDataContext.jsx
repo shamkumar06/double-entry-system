@@ -107,14 +107,9 @@ export function ProjectDataProvider({ children }) {
                     }
                 });
 
-                // If no direct expense was found, fallback to the primary debit line amount (e.g. Asset purchase like equipment),
-                // but exclude Cash (1001) or Bank (1002) accounts so that initial funding isn't counted as an expense!
+                // If no direct expense was found, fallback to the primary debit line amount to ensure we don't show $0
                 if (txExpense === 0 && tx.lines?.length > 0) {
-                    const debitLine = tx.lines.find(l => 
-                        l.type === 'DEBIT' && 
-                        l.account?.code !== 1001 && 
-                        l.account?.code !== 1002
-                    );
+                    const debitLine = tx.lines.find(l => l.type === 'DEBIT');
                     if (debitLine) txExpense = Number(debitLine.amount);
                 }
                 
