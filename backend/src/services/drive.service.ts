@@ -21,16 +21,26 @@ if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
 
 if (!auth) {
   const KEY_PATH = path.join(__dirname, '../../google-service-account.json');
+  const ROOT_KEY_PATH = path.join(__dirname, '../../../google-service-account.json');
+  
+  let selectedPath = '';
   if (fs.existsSync(KEY_PATH)) {
+    selectedPath = KEY_PATH;
+  } else if (fs.existsSync(ROOT_KEY_PATH)) {
+    selectedPath = ROOT_KEY_PATH;
+  }
+
+  if (selectedPath) {
     auth = new google.auth.GoogleAuth({
-      keyFile: KEY_PATH,
+      keyFile: selectedPath,
       scopes: ['https://www.googleapis.com/auth/drive'],
     });
-    console.log('Google Auth initialized using local keyFile.');
+    console.log(`Google Auth initialized using keyFile at: ${selectedPath}`);
   } else {
-    console.warn('Google Service Account key file not found at:', KEY_PATH);
+    console.warn('Google Service Account key file not found in backend or project root.');
   }
 }
+
 
 const drive = auth ? google.drive({ version: 'v3', auth }) : null;
 
