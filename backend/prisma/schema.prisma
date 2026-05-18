@@ -64,6 +64,7 @@ model Project {
 
   phases       Phase[]
   transactions Transaction[]
+  procurements ProcurementItem[]
 
   @@index([name])
   @@map("projects")
@@ -89,6 +90,7 @@ model Phase {
 
   project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  procurements ProcurementItem[]
 
   @@unique([projectId, name])
   @@index([projectId])
@@ -160,4 +162,36 @@ model TransactionLine {
   @@index([transactionId])
   @@index([accountId])
   @@map("transaction_lines")
+}
+
+enum ProcurementStatus {
+  PLANNING
+  ORDERED
+  DELIVERED
+  CANCELLED
+}
+
+model ProcurementItem {
+  id            String            @id @default(uuid())
+  projectId     String
+  phaseId       String?
+  materialName  String
+  vendorName    String?
+  quantity      Decimal           @db.Decimal(15, 2)
+  unit          String            // e.g., "bags", "tons", "units", "cft"
+  estimatedRate Decimal           @db.Decimal(15, 2)
+  actualRate    Decimal?          @db.Decimal(15, 2)
+  status        ProcurementStatus @default(PLANNING)
+  driveFileId   String?           // Google Drive file ID
+  driveViewUrl  String?           // Google Drive public URL
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  phase         Phase?            @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([phaseId])
+  @@map("procurement_items")
 }

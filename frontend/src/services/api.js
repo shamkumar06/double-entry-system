@@ -225,3 +225,29 @@ export const accountingApi = {
   listDeleted: (projectId) => api.get(`/accounting/journal/deleted?projectId=${projectId}`),
   restoreTransaction: (id) => api.post(`/accounting/journal/${id}/restore`)
 };
+
+export const procurementApi = {
+  list: (projectId, phaseId = null) => {
+    let url = `/projects/${projectId}/procurement`;
+    if (phaseId) url += `?phaseId=${phaseId}`;
+    return api.get(url);
+  },
+  create: (projectId, formData) => {
+    return api.post(`/projects/${projectId}/procurement`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  update: (projectId, itemId, formData) => {
+    return api.put(`/projects/${projectId}/procurement/items/${itemId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  delete: (projectId, itemId) => {
+    return api.delete(`/projects/${projectId}/procurement/items/${itemId}`);
+  },
+};
+

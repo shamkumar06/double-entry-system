@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Home, ChevronLeft, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Menu, X } from 'lucide-react';
+import { Download, Home, ChevronLeft, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Menu, X, Package } from 'lucide-react';
 import Journal from './components/Journal';
 import Ledger from './components/Ledger';
 import TrialBalance from './components/TrialBalance';
@@ -13,6 +13,7 @@ import EditOverviewModal from './components/EditOverviewModal';
 import Reports from './components/Reports';
 import LoginScreen from './components/LoginScreen';
 import ReceiptsGallery from './components/ReceiptsGallery';
+import ProcurementManager from './components/ProcurementManager';
 import { accountingApi, authApi, getImageUrl } from './services/api';
 import { useSettings, useCurrency } from './context/SettingsContext';
 import { ProjectDataProvider, useProjectData } from './context/ProjectDataContext';
@@ -397,6 +398,7 @@ function AppInner() {
             <button style={navActive('Trial Balance')} onClick={() => { setActiveTab('Trial Balance'); setIsSidebarOpen(false); }}><Scale size={18} /> Trial Balance</button>
             <button style={navActive('Reports')} onClick={() => { setActiveTab('Reports'); setIsSidebarOpen(false); }}><FileText size={18} /> Reports</button>
             <button style={navActive('Attachments')} onClick={() => { setActiveTab('Attachments'); setIsSidebarOpen(false); }}><Image size={18} /> Attachments</button>
+            <button style={navActive('Procurement')} onClick={() => { setActiveTab('Procurement'); setIsSidebarOpen(false); }}><Package size={18} /> Procurement</button>
             
             <div style={{ height: '1px', background: 'var(--border)', margin: '1rem 0.5rem' }} />
             <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 1rem 0.4rem' }}>Management</p>
@@ -625,6 +627,24 @@ function AppInner() {
         )}
         {activeTab === 'Categories' && <CategoryManager onRename={handleCategoryRename} userRole={user?.role} />}
         {activeTab === 'Settings' && <Settings activeProject={activeProject} onUpdate={refreshProjectData} user={user} />}
+        {activeTab === 'Procurement' && (
+            <ProcurementManager 
+                projectId={activeProject?.id}
+                activePhase={activePhase}
+                phasesList={phasesList}
+                onPrefillExpense={(expenseDetails) => {
+                    setEditingTransaction({
+                      description: expenseDetails.description,
+                      amount: expenseDetails.amount,
+                      attachmentUrl: expenseDetails.attachmentUrl,
+                      phaseId: expenseDetails.phaseId,
+                      date: new Date().toISOString()
+                    });
+                    setShowTransactionForm(true);
+                }}
+                key={`procurement-${refreshKey}`}
+            />
+        )}
 
         {showTransactionForm && (
           <TransactionForm

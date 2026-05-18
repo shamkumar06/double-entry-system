@@ -12,3 +12,4 @@ frontend/dist/
 frontend/.env
 uploads/
 backend/uploads/
+backend/google-service-account.json

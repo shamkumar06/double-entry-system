@@ -1,6 +1,11 @@
 import { Router } from 'express';
+import multer from 'multer';
 import * as project from '../controllers/project.controller';
+import * as procurement from '../controllers/procurement.controller';
 import { authenticate, requireAdmin } from '../middleware/auth';
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 
@@ -22,4 +27,11 @@ router.delete('/:projectId/phases/:phaseId', authenticate, requireAdmin, project
 router.post('/:projectId/phases/:phaseId/settle', authenticate, requireAdmin, project.settlePhase);
 router.post('/:projectId/phases/:phaseId/reallocate', authenticate, requireAdmin, project.reallocateSurplus);
 
+// Procurement Routes
+router.get('/:projectId/procurement', authenticate, procurement.listProcurements);
+router.post('/:projectId/procurement', authenticate, requireAdmin, upload.single('file'), procurement.createProcurement);
+router.put('/:projectId/procurement/items/:itemId', authenticate, requireAdmin, upload.single('file'), procurement.updateProcurement);
+router.delete('/:projectId/procurement/items/:itemId', authenticate, requireAdmin, procurement.deleteProcurement);
+
 export default router;
+
