@@ -311,7 +311,7 @@ export default function PhaseSelector({ project, onSelectPhase, onBack }) {
                     <div className="glass-panel animate-in" style={{ 
                         padding: '1.75rem', 
                         borderRadius: '24px', 
-                        background: 'var(--surface-card, #0f172a)', 
+                        background: 'var(--card-bg)', 
                         border: '1px solid var(--border)', 
                         boxShadow: 'var(--shadow-md)',
                         marginBottom: '1rem'
