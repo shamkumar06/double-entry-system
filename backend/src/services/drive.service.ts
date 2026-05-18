@@ -20,14 +20,22 @@ if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
 }
 
 if (!auth) {
-  const KEY_PATH = path.join(__dirname, '../../google-service-account.json');
-  const ROOT_KEY_PATH = path.join(__dirname, '../../../google-service-account.json');
-  
+  const pathsToCheck = [
+    path.join(__dirname, '../../google-service-account.json'),
+    path.join(__dirname, '../../../google-service-account.json'),
+    path.join(process.cwd(), 'google-service-account.json'),
+    path.join(process.cwd(), '../google-service-account.json'),
+    path.join(process.cwd(), 'backend/google-service-account.json'),
+    '/opt/render/project/src/google-service-account.json',
+    '/opt/render/project/src/backend/google-service-account.json'
+  ];
+
   let selectedPath = '';
-  if (fs.existsSync(KEY_PATH)) {
-    selectedPath = KEY_PATH;
-  } else if (fs.existsSync(ROOT_KEY_PATH)) {
-    selectedPath = ROOT_KEY_PATH;
+  for (const p of pathsToCheck) {
+    if (fs.existsSync(p)) {
+      selectedPath = p;
+      break;
+    }
   }
 
   if (selectedPath) {
@@ -37,9 +45,10 @@ if (!auth) {
     });
     console.log(`Google Auth initialized using keyFile at: ${selectedPath}`);
   } else {
-    console.warn('Google Service Account key file not found in backend or project root.');
+    console.warn('Google Service Account key file not found in any checked paths:', pathsToCheck);
   }
 }
+
 
 
 const drive = auth ? google.drive({ version: 'v3', auth }) : null;
