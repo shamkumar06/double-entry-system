@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { TrendingDown, TrendingUp, DollarSign, FileText, Activity, Layers, CheckCircle, PieChart, Edit3, Wallet, Target } from 'lucide-react';
+import { TrendingDown, TrendingUp, DollarSign, FileText, Activity, Layers, CheckCircle, PieChart, Edit3, Wallet, Target, Calculator } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
 import { useProjectData } from '../context/ProjectDataContext';
 import UsageCircle from './UsageCircle';
@@ -114,6 +114,96 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
         return () => clearTimeout(timer);
     }, [note, projectId, phaseId]);
 
+    // Calculator state and operational key handler
+    const [calcInput, setCalcInput] = useState('');
+    
+    const handleCalcKey = (key) => {
+        if (key === 'C') {
+            setCalcInput('');
+        } else if (key === '=') {
+            if (!calcInput) return;
+            
+            // Clean up and adjust negative numbers at the beginning
+            let expr = calcInput.replace(/\s+/g, '');
+            if (expr.startsWith('-')) {
+                expr = '0' + expr;
+            } else if (expr.startsWith('+')) {
+                expr = '0' + expr;
+            }
+            
+            if (!/^[0-9+\-*/.]*$/.test(expr)) {
+                setCalcInput('Error');
+                return;
+            }
+            
+            try {
+                // Tokenize digits/decimals vs operators
+                const tokens = expr.match(/(\d+(?:\.\d+)?)|[+\-*/]/g);
+                if (!tokens) {
+                    setCalcInput('0');
+                    return;
+                }
+                
+                // 1. Resolve multiplication and division first
+                const intermediate = [];
+                for (let i = 0; i < tokens.length; i++) {
+                    const token = tokens[i];
+                    if (token === '*' || token === '/') {
+                        const prev = parseFloat(intermediate.pop());
+                        const next = parseFloat(tokens[++i]);
+                        if (isNaN(prev) || isNaN(next)) {
+                            setCalcInput('Error');
+                            return;
+                        }
+                        if (token === '/' && next === 0) {
+                            setCalcInput('Error');
+                            return;
+                        }
+                        intermediate.push(token === '*' ? prev * next : prev / next);
+                    } else {
+                        intermediate.push(token);
+                    }
+                }
+                
+                // 2. Resolve addition and subtraction
+                let result = parseFloat(intermediate[0]);
+                if (isNaN(result)) {
+                    setCalcInput('Error');
+                    return;
+                }
+                
+                for (let i = 1; i < intermediate.length; i += 2) {
+                    const operator = intermediate[i];
+                    const nextVal = parseFloat(intermediate[i + 1]);
+                    if (isNaN(nextVal)) {
+                        setCalcInput('Error');
+                        return;
+                    }
+                    
+                    if (operator === '+') {
+                        result += nextVal;
+                    } else if (operator === '-') {
+                        result -= nextVal;
+                    } else {
+                        setCalcInput('Error');
+                        return;
+                    }
+                }
+                
+                setCalcInput(Number.isFinite(result) ? String(Number(result.toFixed(8))) : 'Error');
+            } catch (err) {
+                setCalcInput('Error');
+            }
+        } else {
+            const operators = ['+', '-', '*', '/'];
+            if (operators.includes(key) && operators.includes(calcInput.slice(-1))) {
+                setCalcInput(calcInput.slice(0, -1) + key);
+            } else {
+                setCalcInput(prev => prev === 'Error' ? key : prev + key);
+            }
+        }
+    };
+
     if (loading || !stats) return (
         <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem' }}>
             <UsageCircle percent={0} size={120} label="Loading..." />
@@ -199,82 +289,180 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                         </span>
                     </div>
 
-                    {/* Glassmorphic Quick Notepad */}
+                    {/* Glassmorphic Calculator */}
                     <div className="stat-card-premium" style={{ 
                         display: 'flex', 
                         flexDirection: 'column', 
                         height: '100%', 
                         minHeight: '160px',
-                        padding: '1.25rem 1.5rem',
+                        padding: '1rem 1.25rem',
                         boxShadow: 'var(--card-shadow-inset)',
                     }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <div className="stat-icon-wrapper" style={{ 
-                                    background: 'var(--surface-hover)', 
-                                    color: 'var(--accent)',
-                                    width: '32px',
-                                    height: '32px',
-                                    borderRadius: '8px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}>
-                                    <Edit3 size={15} />
-                                </div>
-                                <span className="hero-stat-label" style={{ margin: 0, fontSize: '0.68rem' }}>Quick Notes</span>
-                            </div>
-                            
-                            {/* Auto-save Indicator badge */}
-                            <span style={{ 
-                                fontSize: '0.62rem', 
-                                fontWeight: 700, 
-                                color: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
-                                opacity: 0.85,
-                                background: saveStatus === 'saved' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(56, 189, 248, 0.1)',
-                                padding: '2px 8px',
-                                borderRadius: '20px',
-                                display: 'inline-flex',
+                        {/* Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                            <div className="stat-icon-wrapper" style={{ 
+                                background: 'var(--surface-hover)', 
+                                color: 'var(--success)',
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '8px',
+                                display: 'flex',
                                 alignItems: 'center',
-                                gap: '0.25rem',
-                                transition: 'all 0.3s ease',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em'
+                                justifyContent: 'center'
                             }}>
-                                <span style={{ 
-                                    width: '5px', 
-                                    height: '5px', 
-                                    borderRadius: '50%', 
-                                    background: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
-                                    display: 'inline-block',
-                                    animation: saveStatus === 'saving' ? 'pulse 1s infinite' : 'none'
-                                }} />
-                                {saveStatus === 'saved' ? 'Saved' : 'Saving...'}
-                            </span>
+                                <Calculator size={14} />
+                            </div>
+                            <span className="hero-stat-label" style={{ margin: 0, fontSize: '0.68rem' }}>Calculator</span>
                         </div>
-                        
-                        <textarea
-                            value={note}
-                            onChange={handleNoteChange}
-                            placeholder="Type quick tasks, estimates, or reminders here..."
-                            style={{
-                                width: '100%',
-                                flex: 1,
-                                minHeight: '80px',
-                                background: 'transparent',
-                                border: 'none',
-                                outline: 'none',
-                                resize: 'none',
-                                color: 'var(--text-main)',
-                                fontSize: '0.8rem',
-                                lineHeight: '1.4',
-                                fontFamily: 'inherit',
-                                padding: '0.25rem 0',
-                                colorScheme: 'dark',
-                            }}
-                        />
+
+                        {/* Calculator Display */}
+                        <div style={{ 
+                            background: 'var(--surface-hover)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '10px',
+                            padding: '0.35rem 0.75rem',
+                            minHeight: '28px',
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            alignItems: 'center',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            color: 'var(--text-main)',
+                            overflowX: 'auto',
+                            whiteSpace: 'nowrap',
+                            textAlign: 'right',
+                            marginBottom: '0.5rem',
+                            fontFamily: 'monospace',
+                            colorScheme: 'dark',
+                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+                        }}>
+                            {calcInput || '0'}
+                        </div>
+
+                        {/* Calculator Keys Grid */}
+                        <div style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(4, 1fr)', 
+                            gap: '0.25rem',
+                            flex: 1
+                        }}>
+                            {['7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', 'C', '0', '=', '+'].map(key => {
+                                const isOperator = ['/', '*', '-', '+', '='].includes(key);
+                                const isClear = key === 'C';
+                                return (
+                                    <button 
+                                        key={key}
+                                        onClick={() => handleCalcKey(key)}
+                                        style={{
+                                            padding: '0.35rem 0',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            background: isClear 
+                                                ? 'rgba(239, 68, 68, 0.15)' 
+                                                : isOperator 
+                                                    ? 'rgba(56, 189, 248, 0.15)' 
+                                                    : 'var(--surface-hover)',
+                                            color: isClear 
+                                                ? '#f87171' 
+                                                : isOperator 
+                                                    ? '#38bdf8' 
+                                                    : 'var(--text-main)',
+                                            fontWeight: 700,
+                                            fontSize: '0.8rem',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                        onMouseEnter={e => {
+                                            e.currentTarget.style.transform = 'scale(1.05)';
+                                            e.currentTarget.style.background = isClear 
+                                                ? 'rgba(239, 68, 68, 0.25)' 
+                                                : isOperator 
+                                                    ? 'rgba(56, 189, 248, 0.25)' 
+                                                    : 'var(--border)';
+                                        }}
+                                        onMouseLeave={e => {
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.background = isClear 
+                                                ? 'rgba(239, 68, 68, 0.15)' 
+                                                : isOperator 
+                                                    ? 'rgba(56, 189, 248, 0.15)' 
+                                                    : 'var(--surface-hover)';
+                                        }}
+                                    >
+                                        {key}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Quick Notepad Panel */}
+            <div className="glass-panel" style={{ padding: '2rem', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '10px' }}>
+                            <Edit3 size={20} color="var(--accent)" />
+                        </div>
+                        <h3 style={{ fontWeight: 700, fontSize: '1.25rem' }}>Workspace Quick Notes</h3>
+                    </div>
+                    
+                    {/* Auto-save Indicator badge */}
+                    <span style={{ 
+                        fontSize: '0.68rem', 
+                        fontWeight: 700, 
+                        color: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
+                        opacity: 0.85,
+                        background: saveStatus === 'saved' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(56, 189, 248, 0.1)',
+                        padding: '4px 12px',
+                        borderRadius: '20px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        transition: 'all 0.3s ease',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em'
+                    }}>
+                        <span style={{ 
+                            width: '6px', 
+                            height: '6px', 
+                            borderRadius: '50%', 
+                            background: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
+                            display: 'inline-block',
+                            animation: saveStatus === 'saving' ? 'pulse 1s infinite' : 'none'
+                        }} />
+                        {saveStatus === 'saved' ? 'All changes auto-saved' : 'Saving draft...'}
+                    </span>
+                </div>
+                
+                <textarea
+                    value={note}
+                    onChange={handleNoteChange}
+                    placeholder="Write anything here—reminders, phase milestones, draft estimates, checklist items, or budget calculations. Your notes are stored securely and saved instantly as you type."
+                    style={{
+                        width: '100%',
+                        minHeight: '140px',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '16px',
+                        outline: 'none',
+                        resize: 'vertical',
+                        color: 'var(--text-main)',
+                        fontSize: '0.92rem',
+                        lineHeight: '1.6',
+                        fontFamily: 'inherit',
+                        padding: '1.25rem',
+                        colorScheme: 'dark',
+                        boxShadow: 'var(--card-shadow-inset)',
+                        transition: 'border-color 0.2s ease',
+                    }}
+                    onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                />
             </div>
 
             {/* Phase-wise breakdown (only in All Phases view) */}
