@@ -97,6 +97,8 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                 let spent_amount = 0;
                 let db_received = Number(phase.receivedAmount) || 0;
                 let manual_received = 0;
+                let manual_returned = 0;
+                let manual_reallocated = 0;
                 
                 list.forEach(tx => {
                     if (tx.phaseId === phase.id || tx.phase?.id === phase.id) {
@@ -105,27 +107,51 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                             
                             // Outflows/Spent: DEBIT lines to EXPENSE accounts
                             if (line.account?.type === 'EXPENSE') {
-                                if (line.type === 'DEBIT') {
-                                    spent_amount += amt;
-                                } else if (line.type === 'CREDIT') {
-                                    spent_amount -= amt; // Refund reduces spent
+                                if (line.account?.name === 'Settlement Amount') {
+                                    if (line.type === 'DEBIT') {
+                                        manual_returned += amt;
+                                    } else if (line.type === 'CREDIT') {
+                                        manual_returned -= amt;
+                                    }
+                                } else {
+                                    if (line.type === 'DEBIT') {
+                                        spent_amount += amt;
+                                    } else if (line.type === 'CREDIT') {
+                                        spent_amount -= amt; // Refund reduces spent
+                                    }
                                 }
                             }
 
                             // Inflows/Received: CREDIT lines to EQUITY, REVENUE, or LIABILITY accounts
                             if (['EQUITY', 'REVENUE', 'LIABILITY'].includes(line.account?.type)) {
-                                if (line.type === 'CREDIT') {
-                                    manual_received += amt;
-                                } else if (line.type === 'DEBIT') {
-                                    manual_received -= amt; // Debit reduces received
+                                if (line.account?.name === 'Reallocated Fund') {
+                                    if (line.type === 'CREDIT') {
+                                        manual_reallocated += amt;
+                                    } else if (line.type === 'DEBIT') {
+                                        manual_reallocated -= amt;
+                                    }
+                                } else {
+                                    if (line.type === 'CREDIT') {
+                                        manual_received += amt;
+                                    } else if (line.type === 'DEBIT') {
+                                        manual_received -= amt; // Debit reduces received
+                                    }
                                 }
                             }
                         });
                     }
                 });
+                
+                const final_returned = Math.max(Number(phase.returnedAmount || 0), manual_returned);
+                const final_reallocated = Math.max(Number(phase.reallocatedAmount || 0), manual_reallocated);
+                const final_is_settled = phase.isSettled || manual_returned > 0;
+
                 return {
                     ...phase,
                     receivedAmount: Math.max(db_received, manual_received),
+                    returnedAmount: final_returned,
+                    reallocatedAmount: final_reallocated,
+                    isSettled: final_is_settled,
                     spent_amount
                 };
             });
@@ -944,31 +970,62 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                                       overflowY: 'auto',
                                       paddingRight: '4px'
                                   }}>
-                                      {eligiblePhases.map(p => (
-                                          <div 
-                                              key={p.id}
-                                              onClick={() => setSelectedSourcePhaseId(p.id)}
-                                              style={{
-                                                  padding: '1rem',
-                                                  borderRadius: '14px',
-                                                  background: selectedSourcePhaseId === p.id ? 'rgba(129, 140, 248, 0.08)' : 'var(--surface-hover)',
-                                                  border: selectedSourcePhaseId === p.id ? '2px solid #818cf8' : '1px solid var(--border)',
-                                                  cursor: 'pointer',
-                                                  display: 'flex',
-                                                  justifyContent: 'space-between',
-                                                  alignItems: 'center',
-                                                  transition: 'all 0.2s ease'
-                                              }}
-                                          >
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                                  <span style={{ fontWeight: 700, fontSize: '0.925rem', color: 'var(--text-main)' }}>{p.name}</span>
-                                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Settled on {new Date(p.updatedAt).toLocaleDateString()}</span>
-                                              </div>
-                                              <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--success)', fontFamily: 'monospace' }}>
-                                                  +{formatCurrency(Number(p.returnedAmount))}
-                                              </span>
-                                          </div>
-                                      ))}
+                                      {eligiblePhases.map(p => {
+                                           const unspentSurplus = (Number(p.receivedAmount) + Number(p.reallocatedAmount || 0)) - Number(p.spent_amount);
+                                           return (
+                                               <div 
+                                                   key={p.id}
+                                                   onClick={() => setSelectedSourcePhaseId(p.id)}
+                                                   style={{
+                                                       padding: '1.25rem',
+                                                       borderRadius: '16px',
+                                                       background: selectedSourcePhaseId === p.id ? 'rgba(129, 140, 248, 0.08)' : 'var(--surface-hover)',
+                                                       border: selectedSourcePhaseId === p.id ? '2px solid #818cf8' : '1px solid var(--border)',
+                                                       cursor: 'pointer',
+                                                       display: 'flex',
+                                                       flexDirection: 'column',
+                                                       gap: '0.75rem',
+                                                       transition: 'all 0.2s ease',
+                                                       boxShadow: selectedSourcePhaseId === p.id ? '0 4px 12px rgba(129, 140, 248, 0.15)' : 'none'
+                                                   }}
+                                               >
+                                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                                           <span style={{ fontWeight: 700, fontSize: '0.975rem', color: 'var(--text-main)' }}>{p.name}</span>
+                                                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Closed & Settled on {new Date(p.updatedAt).toLocaleDateString()}</span>
+                                                       </div>
+                                                       <div style={{ textAlign: 'right' }}>
+                                                           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Rollover Fund</div>
+                                                           <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--success)', fontFamily: 'monospace' }}>
+                                                               {formatCurrency(Number(p.returnedAmount))}
+                                                           </span>
+                                                       </div>
+                                                   </div>
+                                                   
+                                                   <div style={{ 
+                                                       display: 'flex', 
+                                                       justifyContent: 'space-between', 
+                                                       background: 'rgba(15, 23, 42, 0.2)', 
+                                                       padding: '0.5rem 0.75rem', 
+                                                       borderRadius: '8px', 
+                                                       fontSize: '0.775rem' 
+                                                   }}>
+                                                       <div>
+                                                           <span style={{ color: 'var(--text-muted)' }}>Leftover (Unspent):</span>{' '}
+                                                           <strong style={{ color: 'var(--text-main)', fontFamily: 'monospace' }}>
+                                                               {formatCurrency(unspentSurplus)}
+                                                           </strong>
+                                                       </div>
+                                                       <div>
+                                                           <span style={{ color: 'var(--text-muted)' }}>Returned to Accounts:</span>{' '}
+                                                           <strong style={{ color: 'var(--success)', fontFamily: 'monospace' }}>
+                                                               {formatCurrency(Number(p.returnedAmount))}
+                                                           </strong>
+                                                       </div>
+                                                   </div>
+                                               </div>
+                                           );
+                                       })}
                                   </div>
                               </div>
                           )}
