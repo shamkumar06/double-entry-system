@@ -108,25 +108,32 @@ export function ProjectDataProvider({ children }) {
                     received: phReceived,
                     reallocated: phReallocated,
                     returned: phReturned,
+                    manualReturned: 0,
                     spent: 0,
                     balance: (phReceived + phReallocated) - phReturned
                 };
                 totalProjectReceived += phReceived;
-                totalProjectReturned += phReturned;
             });
 
-            // Aggregate spent and received amounts from the journal
+            // Aggregate spent, received, and returned amounts from the journal
             (journal || []).forEach(tx => {
                 let txSpent = 0;
                 let txReceived = 0;
+                let txReturned = 0;
 
                 (tx.lines || []).forEach(line => {
                     const amt = Number(line.amount) || 0;
                     
                     // Outflows/Spent: DEBIT lines to EXPENSE accounts
                     if (line.account?.type === 'EXPENSE') {
-                        // Skip system automated Settlement Amount to avoid bloating direct project expense metrics
-                        if (line.account?.name !== 'Settlement Amount') {
+                        // If it is 'Settlement Amount', track it as returned surplus!
+                        if (line.account?.name === 'Settlement Amount') {
+                            if (line.type === 'DEBIT') {
+                                txReturned += amt;
+                            } else if (line.type === 'CREDIT') {
+                                txReturned -= amt; // Credit reduces returned
+                            }
+                        } else {
                             if (line.type === 'DEBIT') {
                                 txSpent += amt;
                             } else if (line.type === 'CREDIT') {
@@ -153,18 +160,39 @@ export function ProjectDataProvider({ children }) {
                 if (tx.phaseId && phaseFinances[tx.phaseId]) {
                     phaseFinances[tx.phaseId].spent += txSpent;
                     phaseFinances[tx.phaseId].received += txReceived;
-                    phaseFinances[tx.phaseId].balance = 
-                        (phaseFinances[tx.phaseId].received + phaseFinances[tx.phaseId].reallocated) - 
-                        (phaseFinances[tx.phaseId].spent + phaseFinances[tx.phaseId].returned);
+                    phaseFinances[tx.phaseId].manualReturned += txReturned;
                 }
+            });
+
+            // Recalculate phases to take maximum of database returnedAmount and manual settlement
+            let recomputedProjectReturned = 0;
+            Object.keys(phaseFinances).forEach(pid => {
+                const dbReturned = phaseFinances[pid].returned;
+                const manReturned = phaseFinances[pid].manualReturned || 0;
+                const finalReturned = Math.max(dbReturned, manReturned);
+                
+                phaseFinances[pid].returned = finalReturned;
+
+                // Sync the phase object inside the array so lists and modals show matching values
+                const phaseObj = (project.phases || []).find(p => p.id === pid);
+                if (phaseObj) {
+                    phaseObj.returnedAmount = finalReturned;
+                    phaseObj.isSettled = phaseObj.isSettled || manReturned > 0;
+                }
+
+                phaseFinances[pid].balance = 
+                    (phaseFinances[pid].received + phaseFinances[pid].reallocated) - 
+                    (phaseFinances[pid].spent + finalReturned);
+
+                recomputedProjectReturned += finalReturned;
             });
             
             // Calculate overall project finances
             const projectFinances = {
                 received: totalProjectReceived,
                 spent: totalProjectSpent,
-                returned: totalProjectReturned,
-                balance: totalProjectReceived - (totalProjectSpent + totalProjectReturned),
+                returned: recomputedProjectReturned,
+                balance: totalProjectReceived - (totalProjectSpent + recomputedProjectReturned),
             };
 
             dispatch({
