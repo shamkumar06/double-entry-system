@@ -61,20 +61,51 @@ const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '';
 /**
  * Uploads a buffer file to Google Drive under a shared folder
  * makes it public-readable so it can be previewed in the React application.
+ * Falls back automatically to Supabase Storage if Google Drive fails or hits quota limits.
  */
 export async function uploadToDrive(
   file: Express.Multer.File,
   customName?: string
 ): Promise<{ fileId: string; viewUrl: string }> {
-  try {
-    if (!drive) {
-      throw new Error(
-        "Google Drive credentials are not configured on Render. To fix this, please configure the 'GOOGLE_SERVICE_ACCOUNT_JSON' Environment Variable on Render (with the JSON content), or add 'backend/google-service-account.json' as a 'Secret File' in the Render Dashboard."
-      );
+  const ext = file.originalname ? file.originalname.substring(file.originalname.lastIndexOf('.')) : '.png';
+  const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
+  // Helper function to handle Supabase Storage fallback
+  const handleSupabaseFallback = async (reason: string) => {
+    console.warn(`Redirecting upload to Supabase Storage due to: ${reason}`);
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(`Upload failed. Google Drive failed (${reason}) and Supabase Storage credentials are not configured.`);
     }
 
+    const folder = 'procurement';
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/attachments/${folder}/${uniqueFilename}`;
+
+    const axios = require('axios');
+    await axios.post(uploadUrl, file.buffer, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': file.mimetype,
+      },
+    });
+
+    const publicUrl = `${supabaseUrl}/storage/v1/object/public/attachments/${folder}/${uniqueFilename}`;
+    return {
+      fileId: `supabase:${folder}/${uniqueFilename}`,
+      viewUrl: publicUrl
+    };
+  };
+
+  // If Google Drive is not configured, fall back immediately to Supabase
+  if (!drive) {
+    return handleSupabaseFallback("Google Drive credentials not configured");
+  }
+
+  try {
     const fileMetadata: any = {
-      name: customName || `${Date.now()}-${file.originalname}`,
+      name: customName || uniqueFilename,
     };
 
     // If folder ID exists, store inside that folder
@@ -92,12 +123,19 @@ export async function uploadToDrive(
       body: bufferStream,
     };
 
-    const response = await drive.files.create({
-      requestBody: fileMetadata,
-      media: media,
-      fields: 'id, webViewLink, webContentLink',
-      supportsAllDrives: true, // Enable Shared Drive support
-    } as any);
+    let response;
+    try {
+      response = await drive.files.create({
+        requestBody: fileMetadata,
+        media: media,
+        fields: 'id, webViewLink, webContentLink',
+        supportsAllDrives: true, // Enable Shared Drive support
+      } as any);
+    } catch (createErr: any) {
+      // Catch Google quota/auth failure and redirect gracefully to Supabase Storage!
+      console.warn("Google Drive upload API call failed. Bypassing to Supabase Storage...");
+      return handleSupabaseFallback(createErr.message);
+    }
 
     const fileId = response.data.id;
     if (!fileId) {
@@ -105,7 +143,6 @@ export async function uploadToDrive(
     }
 
     // Optional: Transfer ownership of the file to a real user Gmail if provided
-    // This resolves the Service Account 0 bytes quota limit on personal drives
     const ownerEmail = process.env.GOOGLE_DRIVE_OWNER_EMAIL;
     if (ownerEmail) {
       try {
@@ -139,9 +176,6 @@ export async function uploadToDrive(
       console.warn('Could not set public permission on Google Drive file. Previews might fail:', permErr.message);
     }
 
-
-    // Create a webContentLink or webViewLink. For direct image rendering in img src,
-    // Google Drive direct export links are formatted as: https://drive.google.com/uc?export=view&id={fileId}
     const viewUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
 
     return {
@@ -149,16 +183,38 @@ export async function uploadToDrive(
       viewUrl,
     };
   } catch (error: any) {
-    console.error('Google Drive Upload Service Error:', error);
-    throw new Error(`Google Drive upload failed: ${error.message}`);
+    console.error('Google Drive Upload Service Error, attempting final Supabase fallback:', error.message);
+    try {
+      return await handleSupabaseFallback(error.message);
+    } catch (fallbackErr: any) {
+      throw new Error(`Both Google Drive and Supabase Storage failed. Final error: ${fallbackErr.message}`);
+    }
   }
 }
 
 /**
- * Deletes a file from Google Drive by its File ID
+ * Deletes a file from Google Drive or Supabase Storage by its File ID
  */
 export async function deleteFromDrive(fileId: string): Promise<void> {
   try {
+    if (fileId && fileId.startsWith('supabase:')) {
+      const path = fileId.replace('supabase:', '');
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_ANON_KEY;
+      if (!supabaseUrl || !supabaseKey) return;
+
+      const axios = require('axios');
+      const deleteUrl = `${supabaseUrl}/storage/v1/object/attachments/${path}`;
+      await axios.delete(deleteUrl, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      });
+      console.log(`Successfully deleted file ${path} from Supabase Storage.`);
+      return;
+    }
+
     if (!drive) {
       console.warn("Google Drive credentials not configured, skipping file deletion for ID:", fileId);
       return;
@@ -174,4 +230,5 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
     // Soft fail so that DB row deletions don't get blocked if the file was manually removed in Drive
   }
 }
+
 
