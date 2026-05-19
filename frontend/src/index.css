@@ -770,12 +770,14 @@ input:focus, select:focus, textarea:focus {
     bottom: 0;
     left: 0;
     width: 100% !important;
-    height: 60px;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     background: var(--glass-bg);
     backdrop-filter: blur(40px) saturate(200%);
     border-top: 1px solid var(--border);
     z-index: 1000;
-    padding: 0 0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
     justify-content: space-around;
     align-items: center;
     box-shadow: 0 -8px 30px rgba(0,0,0,0.1);
