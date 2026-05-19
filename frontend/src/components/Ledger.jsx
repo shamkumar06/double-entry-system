@@ -170,23 +170,35 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
                                         const balanceVal = Number(entry.runningBalance) || 0;
                                         
                                         return (
-                                            <div key={entry.id} className="mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', padding: '0.75rem 0.85rem' }}>
+                                            <div key={entry.id} className="mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.85rem' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDate(entry.date)}</span>
-                                                    <span style={{ fontSize: '0.65rem', background: 'var(--surface-hover)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>{formatDate(entry.date)}</span>
+                                                    <span style={{ fontSize: '0.65rem', background: 'var(--surface-hover)', padding: '3px 8px', borderRadius: '6px', color: 'var(--text-muted)', fontWeight: 500 }}>
                                                         {entry.phaseName || 'Project'}
                                                     </span>
                                                 </div>
-                                                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                
+                                                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-main)', marginTop: '0.1rem', wordBreak: 'break-word' }}>
                                                     {pureDesc}
                                                 </div>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: '1px solid var(--border)', paddingTop: '0.4rem', marginTop: '0.2rem' }}>
-                                                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: isDebit ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                                        {isDebit ? `Dr: ${amountFormatted}` : `Cr: ${amountFormatted}`}
-                                                    </span>
-                                                    <span style={{ fontWeight: 800, fontSize: '0.8rem', color: balanceVal < 0 ? 'var(--danger)' : 'var(--success)' }}>
-                                                        Bal: {formatCurrency(balanceVal)}
-                                                    </span>
+                                                
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.2rem' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                                                        <span style={{ color: 'var(--text-muted)' }}>Transaction:</span>
+                                                        <span style={{ fontWeight: 700, color: isDebit ? 'var(--success)' : 'var(--text-main)' }}>
+                                                            {isDebit ? 'Debit (Dr)' : 'Credit (Cr)'}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                                                        <span style={{ color: 'var(--text-muted)' }}>Amount:</span>
+                                                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{amountFormatted}</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', background: 'var(--surface-hover)', padding: '4px 8px', borderRadius: '4px', marginTop: '0.1rem' }}>
+                                                        <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Running Balance:</span>
+                                                        <span style={{ fontWeight: 800, color: balanceVal < 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                                            {formatCurrency(balanceVal)}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );

@@ -1185,7 +1185,7 @@ select option, select optgroup {
 @media (max-width: 768px) {
   /* Ledger Component Mobile Styles */
   .ledger-panel {
-    padding: 1rem !important;
+    padding: 1rem 1rem 5.5rem !important;
   }
   .ledger-header {
     flex-direction: column !important;
@@ -1207,7 +1207,7 @@ select option, select optgroup {
 
   /* Trial Balance Component Mobile Styles */
   .trial-balance-panel {
-    padding: 1rem !important;
+    padding: 1rem 1rem 5.5rem !important;
   }
   .trial-balance-header {
     flex-direction: column !important;
@@ -1284,14 +1284,22 @@ select option, select optgroup {
   .phase-filter-sidebar {
     width: 100% !important;
     flex-direction: row !important;
-    flex-wrap: wrap !important;
+    flex-wrap: nowrap !important;
     gap: 0.5rem !important;
     margin-bottom: 1rem !important;
+    overflow-x: auto !important;
+    padding-bottom: 0.5rem !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .phase-filter-sidebar::-webkit-scrollbar {
+    display: none !important;
   }
   .phase-filter-sidebar button {
-    flex: 1 1 auto !important;
-    padding: 0.5rem 0.75rem !important;
+    flex: 0 0 auto !important;
+    padding: 0.5rem 0.85rem !important;
     font-size: 0.75rem !important;
+    white-space: nowrap !important;
   }
 
   /* Attachments (Receipts Gallery) Responsive Styles */
