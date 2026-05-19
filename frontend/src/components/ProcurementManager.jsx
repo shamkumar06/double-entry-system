@@ -668,8 +668,33 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                 ))}
               </select>
 
-              <button onClick={handleOpenAdd} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.1rem', borderRadius: '12px', fontWeight: 700 }}>
-                <Plus size={16} /> Add Material
+              <button 
+                onClick={handleOpenAdd} 
+                title="Add Procurement Material"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  width: '38px', 
+                  height: '38px', 
+                  borderRadius: '10px', 
+                  background: '#090d16', 
+                  border: '1px solid rgba(255, 255, 255, 0.1)', 
+                  color: '#fff', 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  padding: 0
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = '#090d16';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                }}
+              >
+                <Plus size={18} />
               </button>
             </div>
           </div>
