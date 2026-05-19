@@ -257,13 +257,51 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
  * Creates a subfolder in Google Drive named after the materialName,
  * uploads multiple files inside it renamed as image-1, image-2, etc.,
  * and returns the folder's ID and web view link.
+ * Falls back automatically to Supabase Storage if Google Drive fails.
  */
 export async function createFolderAndUploadToDrive(
   materialName: string,
   files: Express.Multer.File[]
 ): Promise<{ fileId: string; viewUrl: string }> {
+  const handleSupabaseFallback = async (reason: string) => {
+    console.warn(`createFolderAndUploadToDrive: Falling back to Supabase Storage due to: ${reason}`);
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(`Upload failed. Google Drive failed (${reason}) and Supabase Storage credentials are not configured.`);
+    }
+
+    const folderSlug = `${Date.now()}-${materialName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    let firstFileUrl = '';
+
+    const axios = require('axios');
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.originalname ? file.originalname.substring(file.originalname.lastIndexOf('.')) : '.png';
+      const fileName = `image-${i + 1}${ext}`;
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/attachments/procurement/${folderSlug}/${fileName}`;
+
+      await axios.post(uploadUrl, file.buffer, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': file.mimetype,
+        },
+      });
+
+      if (i === 0) {
+        firstFileUrl = `${supabaseUrl}/storage/v1/object/public/attachments/procurement/${folderSlug}/${fileName}`;
+      }
+    }
+
+    return {
+      fileId: `supabase:procurement/${folderSlug}`,
+      viewUrl: firstFileUrl || `https://supabase.com`,
+    };
+  };
+
   if (!drive) {
-    throw new Error("Google Drive credentials not configured");
+    return handleSupabaseFallback("Google Drive credentials not configured");
   }
 
   try {
@@ -355,20 +393,113 @@ export async function createFolderAndUploadToDrive(
       viewUrl: folderViewUrl || `https://drive.google.com/drive/folders/${folderId}`,
     };
   } catch (error: any) {
-    console.error('Google Drive Folder & Files Upload Error:', error.message);
-    throw new Error(`Google Drive folder upload failed: ${error.message}`);
+    console.error('Google Drive Folder & Files Upload Error, falling back to Supabase:', error.message);
+    return handleSupabaseFallback(error.message);
   }
 }
 
 /**
  * Uploads multiple files into an existing Google Drive folder.
+ * Falls back to Supabase Storage if Google Drive fails or if the folder is in Supabase.
  */
 export async function uploadToExistingFolder(
   folderId: string,
-  files: Express.Multer.File[]
-): Promise<void> {
+  files: Express.Multer.File[],
+  materialNameFallback?: string
+): Promise<{ fileId: string; viewUrl: string } | void> {
+  const handleSupabaseFallback = async (reason: string) => {
+    console.warn(`uploadToExistingFolder: Falling back to Supabase Storage due to: ${reason}`);
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error(`Upload failed. Google Drive failed (${reason}) and Supabase Storage credentials are not configured.`);
+    }
+
+    const folderSlug = `${Date.now()}-${(materialNameFallback || 'material').replace(/[^a-zA-Z0-9]/g, '_')}`;
+    let firstFileUrl = '';
+
+    const axios = require('axios');
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.originalname ? file.originalname.substring(file.originalname.lastIndexOf('.')) : '.png';
+      const fileName = `image-${i + 1}${ext}`;
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/attachments/procurement/${folderSlug}/${fileName}`;
+
+      await axios.post(uploadUrl, file.buffer, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': file.mimetype,
+        },
+      });
+
+      if (i === 0) {
+        firstFileUrl = `${supabaseUrl}/storage/v1/object/public/attachments/procurement/${folderSlug}/${fileName}`;
+      }
+    }
+
+    return {
+      fileId: `supabase:procurement/${folderSlug}`,
+      viewUrl: firstFileUrl || `https://supabase.com`,
+    };
+  };
+
+  // If already stored in Supabase Storage
+  if (folderId && folderId.startsWith('supabase:')) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase Storage credentials not configured");
+    }
+
+    const folderSlug = folderId.replace('supabase:procurement/', '');
+    const axios = require('axios');
+
+    let nextIndex = 1;
+    try {
+      const listUrl = `${supabaseUrl}/storage/v1/object/list/attachments`;
+      const listRes = await axios.post(listUrl, {
+        prefix: `procurement/${folderSlug}`
+      }, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      });
+      const existingNames = listRes.data?.map((f: any) => f.name || '') || [];
+      existingNames.forEach((name: string) => {
+        const match = name.match(/image-(\d+)/);
+        if (match) {
+          const num = parseInt(match[1]);
+          if (num >= nextIndex) {
+            nextIndex = num + 1;
+          }
+        }
+      });
+    } catch (listErr: any) {
+      console.warn("Failed to list existing Supabase files, defaulting to index fallback:", listErr.message);
+      nextIndex = Date.now();
+    }
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.originalname ? file.originalname.substring(file.originalname.lastIndexOf('.')) : '.png';
+      const fileName = `image-${nextIndex + i}${ext}`;
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/attachments/procurement/${folderSlug}/${fileName}`;
+
+      await axios.post(uploadUrl, file.buffer, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': file.mimetype,
+        },
+      });
+    }
+    return;
+  }
+
   if (!drive) {
-    throw new Error("Google Drive credentials not configured");
+    return handleSupabaseFallback("Google Drive credentials not configured");
   }
 
   try {
@@ -438,8 +569,8 @@ export async function uploadToExistingFolder(
       }
     }
   } catch (error: any) {
-    console.error('Google Drive upload to existing folder error:', error.message);
-    throw new Error(`Google Drive append failed: ${error.message}`);
+    console.error('Google Drive upload to existing folder error, migrating/falling back to Supabase:', error.message);
+    return handleSupabaseFallback(error.message);
   }
 }
 

@@ -141,7 +141,15 @@ export async function updateProcurement(req: Request, res: Response): Promise<vo
       const files = req.files as Express.Multer.File[];
       if (existing.driveFileId && !existing.driveFileId.startsWith('supabase:')) {
         // Folder already exists, append new files to it!
-        await driveService.uploadToExistingFolder(existing.driveFileId, files);
+        const appendRes = await driveService.uploadToExistingFolder(
+          existing.driveFileId,
+          files,
+          materialName ? String(materialName) : existing.materialName
+        );
+        if (appendRes && appendRes.fileId) {
+          driveFileId = appendRes.fileId;
+          driveViewUrl = appendRes.viewUrl;
+        }
       } else {
         // Folder does not exist yet (or was previously empty), create a new one!
         const uploadRes = await driveService.createFolderAndUploadToDrive(
