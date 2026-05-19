@@ -265,10 +265,12 @@ export const procurementApi = {
     });
   },
   getPhotoViewUrl: (projectId, fileId) => {
-    return `${API_URL}/projects/${projectId}/procurement/photos/view?fileId=${encodeURIComponent(fileId)}`;
+    const token = localStorage.getItem('token') || '';
+    return `${API_URL}/projects/${projectId}/procurement/photos/view?fileId=${encodeURIComponent(fileId)}&token=${encodeURIComponent(token)}`;
   },
   getPhotoDownloadUrl: (projectId, fileId) => {
-    return `${API_URL}/projects/${projectId}/procurement/photos/view?fileId=${encodeURIComponent(fileId)}&download=true`;
+    const token = localStorage.getItem('token') || '';
+    return `${API_URL}/projects/${projectId}/procurement/photos/view?fileId=${encodeURIComponent(fileId)}&download=true&token=${encodeURIComponent(token)}`;
   }
 };
 

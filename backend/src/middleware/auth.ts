@@ -10,10 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 
 export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
   try {
-    // Try cookie first, then Authorization header (Bearer token)
+    // Try cookie first, then Authorization header, then query parameter
     const token =
       req.cookies?.token ||
-      req.headers.authorization?.replace('Bearer ', '');
+      req.headers.authorization?.replace('Bearer ', '') ||
+      (typeof req.query.token === 'string' ? req.query.token : undefined);
 
     if (!token) throw new AppError('No authentication token provided.', 401);
 
