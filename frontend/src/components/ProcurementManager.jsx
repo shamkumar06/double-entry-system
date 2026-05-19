@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Trash2, Edit3, Image, FileText, CheckCircle, Package, Layers, DollarSign, Calendar, Info, Loader2, ArrowRight, FolderOpen } from 'lucide-react';
 import { procurementApi } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
@@ -143,13 +144,19 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
   };
 
   // Stats Calculations
-  const totalEstimatedCost = items.reduce((sum, item) => sum + (parseFloat(item.estimatedRate) * parseFloat(item.quantity) || 0), 0);
-  const totalActualCost = items.reduce((sum, item) => {
-    const rate = item.actualRate ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate);
-    return sum + (rate * parseFloat(item.quantity) || 0);
-  }, 0);
+  const totalEstimatedCost = items
+    .filter(item => item.status !== 'CANCELLED')
+    .reduce((sum, item) => sum + (parseFloat(item.estimatedRate) * parseFloat(item.quantity) || 0), 0);
+  const totalActualCost = items
+    .filter(item => item.status === 'DELIVERED')
+    .reduce((sum, item) => {
+      const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+      const rate = hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate);
+      return sum + (rate * parseFloat(item.quantity) || 0);
+    }, 0);
   const activeOrdersCount = items.filter(item => item.status === 'PLANNING' || item.status === 'ORDERED').length;
   const deliveredOrdersCount = items.filter(item => item.status === 'DELIVERED').length;
+
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
@@ -209,16 +216,17 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
 
         <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Delivered / Actual Cost</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Delivered / Spent Cost</span>
             <DollarSign size={18} color="var(--success)" />
           </div>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.5rem' }}>
             {formatCurrency(totalActualCost)}
           </div>
           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Actual rate for delivered, estimated for others
+            Total actual cost of successfully arrived materials
           </div>
         </div>
+
 
         <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -282,8 +290,9 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
             </thead>
             <tbody>
               {items.map(item => {
-                const itemEst = parseFloat(item.estimatedRate) * parseFloat(item.quantity);
-                const itemAct = (item.actualRate ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity);
+                const itemEst = item.status === 'CANCELLED' ? 0 : parseFloat(item.estimatedRate) * parseFloat(item.quantity);
+                const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+                const itemAct = item.status === 'CANCELLED' ? 0 : (hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity);
                 const phaseName = phasesList.find(p => p.id === item.phaseId)?.name || 'Independent';
 
                 return (
@@ -417,9 +426,22 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
       )}
 
       {/* Upload/Edit Modal */}
-      {showFormModal && (
-        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '1.75rem', borderRadius: '28px', background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
+      {showFormModal && createPortal(
+        <div 
+          className="modal-overlay"  
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            background: 'rgba(15, 23, 42, 0.75)', 
+            backdropFilter: 'blur(12px)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 1000,
+            padding: '1.5rem'
+          }}
+        >
+          <div className="modal-content glass-panel animate-in" style={{ width: '100%', maxWidth: '520px', padding: '1.75rem', borderRadius: '28px', background: 'var(--background)', border: '1px solid var(--border)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 1.25rem 0' }}>
               {editingItem ? '✏️ Edit Procurement Material' : '📦 Add Procurement Material'}
             </h3>
@@ -592,15 +614,26 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Lightbox Preview Modal */}
-      {previewImage && (
+      {previewImage && createPortal(
         <div 
-          className="modal-backdrop" 
+          className="modal-overlay" 
           onClick={() => setPreviewImage(null)}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)' }}
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 1100, 
+            background: 'rgba(15, 23, 42, 0.85)', 
+            backdropFilter: 'blur(12px)',
+            padding: '1.5rem'
+          }}
         >
           <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%' }}>
             <img 
@@ -627,7 +660,8 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
               Open File in Drive Tab ➔
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
