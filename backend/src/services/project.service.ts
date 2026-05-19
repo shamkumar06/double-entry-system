@@ -280,7 +280,9 @@ export const updatePhase = async (
 
   const isUnsettling = data.isSettled === false;
 
-  const updateData: any = {
+  // Build updateData — only include fields that were explicitly provided (not undefined)
+  // This is critical when called from Settings with only { isSettled: false }
+  const rawUpdate: any = {
     name: data.name,
     description: data.description,
     estimatedBudget: data.estimatedBudget,
@@ -292,6 +294,10 @@ export const updatePhase = async (
     requestLetterUrl: data.requestLetterUrl,
     isSettled: data.isSettled,
   };
+  // Strip out undefined so Prisma does not try to nullify required fields
+  const updateData: any = Object.fromEntries(
+    Object.entries(rawUpdate).filter(([, v]) => v !== undefined)
+  );
 
   if (isUnsettling) {
     updateData.returnedAmount = new Prisma.Decimal(0);
