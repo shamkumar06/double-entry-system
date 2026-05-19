@@ -167,6 +167,17 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
 
     useEffect(() => { fetchPhases(); }, [project.id]);
 
+    useEffect(() => {
+        if (editingId || creating) {
+            setTimeout(() => {
+                const element = document.getElementById('phase-form-container');
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        }
+    }, [editingId, creating]);
+
     const handleAddRequestLetter = async (e, isEdit = false) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -719,7 +730,7 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                 )}
 
                 {(creating || editingId) && (
-                    <div className="glass-panel animate-in" style={{ padding: '2.5rem', marginTop: '2.5rem', borderRadius: '24px', border: '1px solid var(--primary)', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+                    <div id="phase-form-container" className="glass-panel animate-in" style={{ padding: '2.5rem', marginTop: '2.5rem', borderRadius: '24px', border: '1px solid var(--primary)', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
                         <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem' }}>{editingId ? 'Edit Phase Details' : 'Initialize New Phase'}</h3>
                         
                         <form onSubmit={editingId ? (e => handleUpdate(e, editingId)) : handleCreate}>
