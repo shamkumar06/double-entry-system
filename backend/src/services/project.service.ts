@@ -278,20 +278,51 @@ export const updatePhase = async (
   const phase = await prisma.phase.findFirst({ where: { id: phaseId, projectId } });
   if (!phase) throw new AppError('Phase not found.', 404);
 
+  const isUnsettling = data.isSettled === false;
+
+  const updateData: any = {
+    name: data.name,
+    description: data.description,
+    estimatedBudget: data.estimatedBudget,
+    receivedAmount: data.receivedAmount,
+    receivedFrom: data.receivedFrom,
+    receivedTo: data.receivedTo,
+    paymentMode: data.paymentMode,
+    reference: data.reference,
+    requestLetterUrl: data.requestLetterUrl,
+    isSettled: data.isSettled,
+  };
+
+  if (isUnsettling) {
+    updateData.returnedAmount = new Prisma.Decimal(0);
+    // Find all transactions under this phase that use the 'Settlement Amount' account
+    const settlementTransactions = await prisma.transaction.findMany({
+      where: {
+        phaseId,
+        isDeleted: false,
+        lines: {
+          some: {
+            account: {
+              name: 'Settlement Amount',
+            },
+          },
+        },
+      },
+    });
+
+    if (settlementTransactions.length > 0) {
+      await prisma.transaction.updateMany({
+        where: {
+          id: { in: settlementTransactions.map((t) => t.id) },
+        },
+        data: { isDeleted: true },
+      });
+    }
+  }
+
   const updatedPhase = await prisma.phase.update({
     where: { id: phaseId },
-    data: {
-      name: data.name,
-      description: data.description,
-      estimatedBudget: data.estimatedBudget,
-      receivedAmount: data.receivedAmount,
-      receivedFrom: data.receivedFrom,
-      receivedTo: data.receivedTo,
-      paymentMode: data.paymentMode,
-      reference: data.reference,
-      requestLetterUrl: data.requestLetterUrl,
-      isSettled: data.isSettled,
-    }
+    data: updateData,
   });
 
   return updatedPhase;
