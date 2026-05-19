@@ -14,24 +14,34 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     let initialDesc = initialData?.description || '';
     let initialFrom = initialData?.fromEntity || initialData?.from_name || '';
     let initialTo = initialData?.toEntity || initialData?.to_name || '';
-    let initialMode = initialData?.paymentMode || initialData?.from_payment_mode || 'Cash';
+    let initialMode = initialData?.paymentMode || initialData?.payment_mode || initialData?.from_payment_mode || '';
     let initialRef = initialData?.reference || initialData?.from_reference || '';
 
     if (initialData?.description && initialData.description.includes('| From:')) {
-        const parts = initialData.description.split('|');
-        initialDesc = parts[0]?.trim();
+        const descString = initialData.description;
+        initialDesc = descString.split('|')[0].trim();
         
-        const fromToMatch = parts[1]?.match(/From: (.*?) To: (.*)/);
-        if (fromToMatch) {
-            initialFrom = fromToMatch[1]?.trim() !== '-' ? fromToMatch[1]?.trim() : '';
-            initialTo = fromToMatch[2]?.trim() !== '-' ? fromToMatch[2]?.trim() : '';
+        const fromMatch = descString.match(/From:\s*(.*?)\s*To:/);
+        const toMatch = descString.match(/To:\s*(.*?)\s*(?:\||$)/);
+        const modeMatch = descString.match(/Mode:\s*(.*?)\s*(?:Ref:|$)/);
+        const refMatch = descString.match(/Ref:\s*(.*)/);
+
+        if (!initialFrom && fromMatch) {
+            initialFrom = fromMatch[1].trim() !== '-' ? fromMatch[1].trim() : '';
         }
-        
-        const modeRefMatch = parts[2]?.match(/Mode: (.*?) Ref: (.*)/);
-        if (modeRefMatch) {
-            initialMode = modeRefMatch[1]?.trim() !== '-' ? modeRefMatch[1]?.trim() : 'Cash';
-            initialRef = modeRefMatch[2]?.trim() !== '-' ? modeRefMatch[2]?.trim() : '';
+        if (!initialTo && toMatch) {
+            initialTo = toMatch[1].trim() !== '-' ? toMatch[1].trim() : '';
         }
+        if (!initialMode && modeMatch) {
+            initialMode = modeMatch[1].trim() !== '-' ? modeMatch[1].trim() : '';
+        }
+        if (!initialRef && refMatch) {
+            initialRef = refMatch[1].trim() !== '-' ? refMatch[1].trim() : '';
+        }
+    }
+    
+    if (!initialMode) {
+        initialMode = 'Cash';
     }
     
     // Find initial default category synchronously on mount using pre-fetched context categories
