@@ -16,6 +16,10 @@ export const errorHandler = (
   _next: NextFunction
 ): void => {
   console.error(`[ERROR] ${err.name}: ${err.message}`);
+  
+  if (err.name === 'MulterError') {
+    console.error('[MULTER DETAIL] code:', (err as any).code, 'field:', (err as any).field, 'error:', err);
+  }
 
   if (err instanceof AppError) {
     res.status(err.statusCode).json({ success: false, message: err.message });
