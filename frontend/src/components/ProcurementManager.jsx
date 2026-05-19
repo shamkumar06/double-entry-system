@@ -52,21 +52,6 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
   const [galleryError, setGalleryError] = useState('');
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  // Add Menu Shortcut State
-  const [showAddMenu, setShowAddMenu] = useState(false);
-
-  // Click outside add shortcut menu to close
-  useEffect(() => {
-    if (!showAddMenu) return;
-    const handleOutsideClick = (e) => {
-      if (!e.target.closest('.add-menu-container')) {
-        setShowAddMenu(false);
-      }
-    };
-    document.addEventListener('click', handleOutsideClick);
-    return () => document.removeEventListener('click', handleOutsideClick);
-  }, [showAddMenu]);
-
   const fetchItems = async () => {
     setLoading(true);
     try {
@@ -108,27 +93,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     setDiscount('');
     setFormError('');
     setShowFormModal(true);
-  };
 
-  const handleOpenAddWithPhase = (phaseId) => {
-    setEditingItem(null);
-    setMaterialName('');
-    setVendorName('');
-    setQuantity('');
-    setUnit('units');
-    setEstimatedRate('');
-    setActualRate('');
-    setStatus('PLANNING');
-    setNotes('');
-    setSelectedPhaseId(phaseId || '');
-    setImageFiles([]);
-    setCgst('');
-    setSgst('');
-    setIgst('');
-    setDiscount('');
-    setFormError('');
-    setShowFormModal(true);
-    setShowAddMenu(false);
   };
 
   const handleOpenEdit = (item) => {
@@ -703,121 +668,34 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                 ))}
               </select>
 
-              <div className="add-menu-container" style={{ position: 'relative' }}>
-                <button 
-                  onClick={() => setShowAddMenu(!showAddMenu)} 
-                  title="Add Procurement Material Shortcut"
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    width: '38px', 
-                    height: '38px', 
-                    borderRadius: '10px', 
-                    background: '#090d16', 
-                    border: '1px solid rgba(255, 255, 255, 0.1)', 
-                    color: '#fff', 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    padding: 0
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = '#090d16';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                >
-                  <Plus size={18} style={{ transform: showAddMenu ? 'rotate(45deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-                </button>
-
-                {showAddMenu && (
-                  <div 
-                    style={{
-                      position: 'absolute',
-                      top: '46px',
-                      right: 0,
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '16px',
-                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                      zIndex: 9999,
-                      minWidth: '220px',
-                      overflow: 'hidden',
-                      animation: 'fadeIn 0.2s ease-out',
-                      padding: '0.4rem 0',
-                      backdropFilter: 'blur(10px)'
-                    }}
-                  >
-                    <div style={{ padding: '0.5rem 0.85rem', fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border)', marginBottom: '0.25rem', letterSpacing: '0.05em' }}>
-                      ⚡ Select Phase to Add Under
-                    </div>
-                    
-                    <button
-                      onClick={() => handleOpenAddWithPhase('')}
-                      style={{
-                        width: '100%',
-                        padding: '0.6rem 0.85rem',
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-main)',
-                        textAlign: 'left',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                        e.currentTarget.style.color = 'var(--primary)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.background = 'none';
-                        e.currentTarget.style.color = 'var(--text-main)';
-                      }}
-                    >
-                      📁 Independent (General)
-                    </button>
-
-                    {phasesList.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => handleOpenAddWithPhase(p.id)}
-                        style={{
-                          width: '100%',
-                          padding: '0.6rem 0.85rem',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-main)',
-                          textAlign: 'left',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                          e.currentTarget.style.color = 'var(--primary)';
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'none';
-                          e.currentTarget.style.color = 'var(--text-main)';
-                        }}
-                      >
-                        📂 {p.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button 
+                onClick={handleOpenAdd} 
+                title="Add Procurement Material"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  width: '38px', 
+                  height: '38px', 
+                  borderRadius: '10px', 
+                  background: '#090d16', 
+                  border: '1px solid rgba(255, 255, 255, 0.1)', 
+                  color: '#fff', 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  padding: 0
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = '#090d16';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                }}
+              >
+                <Plus size={18} />
+              </button>
             </div>
           </div>
 
