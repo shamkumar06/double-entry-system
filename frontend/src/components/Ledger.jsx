@@ -170,7 +170,7 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
                                         const balanceVal = Number(entry.runningBalance) || 0;
                                         
                                         return (
-                                            <div key={entry.id} className="mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.85rem' }}>
+                                            <div key={entry.id} className="mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.85rem', alignItems: 'stretch' }}>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                                     <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>{formatDate(entry.date)}</span>
                                                     <span style={{ fontSize: '0.65rem', background: 'var(--surface-hover)', padding: '3px 8px', borderRadius: '6px', color: 'var(--text-muted)', fontWeight: 500 }}>
@@ -178,7 +178,7 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
                                                     </span>
                                                 </div>
                                                 
-                                                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-main)', marginTop: '0.1rem', wordBreak: 'break-word' }}>
+                                                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-main)', marginTop: '0.1rem', wordBreak: 'break-word', textAlign: 'left' }}>
                                                     {pureDesc}
                                                 </div>
                                                 
@@ -193,7 +193,7 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
                                                         <span style={{ color: 'var(--text-muted)' }}>Amount:</span>
                                                         <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{amountFormatted}</span>
                                                     </div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', background: 'var(--surface-hover)', padding: '4px 8px', borderRadius: '4px', marginTop: '0.1rem' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', background: 'var(--surface-hover)', padding: '6px 10px', borderRadius: '6px', marginTop: '0.5rem' }}>
                                                         <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Running Balance:</span>
                                                         <span style={{ fontWeight: 800, color: balanceVal < 0 ? 'var(--danger)' : 'var(--success)' }}>
                                                             {formatCurrency(balanceVal)}
