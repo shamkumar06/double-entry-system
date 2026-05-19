@@ -6,7 +6,28 @@ import fs from 'fs';
 // Initialize Google Auth
 let auth: any;
 
-if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN;
+
+if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_REFRESH_TOKEN) {
+  try {
+    const oauth2Client = new google.auth.OAuth2(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      'http://localhost:3000/oauth2callback'
+    );
+    oauth2Client.setCredentials({
+      refresh_token: GOOGLE_REFRESH_TOKEN,
+    });
+    auth = oauth2Client;
+    console.log('Google Auth initialized successfully using OAuth 2.0 User Refresh Token.');
+  } catch (err: any) {
+    console.error('Failed to initialize OAuth 2.0 client:', err.message);
+  }
+}
+
+if (!auth && process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
   try {
     const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
     auth = new google.auth.GoogleAuth({
@@ -18,6 +39,7 @@ if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     console.error('Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON env variable, falling back to keyFile:', err.message);
   }
 }
+
 
 if (!auth) {
   const pathsToCheck = [
