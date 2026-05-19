@@ -226,14 +226,18 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
       if (!supabaseUrl || !supabaseKey) return;
 
       const axios = require('axios');
-      const deleteUrl = `${supabaseUrl}/storage/v1/object/attachments/${path}`;
+      const deleteUrl = `${supabaseUrl}/storage/v1/object/attachments`;
       await axios.delete(deleteUrl, {
         headers: {
           'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          prefixes: [path]
         }
       });
-      console.log(`Successfully deleted file ${path} from Supabase Storage.`);
+      console.log(`Successfully deleted file/folder ${path} from Supabase Storage.`);
       return;
     }
 
