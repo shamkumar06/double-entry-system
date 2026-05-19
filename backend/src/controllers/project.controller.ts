@@ -103,12 +103,10 @@ export const getNotepad = async (req: Request, res: Response, next: NextFunction
     const projectId = req.params.projectId as string;
     const phaseId = (req.query.phaseId as string | undefined) || null;
 
-    const notepad = await (prisma as any).notepad.findUnique({
+    const notepad = await (prisma as any).notepad.findFirst({
       where: {
-        projectId_phaseId: {
-          projectId,
-          phaseId,
-        },
+        projectId,
+        phaseId,
       },
     });
 
@@ -122,20 +120,28 @@ export const saveNotepad = async (req: Request, res: Response, next: NextFunctio
     const phaseId = (req.body.phaseId as string | undefined) || null;
     const content = (req.body.content as string | undefined) || '';
 
-    const notepad = await (prisma as any).notepad.upsert({
+    const existing = await (prisma as any).notepad.findFirst({
       where: {
-        projectId_phaseId: {
-          projectId,
-          phaseId,
-        },
-      },
-      update: { content },
-      create: {
         projectId,
         phaseId,
-        content,
       },
     });
+
+    let notepad;
+    if (existing) {
+      notepad = await (prisma as any).notepad.update({
+        where: { id: existing.id },
+        data: { content },
+      });
+    } else {
+      notepad = await (prisma as any).notepad.create({
+        data: {
+          projectId,
+          phaseId,
+          content,
+        },
+      });
+    }
 
     res.json({ success: true, data: notepad.content });
   } catch (err) { next(err); }
