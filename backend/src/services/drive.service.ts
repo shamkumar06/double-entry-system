@@ -227,6 +227,29 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
 
       const axios = require('axios');
       const deleteUrl = `${supabaseUrl}/storage/v1/object/attachments`;
+      
+      let filesToDelete = [path];
+      if (path.startsWith('procurement/')) {
+        const folderSlug = path.replace('procurement/', '');
+        try {
+          const listUrl = `${supabaseUrl}/storage/v1/object/list/attachments`;
+          const listRes = await axios.post(listUrl, {
+            prefix: `procurement/${folderSlug}`
+          }, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`
+            }
+          });
+          const files = listRes.data || [];
+          if (files.length > 0) {
+            filesToDelete = files.map((f: any) => `procurement/${folderSlug}/${f.name}`);
+          }
+        } catch (listErr: any) {
+          console.warn("deleteFromDrive: failed to list files before delete, falling back to direct delete:", listErr.message);
+        }
+      }
+
       await axios.delete(deleteUrl, {
         headers: {
           'apikey': supabaseKey,
@@ -234,10 +257,10 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
           'Content-Type': 'application/json'
         },
         data: {
-          prefixes: [path]
+          prefixes: filesToDelete
         }
       });
-      console.log(`Successfully deleted file/folder ${path} from Supabase Storage.`);
+      console.log(`Successfully deleted file/folder contents ${filesToDelete.join(', ')} from Supabase Storage.`);
       return;
     }
 

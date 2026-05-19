@@ -1180,6 +1180,72 @@ select option, select optgroup {
     gap: 0.5rem !important;
   }
 }
+/* Component Desktop Layout & Padding Styles */
+.ledger-panel, .trial-balance-panel, .category-panel, .settings-panel, .attachments-panel, .journal-panel {
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.ledger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.ledger-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ledger-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.trial-balance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.attachments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 750px;
+  padding-bottom: 3rem;
+}
+
+.report-studio-container {
+  display: flex;
+  height: calc(100vh - 10rem);
+  background: var(--background);
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.report-studio-controls {
+  width: 400px;
+  min-width: 400px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
 
 /* Additional Comprehensive Mobile Overrides */
 @media (max-width: 768px) {

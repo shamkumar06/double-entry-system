@@ -1674,20 +1674,60 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', overflow: 'hidden', padding: '1rem' }}>
                   {/* Image Display */}
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
-                    {galleryPhotos[currentPhotoIndex] && (
-                      <img 
-                        src={procurementApi.getPhotoViewUrl(projectId, galleryPhotos[currentPhotoIndex].id)} 
-                        alt={galleryPhotos[currentPhotoIndex].name} 
-                        style={{ 
-                          maxWidth: '100%', 
-                          maxHeight: '52vh', 
-                          borderRadius: '16px', 
-                          objectFit: 'contain',
-                          boxShadow: '0 15px 40px rgba(0,0,0,0.6)',
-                          border: '1px solid rgba(255,255,255,0.08)'
-                        }} 
-                      />
-                    )}
+                    {galleryPhotos[currentPhotoIndex] && (() => {
+                      const photo = galleryPhotos[currentPhotoIndex];
+                      const isPdf = photo.name?.toLowerCase().endsWith('.pdf');
+                      const viewUrl = procurementApi.getPhotoViewUrl(projectId, photo.id);
+                      if (isPdf) {
+                        return (
+                          <>
+                            <div className="desktop-only" style={{ width: '100%' }}>
+                              <iframe 
+                                src={viewUrl} 
+                                title="PDF Viewer" 
+                                style={{ 
+                                  width: '100%', 
+                                  height: '52vh', 
+                                  border: 'none', 
+                                  borderRadius: '16px', 
+                                  background: '#fff',
+                                  boxShadow: '0 15px 40px rgba(0,0,0,0.6)'
+                                }} 
+                              />
+                            </div>
+                            <div className="mobile-only" style={{ width: '100%', padding: '2rem 1rem', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', boxSizing: 'border-box' }}>
+                              <div style={{ background: 'var(--primary)', padding: '1rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <FileText size={38} color="white" />
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <h4 style={{ color: 'white', fontSize: '1.05rem', fontWeight: 700 }}>PDF Document</h4>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', maxWidth: '280px', margin: '0 auto', lineHeight: 1.4 }}>
+                                  PDF previews are not available directly on mobile screens.
+                                </p>
+                              </div>
+                              <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem' }}>
+                                Open PDF Document
+                              </a>
+                            </div>
+                          </>
+                        );
+                      } else {
+                        return (
+                          <img 
+                            src={viewUrl} 
+                            alt={photo.name} 
+                            style={{ 
+                              maxWidth: '100%', 
+                              maxHeight: '52vh', 
+                              borderRadius: '16px', 
+                              objectFit: 'contain',
+                              boxShadow: '0 15px 40px rgba(0,0,0,0.6)',
+                              border: '1px solid rgba(255,255,255,0.08)'
+                            }} 
+                          />
+                        );
+                      }
+                    })()}
 
                     {/* Left Navigation Arrow */}
                     {galleryPhotos.length > 1 && (

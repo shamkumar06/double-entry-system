@@ -535,7 +535,25 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                         {/* Image / PDF view */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: '40vh' }}>
                             {current.isPdf ? (
-                                <iframe src={current.url} title="PDF Viewer" style={{ width: '100%', height: '70vh', border: 'none', borderRadius: '12px', background: '#fff' }} />
+                                <>
+                                    <div className="desktop-only" style={{ width: '100%' }}>
+                                        <iframe src={current.url} title="PDF Viewer" style={{ width: '100%', height: '70vh', border: 'none', borderRadius: '12px', background: '#fff' }} />
+                                    </div>
+                                    <div className="mobile-only" style={{ width: '100%', padding: '2rem 1.25rem', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', boxSizing: 'border-box' }}>
+                                        <div style={{ background: 'var(--primary)', padding: '1rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <FileText size={40} color="white" />
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <h4 style={{ color: 'white', fontSize: '1.1rem', fontWeight: 700 }}>PDF Attachment</h4>
+                                            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '280px', margin: '0 auto', lineHeight: 1.4 }}>
+                                                Previews cannot be displayed inside the app on mobile.
+                                            </p>
+                                        </div>
+                                        <a href={current.url} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.875rem' }}>
+                                            Open PDF Document
+                                        </a>
+                                    </div>
+                                </>
                             ) : (
                                 <img src={current.url} alt={current.description}
                                     style={{ maxHeight: '75vh', maxWidth: '100%', borderRadius: '12px', objectFit: 'contain', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}

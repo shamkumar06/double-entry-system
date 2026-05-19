@@ -209,7 +209,7 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
                     )}
                 </div>
 
-                <div className="phase-filter-sidebar" style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="phase-filter-sidebar" style={{ width: '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.5px' }}>
                         Phase Filter
                     </span>
