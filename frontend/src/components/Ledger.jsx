@@ -81,14 +81,14 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
     const normalBalance = ['ASSET', 'EXPENSE'].includes(accountType) ? 'DEBIT' : 'CREDIT';
 
     return (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="glass-panel ledger-panel">
+            <div className="ledger-header">
+                <div className="ledger-header-title">
                     <BookOpen color="var(--primary)" />
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Ledger Pages</h3>
                 </div>
                 
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div className="ledger-header-actions">
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Jump to Page:</span>
                     <select 
                         value={accountName}
@@ -102,7 +102,7 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
                 </div>
             </div>
 
-            <div className="phase-filter-container" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            <div className="phase-filter-container ledger-layout" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <h4 style={{ marginBottom: '1.5rem', color: 'var(--text-main)', fontSize: '1.5rem', textAlign: 'center' }}>
                         {accountName} Account
@@ -112,53 +112,88 @@ export default function Ledger({ projectId, projectName, phaseId, phaseName, acc
                         <p style={{ color: 'var(--text-muted)' }}>Loading ledger page...</p>
                     ) : entries.length === 0 ? (
                         <p style={{ color: 'var(--text-muted)' }}>No entries found for {accountName}.</p>
-                    ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                <thead>
-                                    <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--surface)' }}>
-                                        <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Date</th>
-                                        <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Description</th>
-                                        <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Phase</th>
-                                        <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Debit</th>
-                                        <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Credit</th>
-                                        <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Running Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {entries.map((entry) => (
-                                        <tr key={entry.id} style={{ borderBottom: '1px solid var(--border)' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                            <td style={{ padding: '0.875rem 1rem', whiteSpace: 'nowrap' }}>
-                                                {formatDate(entry.date)}
-                                            </td>
-                                            <td style={{ padding: '0.875rem 1rem', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                                {/* Strip the encoded metadata from description if legacy */}
-                                                {(entry.description || '').split('|')[0].trim() || '-'}
-                                            </td>
-                                            <td style={{ padding: '0.875rem 1rem' }}>
-                                                <span style={{ fontSize: '0.75rem', background: 'var(--surface-hover)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
-                                                    {/* Backend returns phaseName, not phase_name */}
-                                                    {entry.phaseName || 'Project'}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: entry.type === 'DEBIT' ? 600 : 400, color: entry.type === 'DEBIT' ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                                {/* Backend returns type: 'DEBIT' | 'CREDIT' */}
-                                                {entry.type === 'DEBIT' ? formatCurrency(Number(entry.amount)) : '-'}
-                                            </td>
-                                            <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: entry.type === 'CREDIT' ? 600 : 400, color: entry.type === 'CREDIT' ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                                                {entry.type === 'CREDIT' ? formatCurrency(Number(entry.amount)) : '-'}
-                                            </td>
-                                            <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 700, color: Number(entry.runningBalance) < 0 ? 'var(--danger)' : 'var(--success)' }}>
-                                                {/* Backend returns runningBalance, not running_balance */}
-                                                {formatCurrency(Number(entry.runningBalance) || 0)}
-                                            </td>
+                                        ) : (
+                        <>
+                            <div className="table-container desktop-only">
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--surface)' }}>
+                                            <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Date</th>
+                                            <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Description</th>
+                                            <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Phase</th>
+                                            <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Debit</th>
+                                            <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Credit</th>
+                                            <th style={{ padding: '0.75rem 1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase' }}>Running Balance</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        {entries.map((entry) => (
+                                            <tr key={entry.id} style={{ borderBottom: '1px solid var(--border)' }}
+                                                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-hover)'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                                <td style={{ padding: '0.875rem 1rem', whiteSpace: 'nowrap' }}>
+                                                    {formatDate(entry.date)}
+                                                </td>
+                                                <td style={{ padding: '0.875rem 1rem', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                                                    {/* Strip the encoded metadata from description if legacy */}
+                                                    {(entry.description || '').split('|')[0].trim() || '-'}
+                                                </td>
+                                                <td style={{ padding: '0.875rem 1rem' }}>
+                                                    <span style={{ fontSize: '0.75rem', background: 'var(--surface-hover)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
+                                                        {/* Backend returns phaseName, not phase_name */}
+                                                        {entry.phaseName || 'Project'}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: entry.type === 'DEBIT' ? 600 : 400, color: entry.type === 'DEBIT' ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                                                    {/* Backend returns type: 'DEBIT' | 'CREDIT' */}
+                                                    {entry.type === 'DEBIT' ? formatCurrency(Number(entry.amount)) : '-'}
+                                                </td>
+                                                <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: entry.type === 'CREDIT' ? 600 : 400, color: entry.type === 'CREDIT' ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                                                    {entry.type === 'CREDIT' ? formatCurrency(Number(entry.amount)) : '-'}
+                                                </td>
+                                                <td style={{ padding: '0.875rem 1rem', textAlign: 'right', fontWeight: 700, color: Number(entry.runningBalance) < 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                                    {/* Backend returns runningBalance, not running_balance */}
+                                                    {formatCurrency(Number(entry.runningBalance) || 0)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="mobile-only" style={{ width: '100%' }}>
+                                <div className="mobile-card-list">
+                                    {entries.map((entry) => {
+                                        const pureDesc = (entry.description || '').split('|')[0].trim() || '-';
+                                        const isDebit = entry.type === 'DEBIT';
+                                        const amountFormatted = formatCurrency(Number(entry.amount));
+                                        const balanceVal = Number(entry.runningBalance) || 0;
+                                        
+                                        return (
+                                            <div key={entry.id} className="mobile-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', padding: '0.75rem 0.85rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDate(entry.date)}</span>
+                                                    <span style={{ fontSize: '0.65rem', background: 'var(--surface-hover)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>
+                                                        {entry.phaseName || 'Project'}
+                                                    </span>
+                                                </div>
+                                                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {pureDesc}
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderTop: '1px solid var(--border)', paddingTop: '0.4rem', marginTop: '0.2rem' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: '0.8rem', color: isDebit ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                                                        {isDebit ? `Dr: ${amountFormatted}` : `Cr: ${amountFormatted}`}
+                                                    </span>
+                                                    <span style={{ fontWeight: 800, fontSize: '0.8rem', color: balanceVal < 0 ? 'var(--danger)' : 'var(--success)' }}>
+                                                        Bal: {formatCurrency(balanceVal)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
 

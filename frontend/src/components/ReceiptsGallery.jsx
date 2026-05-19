@@ -210,9 +210,9 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
           ];
 
     return (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
+        <div className="glass-panel attachments-panel">
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="attachments-header" style={{ marginBottom: '1.75rem', flexWrap: 'wrap' }}>
                 <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>
                         {activeTab === 'letters' ? '✉️ Phase Request Letters' : '🧾 Transaction Attachments'}
@@ -284,7 +284,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             </div>
 
             {/* Premium Glassmorphic Tabs */}
-            <div style={{ 
+            <div className="attachments-tab-bar" style={{ 
                 display: 'flex', 
                 gap: '0.5rem', 
                 background: 'rgba(255, 255, 255, 0.03)', 

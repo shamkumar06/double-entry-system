@@ -236,11 +236,11 @@ export default function Settings({ activeProject, onUpdate, user }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '750px', paddingBottom: '3rem' }}>
+    <div className="settings-container">
 
       {/* ── Phase Management ── */}
       {activeProject && (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
+        <div className="glass-panel settings-panel">
           <SectionHeader
             icon={<Layers size={20} />}
             color="var(--primary)"
@@ -306,7 +306,7 @@ export default function Settings({ activeProject, onUpdate, user }) {
 
       {/* ── User Management (Admin Only) ── */}
       {isAdmin && (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
+        <div className="glass-panel settings-panel">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <SectionHeader
               icon={<Users size={20} />}
@@ -459,9 +459,9 @@ export default function Settings({ activeProject, onUpdate, user }) {
       )}
 
       {/* ── Display Preferences ── */}
-      <div className="glass-panel" style={{ padding: '2rem' }}>
+      <div className="glass-panel settings-panel">
         <SectionHeader icon={<Calendar size={20} />} color="var(--secondary)" bg="rgba(16,185,129,0.1)" title="Display Preferences" />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+        <div className="settings-display-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Theme</label>
             <select value={settings.theme || 'light'} onChange={e => updateSettings({ theme: e.target.value })}>
@@ -487,7 +487,7 @@ export default function Settings({ activeProject, onUpdate, user }) {
       </div>
 
       {/* ── Currency ── */}
-      <div className="glass-panel" style={{ padding: '2rem' }}>
+      <div className="glass-panel settings-panel">
         <SectionHeader icon={<DollarSign size={20} />} color="var(--primary)" bg="rgba(79,70,229,0.1)" title="Currency & Region" />
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '220px' }}>
@@ -526,7 +526,7 @@ export default function Settings({ activeProject, onUpdate, user }) {
       </div>
 
       {/* ── Report Profile ── */}
-      <div className="glass-panel" style={{ padding: '2rem' }}>
+      <div className="glass-panel settings-panel">
         <SectionHeader icon={<User size={20} />} color="var(--danger)" bg="rgba(239,68,68,0.1)" title="Report Profile (Header Info)" />
         <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>

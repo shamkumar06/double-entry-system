@@ -774,7 +774,8 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
               </button>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', animation: 'fadeIn 0.3s ease-out' }}>
+            <>
+              <div className="procurement-table-container" style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', animation: 'fadeIn 0.3s ease-out' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}>
@@ -968,7 +969,161 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                 </tbody>
               </table>
             </div>
-          )}
+
+            {/* Mobile Procurement Cards */}
+            <div className="mobile-procurement-cards">
+              {items.map(item => {
+                const cgstVal = parseFloat(item.cgst) || 0;
+                const sgstVal = parseFloat(item.sgst) || 0;
+                const igstVal = parseFloat(item.igst) || 0;
+                const discVal = parseFloat(item.discount) || 0;
+
+                const baseEst = parseFloat(item.estimatedRate) * parseFloat(item.quantity) || 0;
+                const itemEst = item.status === 'CANCELLED' ? 0 : baseEst + cgstVal + sgstVal + igstVal - discVal;
+                
+                const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+                const baseAct = (hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity) || 0;
+                const itemAct = item.status === 'CANCELLED' ? 0 : baseAct + cgstVal + sgstVal + igstVal - discVal;
+
+                const phaseName = phasesList.find(p => p.id === item.phaseId)?.name || 'Independent';
+
+                return (
+                  <div key={item.id} className="mobile-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.85rem' }}>{item.materialName}</div>
+                        {item.vendorName && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{item.vendorName}</div>}
+                      </div>
+                      <span 
+                        style={{ 
+                          fontSize: '0.6rem', 
+                          fontWeight: 800, 
+                          padding: '0.2rem 0.4rem', 
+                          borderRadius: '6px', 
+                          background: 
+                            item.status === 'DELIVERED' ? 'rgba(16, 185, 129, 0.12)' :
+                            item.status === 'ORDERED' ? 'rgba(245, 158, 11, 0.12)' :
+                            item.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                          color: 
+                            item.status === 'DELIVERED' ? '#10b981' :
+                            item.status === 'ORDERED' ? '#f59e0b' :
+                            item.status === 'CANCELLED' ? '#ef4848' : '#3b82f6',
+                          border: 
+                            item.status === 'DELIVERED' ? '1px solid rgba(16, 185, 129, 0.2)' :
+                            item.status === 'ORDERED' ? '1px solid rgba(245, 158, 11, 0.2)' :
+                            item.status === 'CANCELLED' ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
+                        }}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', width: '100%' }}>
+                      <span>Stage:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{phaseName}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', width: '100%' }}>
+                      <span>Qty:</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{parseFloat(item.quantity)} {item.unit}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', width: '100%' }}>
+                      <span>Est. / Act. Rate:</span>
+                      <span style={{ color: 'var(--text-main)' }}>{formatCurrency(parseFloat(item.estimatedRate))} / <span style={{ color: item.actualRate ? 'var(--success)' : 'inherit' }}>{item.actualRate ? formatCurrency(parseFloat(item.actualRate)) : '—'}</span></span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', width: '100%' }}>
+                      <span>Total Cost:</span>
+                      <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(itemAct)}</span>
+                    </div>
+
+                    {item.notes && (
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', background: 'rgba(255,255,255,0.02)', padding: '0.25rem 0.5rem', borderRadius: '4px', width: '100%', boxSizing: 'border-box' }}>
+                        📝 {item.notes}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border)', width: '100%' }}>
+                      <button 
+                        onClick={() => openGallery(item)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          padding: '0.3rem 0.6rem',
+                          borderRadius: '8px',
+                          background: item.driveViewUrl ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                          border: item.driveViewUrl ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid var(--border)',
+                          color: item.driveViewUrl ? '#3b82f6' : 'var(--text-muted)',
+                          fontSize: '0.7rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <FolderOpen size={13} /> {item.driveViewUrl ? "Drive Files" : "Add Photos"}
+                      </button>
+
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        {item.status === 'DELIVERED' && onPrefillExpense && (
+                          <button 
+                            onClick={() => onPrefillExpense({
+                              description: `Procured: ${item.materialName}${item.vendorName ? ' from ' + item.vendorName : ''}`,
+                              amount: itemAct,
+                              phaseId: item.phaseId,
+                              driveFileId: item.driveFileId,
+                              procurementId: item.id
+                            })}
+                            style={{
+                              background: 'var(--primary)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '0.35rem 0.6rem',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.2rem'
+                            }}
+                          >
+                            Add Expense
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleOpenEdit(item)}
+                          style={{
+                            padding: '0.35rem 0.5rem',
+                            borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-main)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          style={{
+                            padding: '0.35rem 0.5rem',
+                            borderRadius: '8px',
+                            background: 'rgba(239, 68, 68, 0.05)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            color: '#ef4444',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
         </>
       )}
 

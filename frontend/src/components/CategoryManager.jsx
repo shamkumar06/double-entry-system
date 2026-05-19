@@ -119,14 +119,14 @@ export default function CategoryManager({ onRename, userRole }) {
     const typeColors = { Expense: '#ef4444', Asset: '#10b981', Liability: '#f59e0b', Revenue: '#818cf8', Equity: '#c084fc' };
 
     return (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
+        <div className="glass-panel category-panel">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
                 <Settings color="var(--primary)" />
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Account Categories</h3>
             </div>
 
             {/* Add new category */}
-            <form onSubmit={handleAdd} style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'flex-end' }}>
+            <form onSubmit={handleAdd} className="category-form" style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'flex-end' }}>
                 <div style={{ flex: 2 }}>
                     <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Category Name</label>
                     <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Labour, Materials, Office..." required />

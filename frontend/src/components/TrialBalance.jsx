@@ -59,8 +59,8 @@ export default function TrialBalance({ projectId, projectName, phaseId }) {
     }, [selectedPhaseId]);
 
     return (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <div className="glass-panel trial-balance-panel">
+            <div className="trial-balance-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <Scale color="var(--primary)" />
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Trial Balance</h3>
@@ -72,56 +72,84 @@ export default function TrialBalance({ projectId, projectName, phaseId }) {
                 )}
             </div>
 
-            <div className="phase-filter-container" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            <div className="phase-filter-container trial-balance-layout" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     {loading ? (
                         <p style={{ color: 'var(--text-muted)' }}>Loading balances...</p>
                     ) : !data || !data.accounts || data.accounts.length === 0 ? (
                         <p style={{ color: 'var(--text-muted)' }}>No accounts found.</p>
-                    ) : (
-                        <div style={{ overflowX: 'auto', marginBottom: '2rem' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                                <thead>
-                                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                                        <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Account Name</th>
-                                        <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)' }}>Debit Balance</th>
-                                        <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)' }}>Credit Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                                        ) : (
+                        <>
+                            <div className="table-container desktop-only" style={{ marginBottom: '2rem' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                            <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Account Name</th>
+                                            <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)' }}>Debit Balance</th>
+                                            <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)' }}>Credit Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.accounts.map(account => {
+                                            const netBalance = parseFloat(account.balance) || 0; 
+                                            const debitSide = netBalance >= 0 ? netBalance : null;
+                                            const creditSide = netBalance < 0 ? Math.abs(netBalance) : null;
+                                            
+                                            if(netBalance === 0) return null;
+                                            
+                                            return (
+                                                <tr key={account.code} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                    <td style={{ padding: '1rem', fontWeight: 500 }}>{account.name}</td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                        {debitSide !== null ? formatCurrency(debitSide) : '-'}
+                                                    </td>
+                                                    <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                                        {creditSide !== null ? formatCurrency(creditSide) : '-'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
+                                            <td style={{ padding: '1.5rem 1rem 1rem 1rem' }}>Total</td>
+                                            <td style={{ padding: '1.5rem 1rem 1rem 1rem', textAlign: 'right', color: 'var(--text-main)' }}>
+                                                {formatCurrency(data.totals?.totalDebits || 0)}
+                                            </td>
+                                            <td style={{ padding: '1.5rem 1rem 1rem 1rem', textAlign: 'right', color: 'var(--text-main)' }}>
+                                                {formatCurrency(data.totals?.totalCredits || 0)}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            <div className="mobile-only" style={{ width: '100%', marginBottom: '2rem' }}>
+                                <div className="mobile-card-list">
                                     {data.accounts.map(account => {
-                                        const netBalance = parseFloat(account.balance) || 0; 
-                                        const debitSide = netBalance >= 0 ? netBalance : null;
-                                        const creditSide = netBalance < 0 ? Math.abs(netBalance) : null;
-                                        
-                                        if(netBalance === 0) return null;
+                                        const netBalance = parseFloat(account.balance) || 0;
+                                        if (netBalance === 0) return null;
+                                        const isDebit = netBalance >= 0;
                                         
                                         return (
-                                            <tr key={account.code} style={{ borderBottom: '1px solid var(--border)' }}>
-                                                <td style={{ padding: '1rem', fontWeight: 500 }}>{account.name}</td>
-                                                <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                                    {debitSide !== null ? formatCurrency(debitSide) : '-'}
-                                                </td>
-                                                <td style={{ padding: '1rem', textAlign: 'right' }}>
-                                                    {creditSide !== null ? formatCurrency(creditSide) : '-'}
-                                                </td>
-                                            </tr>
+                                            <div key={account.code} className="mobile-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0.85rem' }}>
+                                                <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-main)' }}>{account.name}</span>
+                                                <span style={{ fontWeight: 800, fontSize: '0.8rem', color: isDebit ? 'var(--success)' : 'var(--danger)' }}>
+                                                    {formatCurrency(Math.abs(netBalance))} {isDebit ? 'Dr' : 'Cr'}
+                                                </span>
+                                            </div>
                                         );
                                     })}
-                                </tbody>
-                                <tfoot>
-                                    <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
-                                        <td style={{ padding: '1.5rem 1rem 1rem 1rem' }}>Total</td>
-                                        <td style={{ padding: '1.5rem 1rem 1rem 1rem', textAlign: 'right', color: 'var(--text-main)' }}>
-                                            {formatCurrency(data.totals?.totalDebits || 0)}
-                                        </td>
-                                        <td style={{ padding: '1.5rem 1rem 1rem 1rem', textAlign: 'right', color: 'var(--text-main)' }}>
-                                            {formatCurrency(data.totals?.totalCredits || 0)}
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid var(--border)', paddingTop: '0.75rem', fontWeight: 800, fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                                        <span style={{ color: 'var(--text-main)' }}>Total</span>
+                                        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                            <div style={{ color: 'var(--success)' }}>Dr: {formatCurrency(data.totals?.totalDebits || 0)}</div>
+                                            <div style={{ color: 'var(--danger)' }}>Cr: {formatCurrency(data.totals?.totalCredits || 0)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
 
