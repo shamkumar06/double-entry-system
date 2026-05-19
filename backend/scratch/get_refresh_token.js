@@ -1,6 +1,10 @@
 const { google } = require('googleapis');
 const http = require('http');
 const url = require('url');
+const path = require('path');
+
+// Automatically load environment variables from backend/.env
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const PORT = 3000;
 const REDIRECT_URI = `http://localhost:${PORT}/oauth2callback`;
