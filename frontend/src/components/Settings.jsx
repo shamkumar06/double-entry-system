@@ -318,15 +318,17 @@ export default function Settings({ activeProject, onUpdate, user }) {
               <button
                 onClick={fetchUsers}
                 title="Refresh users"
+                className="settings-refresh-btn"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer' }}
               >
-                <RefreshCw size={13} /> Refresh
+                <RefreshCw size={13} /> <span className="responsive-btn-text">Refresh</span>
               </button>
               <button
                 onClick={() => { setShowCreateUser(v => !v); setUserError(''); setUserSuccess(''); }}
+                className="settings-add-user-btn"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.4rem 0.9rem', borderRadius: '8px', background: 'var(--primary)', color: '#fff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', border: 'none' }}
               >
-                <Plus size={13} /> Add User
+                <Plus size={13} /> <span className="responsive-btn-text">Add User</span>
               </button>
             </div>
           </div>
