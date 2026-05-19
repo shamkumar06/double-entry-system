@@ -1067,3 +1067,116 @@ select option, select optgroup {
   background-color: var(--surface) !important;
   color: var(--text-main) !important;
 }
+
+/* Journal Component Responsive Styles */
+.journal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.journal-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.journal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.journal-search-container {
+  position: relative;
+}
+
+.journal-search-input {
+  padding: 0.5rem 1rem 0.5rem 2.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  width: 200px;
+  transition: all 0.2s ease;
+}
+
+.journal-search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  width: 240px;
+}
+
+.journal-panel {
+  padding: 2rem;
+}
+
+/* Mobile optimizations for Journal */
+@media (max-width: 768px) {
+  .journal-panel {
+    padding: 1rem !important;
+  }
+
+  .journal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    width: 100%;
+  }
+
+  .journal-header-title {
+    width: 100%;
+  }
+
+  .journal-header-actions {
+    width: 100%;
+    gap: 0.5rem;
+    justify-content: space-between;
+  }
+
+  .journal-search-container {
+    flex: 1;
+    width: 100%;
+  }
+
+  .journal-search-input {
+    width: 100% !important;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+  }
+
+  .journal-search-input:focus {
+    width: 100% !important;
+  }
+
+  .journal-recycle-btn {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8rem !important;
+    flex-shrink: 0;
+  }
+
+  .journal-layout {
+    flex-direction: column !important;
+    gap: 1rem !important;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .mobile-card-list {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .mobile-card {
+    box-sizing: border-box;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0.75rem !important;
+    gap: 0.5rem !important;
+  }
+}

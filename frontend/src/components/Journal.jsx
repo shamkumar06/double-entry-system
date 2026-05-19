@@ -88,28 +88,28 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
     }, [transactions, searchTerm]);
 
     return (
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="glass-panel journal-panel">
+            <div className="journal-header">
+                <div className="journal-header-title">
                     <FileText color="var(--primary)" />
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Journal (All Transactions)</h3>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div style={{ position: 'relative' }}>
+                <div className="journal-header-actions">
+                    <div className="journal-search-container">
                         <Search style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={16} />
                         <input 
                             type="text" 
                             placeholder="Search descriptions..." 
-                            className="filter-input"
-                            style={{ paddingLeft: '35px' }}
+                            className="journal-search-input"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <button 
                         onClick={() => setShowRecycleBin(true)}
+                        className="journal-recycle-btn"
                         style={{ 
-                            fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem',
                             padding: '0.5rem 1.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer'
                         }}
                     >
