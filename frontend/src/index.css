@@ -635,19 +635,30 @@ input:focus, select:focus, textarea:focus {
     left: 0;
     width: 100%;
     background: var(--glass-bg);
-    backdrop-filter: blur(40px) saturate(200%);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     border-bottom: 1px solid var(--border);
     z-index: 1000;
-    height: 50px; /* More compact */
-    padding: 0 1rem;
+    height: 58px; /* Standard premium height */
+    padding: 0 1.25rem; /* Premium breathing space */
     align-items: center;
     justify-content: space-between;
+    box-shadow: 0 4px 25px rgba(0,0,0,0.03);
+    transition: all 0.2s ease;
+  }
+
+  /* Compact on extremely small mobile screens */
+  @media (max-width: 375px) {
+    .mobile-header {
+      height: 50px;
+      padding: 0 0.75rem;
+    }
   }
 
   .main-content {
     padding: 1rem;
-    padding-top: 60px; /* Space for compact mobile header */
-    padding-bottom: 70px; /* Space for compact bottom nav */
+    padding-top: 72px; /* Perfect space for new mobile header height */
+    padding-bottom: 90px; /* Space for compact bottom nav */
     flex: 1;
     overflow-y: auto;
     position: relative;

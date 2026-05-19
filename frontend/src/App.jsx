@@ -60,11 +60,15 @@ function AppInner() {
 
   // Phase Quick Selector Dropdown
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
+  const [showMobilePhaseDropdown, setShowMobilePhaseDropdown] = useState(false);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (!e.target.closest('#phase-selector-dropdown-trigger')) {
         setShowPhaseDropdown(false);
+      }
+      if (!e.target.closest('#mobile-phase-selector-trigger')) {
+        setShowMobilePhaseDropdown(false);
       }
     };
     window.addEventListener('click', handleOutsideClick);
@@ -349,15 +353,166 @@ function AppInner() {
     <div className="app-container">
       {/* Mobile Top Bar */}
       <div className="mobile-header mobile-only">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button onClick={() => setIsSidebarOpen(true)} className="btn-circle-glass" style={{ border: 'none', background: 'none' }}>
-            <Menu size={24} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <button 
+            onClick={() => setIsSidebarOpen(true)} 
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              cursor: 'pointer',
+              color: 'var(--text-main)',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <Menu size={18} />
           </button>
-          <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--primary)' }}>{activeProject.name}</span>
+          <span style={{ 
+            fontWeight: 800, 
+            fontSize: '0.88rem', 
+            color: 'var(--text-main)',
+            maxWidth: '140px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {activeProject.name}
+          </span>
         </div>
-        <button onClick={() => setActivePhase(undefined)} className="btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', borderRadius: '20px' }}>
-          {activePhase?.name || 'All Phases'}
-        </button>
+
+        {/* Inline Mobile Phase Switcher Dropdown */}
+        <div style={{ position: 'relative', display: 'inline-block' }} id="mobile-phase-selector-trigger">
+          <div 
+            onClick={() => setShowMobilePhaseDropdown(prev => !prev)}
+            style={{ 
+              display: 'inline-flex', alignItems: 'center', gap: '0.35rem', 
+              padding: '0.35rem 0.65rem', borderRadius: '20px', 
+              background: isPhaseSettled ? 'rgba(16, 185, 129, 0.08)' : 'rgba(2, 132, 199, 0.08)', 
+              fontSize: '0.72rem', fontWeight: 700, 
+              color: isPhaseSettled ? 'var(--success)' : 'var(--primary)',
+              cursor: 'pointer',
+              border: '1px solid var(--border)',
+            }}
+          >
+            🔖 {activePhase?.name || 'All Phases'}
+            <div style={{ fontSize: '8px', opacity: 0.6 }}>▼</div>
+          </div>
+
+          {showMobilePhaseDropdown && (
+            <div style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              right: 0,
+              zIndex: 9999,
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '0.4rem',
+              minWidth: '180px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.2rem',
+              animation: 'fadeIn 0.15s ease-out'
+            }}>
+              <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', padding: '0.3rem 0.5rem', letterSpacing: '0.05em' }}>
+                Switch Phase
+              </div>
+              
+              {/* Option 1: All Phases */}
+              <button
+                onClick={() => {
+                  setActivePhase(null);
+                  setShowMobilePhaseDropdown(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.45rem 0.6rem',
+                  borderRadius: '8px',
+                  background: activePhase === null ? 'rgba(2, 132, 199, 0.08)' : 'transparent',
+                  border: 'none',
+                  color: activePhase === null ? 'var(--primary)' : 'var(--text-main)',
+                  fontSize: '0.72rem',
+                  fontWeight: activePhase === null ? 700 : 500,
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>📁 All Phases</span>
+                {activePhase === null && <CheckCircle size={10} color="var(--primary)" />}
+              </button>
+
+              {/* Option 2: Full Phase Screen */}
+              <button
+                onClick={() => {
+                  setActivePhase(undefined);
+                  setShowMobilePhaseDropdown(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.45rem 0.6rem',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  fontWeight: 500,
+                  width: '100%',
+                  textAlign: 'left',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>🎛️ Full Phase Screen</span>
+              </button>
+
+              <div style={{ height: '1px', background: 'var(--border)', margin: '0.2rem 0' }} />
+
+              {/* Options list */}
+              {phasesList.map(p => {
+                const isCurrent = activePhase?.id === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setActivePhase({ id: p.id, name: p.name });
+                      setShowMobilePhaseDropdown(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.45rem 0.6rem',
+                      borderRadius: '8px',
+                      background: isCurrent ? 'rgba(2, 132, 199, 0.08)' : 'transparent',
+                      border: 'none',
+                      color: isCurrent ? 'var(--primary)' : 'var(--text-main)',
+                      fontSize: '0.72rem',
+                      fontWeight: isCurrent ? 700 : 500,
+                      width: '100%',
+                      textAlign: 'left',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                      {p.isSettled ? '🔒 ' : '📂 '} {p.name}
+                    </span>
+                    {isCurrent && <CheckCircle size={10} color="var(--primary)" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0 }}>
