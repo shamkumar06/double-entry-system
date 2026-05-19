@@ -199,3 +199,15 @@ model ProcurementItem {
   @@index([phaseId])
   @@map("procurement_items")
 }
+
+model Notepad {
+  id        String   @id @default(uuid())
+  projectId String
+  phaseId   String?
+  content   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, phaseId])
+  @@map("notepads")
+}

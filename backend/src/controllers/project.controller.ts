@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as projectService from '../services/project.service';
+import prisma from '../lib/prisma';
 
 export const listProjects = async (_req: Request, res: Response, next: NextFunction) => {
   try {
@@ -94,5 +95,48 @@ export const reallocateSurplus = async (req: Request, res: Response, next: NextF
       sourcePhaseId as string
     );
     res.json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
+export const getNotepad = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const phaseId = (req.query.phaseId as string | undefined) || null;
+
+    const notepad = await (prisma.notepad as any).findUnique({
+      where: {
+        projectId_phaseId: {
+          projectId,
+          phaseId,
+        },
+      },
+    });
+
+    res.json({ success: true, data: notepad ? notepad.content : '' });
+  } catch (err) { next(err); }
+};
+
+export const saveNotepad = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.params.projectId as string;
+    const phaseId = (req.body.phaseId as string | undefined) || null;
+    const content = (req.body.content as string | undefined) || '';
+
+    const notepad = await (prisma.notepad as any).upsert({
+      where: {
+        projectId_phaseId: {
+          projectId,
+          phaseId,
+        },
+      },
+      update: { content },
+      create: {
+        projectId,
+        phaseId,
+        content,
+      },
+    });
+
+    res.json({ success: true, data: notepad.content });
   } catch (err) { next(err); }
 };

@@ -14,6 +14,8 @@ router.get('/', authenticate, project.listProjects);
 router.get('/:id', authenticate, project.getProject);
 router.get('/:projectId/phases', authenticate, project.listPhases);
 router.get('/:projectId/phase-financials', authenticate, project.getPhaseFinancials);
+router.get('/:projectId/notepad', authenticate, project.getNotepad);
+router.post('/:projectId/notepad', authenticate, project.saveNotepad);
 
 // Admin only
 router.post('/', authenticate, requireAdmin, project.createProject);

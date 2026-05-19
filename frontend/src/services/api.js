@@ -223,7 +223,17 @@ export const accountingApi = {
 
   // --- Recycle Bin (interceptor already unwraps { success, data } → data) ---
   listDeleted: (projectId) => api.get(`/accounting/journal/deleted?projectId=${projectId}`),
-  restoreTransaction: (id) => api.post(`/accounting/journal/${id}/restore`)
+  restoreTransaction: (id) => api.post(`/accounting/journal/${id}/restore`),
+
+  // --- Notepad Notes Synchronization ---
+  getNotepad: (projectId, phaseId = null) => {
+    let url = `/projects/${projectId}/notepad`;
+    if (phaseId) url += `?phaseId=${phaseId}`;
+    return api.get(url);
+  },
+  saveNotepad: (projectId, phaseId, content) => {
+    return api.post(`/projects/${projectId}/notepad`, { phaseId, content });
+  }
 };
 
 export const procurementApi = {

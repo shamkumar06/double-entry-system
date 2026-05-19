@@ -5,6 +5,7 @@ import { useProjectData } from '../context/ProjectDataContext';
 import UsageCircle from './UsageCircle';
 import EditOverviewModal from './EditOverviewModal';
 import { parseDescription } from '../utils/descriptionParser';
+import { accountingApi } from '../services/api';
 
 export default function Dashboard({ projectId, projectName, phaseId, phaseName, onSelectPhase, isSettledProp }) {
     const { formatCurrency } = useCurrency();
@@ -90,18 +91,36 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
 
     // Auto-saving Notepad state
     const [note, setNote] = useState('');
-    const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving'
+    const [saveStatus, setSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'failed'
 
-    // Load note for the specific project / phase
+    // Load note for the specific project / phase from DB (with LocalStorage fallback)
     useEffect(() => {
         if (!projectId) return;
+        
+        // 1. Instant load from LocalStorage fallback
         const key = `notepad-note-${projectId}-${phaseId || 'all'}`;
-        const savedNote = localStorage.getItem(key);
-        setNote(savedNote || '');
+        const cachedNote = localStorage.getItem(key);
+        setNote(cachedNote || '');
         setSaveStatus('saved');
+
+        // 2. Fetch fresh note from database
+        let active = true;
+        accountingApi.getNotepad(projectId, phaseId)
+            .then(dbContent => {
+                if (active) {
+                    setNote(dbContent || '');
+                    localStorage.setItem(key, dbContent || '');
+                    setSaveStatus('saved');
+                }
+            })
+            .catch(err => {
+                console.error('Failed to fetch synchronized notes:', err);
+            });
+
+        return () => { active = false; };
     }, [projectId, phaseId]);
 
-    // Auto-save logic on change with a 500ms debounce
+    // Auto-save logic with a 1000ms debounce
     const handleNoteChange = (e) => {
         const val = e.target.value;
         setNote(val);
@@ -110,11 +129,22 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
 
     useEffect(() => {
         if (!projectId) return;
+        
+        // Write to LocalStorage instantly
         const key = `notepad-note-${projectId}-${phaseId || 'all'}`;
-        const timer = setTimeout(() => {
-            localStorage.setItem(key, note);
-            setSaveStatus('saved');
-        }, 500);
+        localStorage.setItem(key, note);
+
+        // Debounce database sync
+        const timer = setTimeout(async () => {
+            try {
+                await accountingApi.saveNotepad(projectId, phaseId, note);
+                setSaveStatus('saved');
+            } catch (err) {
+                console.error('Failed to sync note to cloud:', err);
+                setSaveStatus('failed');
+            }
+        }, 1000);
+
         return () => clearTimeout(timer);
     }, [note, projectId, phaseId]);
 
@@ -677,9 +707,9 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                     <span style={{
                         fontSize: '0.68rem',
                         fontWeight: 700,
-                        color: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
-                        opacity: 0.85,
-                        background: saveStatus === 'saved' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(56, 189, 248, 0.1)',
+                        color: saveStatus === 'saved' ? 'var(--success)' : (saveStatus === 'failed' ? 'var(--danger)' : 'var(--accent)'),
+                        opacity: 0.9,
+                        background: saveStatus === 'saved' ? 'rgba(16, 185, 129, 0.1)' : (saveStatus === 'failed' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(56, 189, 248, 0.1)'),
                         padding: '4px 12px',
                         borderRadius: '20px',
                         display: 'inline-flex',
@@ -693,11 +723,11 @@ export default function Dashboard({ projectId, projectName, phaseId, phaseName, 
                             width: '6px',
                             height: '6px',
                             borderRadius: '50%',
-                            background: saveStatus === 'saved' ? 'var(--success)' : 'var(--accent)',
+                            background: saveStatus === 'saved' ? 'var(--success)' : (saveStatus === 'failed' ? 'var(--danger)' : 'var(--accent)'),
                             display: 'inline-block',
                             animation: saveStatus === 'saving' ? 'pulse 1s infinite' : 'none'
                         }} />
-                        {saveStatus === 'saved' ? 'All changes auto-saved' : 'Saving draft...'}
+                        {saveStatus === 'saved' ? 'Cloud Synced' : (saveStatus === 'failed' ? 'Saved Locally (Sync Error)' : 'Cloud Saving...')}
                     </span>
                 </div>
 
