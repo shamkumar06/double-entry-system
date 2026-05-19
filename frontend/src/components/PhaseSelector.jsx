@@ -28,6 +28,8 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
         isSettled: false
     });
     const [uploadingRequestLetter, setUploadingRequestLetter] = useState(false);
+    const [newPhaseLetters, setNewPhaseLetters] = useState([]);
+    const [editPhaseLetters, setEditPhaseLetters] = useState([]);
 
     // ── Custom Confirmation Dialog state ─────────────
     const [confirmDialog, setConfirmDialog] = useState({
@@ -165,20 +167,22 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
 
     useEffect(() => { fetchPhases(); }, [project.id]);
 
-    const handleRequestLetterChange = async (e, isEdit = false) => {
+    const handleAddRequestLetter = async (e, isEdit = false) => {
         const file = e.target.files[0];
         if (!file) return;
         setUploadingRequestLetter(true);
         try {
             const url = await accountingApi.uploadReceipt(file, 'letters');
+            const cleanName = file.name.substring(0, file.name.lastIndexOf('.')) || 'Request Letter';
+            const newDoc = { name: cleanName, url };
             if (isEdit) {
-                setEditData(prev => ({ ...prev, request_letter_url: url }));
+                setEditPhaseLetters(prev => [...prev, newDoc]);
             } else {
-                setNewPhase(prev => ({ ...prev, request_letter_url: url }));
+                setNewPhaseLetters(prev => [...prev, newDoc]);
             }
         } catch (err) {
             console.error("Upload error", err);
-            alert("Failed to upload request letter. " + (err?.error || err.message));
+            alert("Failed to upload document. " + (err?.error || err.message));
         } finally {
             setUploadingRequestLetter(false);
         }
@@ -210,7 +214,7 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                     receivedTo: newPhase.received_to.trim(),
                     paymentMode: newPhase.payment_mode,
                     reference: newPhase.reference.trim(),
-                    requestLetterUrl: newPhase.request_letter_url
+                    requestLetterUrl: newPhaseLetters.length > 0 ? JSON.stringify(newPhaseLetters) : ''
                 });
                 setNewPhase({ 
                     name: '', description: '', estimatedBudget: '',
@@ -219,6 +223,7 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                     payment_mode: 'Bank Transfer', reference: '',
                     request_letter_url: ''
                 });
+                setNewPhaseLetters([]);
                 setCreating(false);
                 await fetchPhases();
             } catch (err) {
@@ -273,10 +278,11 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                     receivedTo: editData.received_to.trim(),
                     paymentMode: editData.payment_mode,
                     reference: editData.reference.trim(),
-                    requestLetterUrl: editData.request_letter_url,
+                    requestLetterUrl: editPhaseLetters.length > 0 ? JSON.stringify(editPhaseLetters) : '',
                     isSettled: editData.isSettled
                 });
                 setEditingId(null);
+                setEditPhaseLetters([]);
                 await fetchPhases();
             } catch (err) {
                 console.error("Phase update error:", err);
@@ -304,6 +310,21 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
     const startEdit = (phase) => {
         setCreating(false);
         setEditingId(phase.id);
+        
+        let letters = [];
+        if (phase.requestLetterUrl) {
+            if (phase.requestLetterUrl.trim().startsWith('[')) {
+                try {
+                    letters = JSON.parse(phase.requestLetterUrl);
+                } catch (e) {
+                    letters = [{ name: 'Request Letter', url: phase.requestLetterUrl }];
+                }
+            } else {
+                letters = [{ name: 'Request Letter', url: phase.requestLetterUrl }];
+            }
+        }
+        setEditPhaseLetters(letters);
+
         setEditData({
             name: phase.name,
             description: phase.description || '',
@@ -511,28 +532,46 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                                 <div>
                                     <h3 style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>{phase.name}</h3>
                                     {phase.description && <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', lineClamp: 2, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical' }}>{phase.description}</p>}
-                                    {phase.requestLetterUrl && (
-                                        <div style={{ marginTop: '0.5rem' }}>
-                                            <a 
-                                                href={getImageUrl(phase.requestLetterUrl)} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer" 
-                                                style={{ 
-                                                    fontSize: '0.75rem', 
-                                                    color: 'var(--primary)', 
-                                                    textDecoration: 'none', 
-                                                    display: 'inline-flex', 
-                                                    alignItems: 'center', 
-                                                    gap: '0.25rem',
-                                                    fontWeight: 600
-                                                }}
-                                                onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
-                                                onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
-                                            >
-                                                📎 Request Letter
-                                            </a>
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        if (!phase.requestLetterUrl) return null;
+                                        let docs = [];
+                                        if (phase.requestLetterUrl.trim().startsWith('[')) {
+                                            try {
+                                                docs = JSON.parse(phase.requestLetterUrl);
+                                            } catch (e) {
+                                                docs = [{ name: 'Request Letter', url: phase.requestLetterUrl }];
+                                            }
+                                        } else {
+                                            docs = [{ name: 'Request Letter', url: phase.requestLetterUrl }];
+                                        }
+
+                                        return (
+                                            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                {docs.map((doc, idx) => (
+                                                    <div key={idx}>
+                                                        <a 
+                                                            href={getImageUrl(doc.url)} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer" 
+                                                            style={{ 
+                                                                fontSize: '0.75rem', 
+                                                                color: 'var(--primary)', 
+                                                                textDecoration: 'none', 
+                                                                display: 'inline-flex', 
+                                                                alignItems: 'center', 
+                                                                gap: '0.25rem',
+                                                                fontWeight: 600
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                                                            onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+                                                        >
+                                                            📎 {doc.name || 'Request Letter'}
+                                                        </a>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
 
                                 <div style={{ margin: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -746,32 +785,106 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                                             <input type="text" placeholder="Who received the funds?" value={editingId ? editData.received_to : newPhase.received_to} onChange={e => editingId ? setEditData({...editData, received_to: e.target.value}) : setNewPhase({...newPhase, received_to: e.target.value})} />
                                         </div>
                                         
-                                        {/* Request Letter Attachment */}
-                                        <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
-                                            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>Request Letter (Optional)</label>
+                                        {/* Request Letters / Documents Slots */}
+                                        <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                Request Letters / Documents
+                                            </label>
+                                            
+                                            {/* List of current documents */}
+                                            {((editingId ? editPhaseLetters : newPhaseLetters) || []).map((doc, idx) => (
+                                                <div key={idx} style={{ 
+                                                    display: 'flex', 
+                                                    alignItems: 'center', 
+                                                    gap: '0.5rem', 
+                                                    background: 'var(--surface-hover)', 
+                                                    padding: '0.5rem 0.75rem', 
+                                                    borderRadius: '10px', 
+                                                    border: '1px solid var(--border)' 
+                                                }}>
+                                                    <span style={{ fontSize: '1rem' }}>📄</span>
+                                                    <input 
+                                                        type="text" 
+                                                        value={doc.name} 
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            if (editingId) {
+                                                                setEditPhaseLetters(prev => prev.map((item, i) => i === idx ? { ...item, name: val } : item));
+                                                            } else {
+                                                                setNewPhaseLetters(prev => prev.map((item, i) => i === idx ? { ...item, name: val } : item));
+                                                            }
+                                                        }}
+                                                        placeholder="Document Label" 
+                                                        style={{ 
+                                                            flex: 1, 
+                                                            fontSize: '0.85rem', 
+                                                            padding: '0.35rem 0.6rem', 
+                                                            borderRadius: '6px', 
+                                                            border: '1px solid var(--border)', 
+                                                            background: 'var(--background)',
+                                                            color: 'var(--text-main)'
+                                                        }} 
+                                                    />
+                                                    <a 
+                                                        href={getImageUrl(doc.url)} 
+                                                        target="_blank" 
+                                                        rel="noreferrer" 
+                                                        style={{ 
+                                                            fontSize: '0.75rem', 
+                                                            color: 'var(--primary)', 
+                                                            textDecoration: 'underline', 
+                                                            padding: '0 0.5rem' 
+                                                        }}
+                                                    >
+                                                        View
+                                                    </a>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => {
+                                                            if (editingId) {
+                                                                setEditPhaseLetters(prev => prev.filter((_, i) => i !== idx));
+                                                            } else {
+                                                                setNewPhaseLetters(prev => prev.filter((_, i) => i !== idx));
+                                                            }
+                                                        }}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: 'var(--danger)', 
+                                                            cursor: 'pointer', 
+                                                            padding: '0.25rem', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center' 
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+
+                                            {/* File upload input to add a new slot */}
                                             <label style={{
-                                                display: 'block', padding: '0.6rem 1rem',
+                                                display: 'block', 
+                                                padding: '0.6rem 1rem',
                                                 background: 'var(--background)',
                                                 border: '1px dashed var(--border)',
-                                                borderRadius: '10px', color: 'var(--text-muted)',
-                                                fontSize: '0.85rem', fontWeight: 500,
-                                                cursor: 'pointer', textAlign: 'center',
+                                                borderRadius: '10px', 
+                                                color: 'var(--text-muted)',
+                                                fontSize: '0.85rem', 
+                                                fontWeight: 500,
+                                                cursor: 'pointer', 
+                                                textAlign: 'center',
                                                 transition: 'all 0.2s'
                                             }}>
-                                                <input type="file" accept="image/*,.pdf" onChange={e => handleRequestLetterChange(e, !!editingId)}
-                                                    disabled={uploadingRequestLetter} style={{ display: 'none' }} />
-                                                {uploadingRequestLetter ? '⏳ Uploading...' : (editingId ? editData.request_letter_url : newPhase.request_letter_url) ? '✅ Request Letter Attached' : '📎 Attach Request Letter'}
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/*,.pdf" 
+                                                    onChange={e => handleAddRequestLetter(e, !!editingId)}
+                                                    disabled={uploadingRequestLetter} 
+                                                    style={{ display: 'none' }} 
+                                                />
+                                                {uploadingRequestLetter ? '⏳ Uploading Document...' : '📎 Add Request Letter / Document'}
                                             </label>
-                                            {(editingId ? editData.request_letter_url : newPhase.request_letter_url) && (
-                                                <a 
-                                                    href={getImageUrl(editingId ? editData.request_letter_url : newPhase.request_letter_url)} 
-                                                    target="_blank" 
-                                                    rel="noreferrer" 
-                                                    style={{ display: 'block', fontSize: '0.75rem', marginTop: '0.35rem', color: 'var(--primary)', textDecoration: 'underline', textAlign: 'center' }}
-                                                >
-                                                    View Uploaded Request Letter
-                                                </a>
-                                            )}
                                         </div>
                                     </div>
                                 </div>

@@ -42,24 +42,37 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             // 1. Unpack Phase Request Letters
             phaseList.forEach(phase => {
                 if (phase.requestLetterUrl) {
-                    const url = getImageUrl(phase.requestLetterUrl);
-                    const isPdf = url?.toLowerCase().endsWith('.pdf');
-                    parsed.push({
-                        id: `${phase.id}-request-letter`,
-                        txId: null,
-                        tab: 'letters',
-                        url,
-                        isPdf,
-                        type: 'letter',
-                        suffix: 'Phase Request Letter',
-                        description: `Official Funding Request Letter for Stage: "${phase.name}"`,
-                        fromName: phase.receivedFrom || 'External Funder',
-                        toName: phase.receivedTo || 'Project Entity',
-                        amount: Number(phase.receivedAmount) || 0,
-                        accountName: 'Initial Funding Deposit',
-                        date: phase.createdAt || new Date(),
-                        phaseName: phase.name,
-                        phaseId: phase.id
+                    let docs = [];
+                    if (phase.requestLetterUrl.trim().startsWith('[')) {
+                        try {
+                            docs = JSON.parse(phase.requestLetterUrl);
+                        } catch (e) {
+                            docs = [{ name: 'Phase Request Letter', url: phase.requestLetterUrl }];
+                        }
+                    } else {
+                        docs = [{ name: 'Phase Request Letter', url: phase.requestLetterUrl }];
+                    }
+
+                    docs.forEach((doc, docIdx) => {
+                        const url = getImageUrl(doc.url);
+                        const isPdf = url?.toLowerCase().endsWith('.pdf');
+                        parsed.push({
+                            id: `${phase.id}-request-letter-${docIdx}`,
+                            txId: null,
+                            tab: 'letters',
+                            url,
+                            isPdf,
+                            type: 'letter',
+                            suffix: doc.name || 'Phase Request Letter',
+                            description: `Official Funding Request Letter for Stage: "${phase.name}"` + (doc.name ? ` (${doc.name})` : ''),
+                            fromName: phase.receivedFrom || 'External Funder',
+                            toName: phase.receivedTo || 'Project Entity',
+                            amount: Number(phase.receivedAmount) || 0,
+                            accountName: 'Initial Funding Deposit',
+                            date: phase.createdAt || new Date(),
+                            phaseName: phase.name,
+                            phaseId: phase.id
+                        });
                     });
                 }
             });
