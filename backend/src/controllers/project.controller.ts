@@ -103,7 +103,7 @@ export const getNotepad = async (req: Request, res: Response, next: NextFunction
     const projectId = req.params.projectId as string;
     const phaseId = (req.query.phaseId as string | undefined) || null;
 
-    const notepad = await (prisma.notepad as any).findUnique({
+    const notepad = await (prisma as any).notepad.findUnique({
       where: {
         projectId_phaseId: {
           projectId,
@@ -122,7 +122,7 @@ export const saveNotepad = async (req: Request, res: Response, next: NextFunctio
     const phaseId = (req.body.phaseId as string | undefined) || null;
     const content = (req.body.content as string | undefined) || '';
 
-    const notepad = await (prisma.notepad as any).upsert({
+    const notepad = await (prisma as any).notepad.upsert({
       where: {
         projectId_phaseId: {
           projectId,
