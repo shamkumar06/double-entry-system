@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Home, ChevronLeft, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Menu, X, Package } from 'lucide-react';
+import { Download, Home, ChevronLeft, ChevronRight, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Menu, X, Package } from 'lucide-react';
 import Journal from './components/Journal';
 import Ledger from './components/Ledger';
 import TrialBalance from './components/TrialBalance';
@@ -61,6 +61,13 @@ function AppInner() {
   // Phase Quick Selector Dropdown
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const [showMobilePhaseDropdown, setShowMobilePhaseDropdown] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebarCollapsed', isSidebarCollapsed);
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -515,26 +522,49 @@ function AppInner() {
         </div>
       </div>
 
-      <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0 }}>
+      <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0 }}>
         <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'none' }} className="mobile-close-btn">
            <button onClick={() => setIsSidebarOpen(false)}><X size={24} /></button>
         </div>
         <div className="sidebar-nav-content">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+            <div className="brand-header" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem', position: 'relative' }}>
                 {activeProject.logoUrl ? (
                     <img src={getImageUrl(activeProject.logoUrl)} alt="Logo" style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '4px' }} />
                 ) : (
                     <FolderOpen color="var(--primary)" size={24} />
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="nav-label" style={{ flex: 1, minWidth: 0 }}>
                     <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.3, wordBreak: 'break-word' }}>{activeProject.name}</h2>
                     <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '1px' }}>{activeProject.description || 'Accounting'}</p>
                 </div>
+                <button 
+                  onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                  className="sidebar-toggle-btn desktop-only"
+                  title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '6px',
+                    background: 'var(--surface-hover)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    transition: 'all 0.2s ease',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  {isSidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+                </button>
             </div>
           {/* Phase Switcher (Interactive Dropdown Badge) */}
           <div style={{ position: 'relative', display: 'inline-block' }} id="phase-selector-dropdown-trigger">
             <div 
               onClick={() => setShowPhaseDropdown(prev => !prev)}
+              className="phase-badge"
               style={{ 
                 display: 'inline-flex', alignItems: 'center', gap: '0.4rem', 
                 padding: '0.25rem 0.65rem', borderRadius: '8px', 
@@ -555,8 +585,8 @@ function AppInner() {
               }}
               title="Click to Switch Phase inline"
             >
-              🔖 {activePhase?.name || 'All Phases'}
-              {isPhaseSettled ? <Lock size={10} /> : <div style={{ fontSize: '9px', opacity: 0.6 }}>▼</div>}
+              🔖 <span className="nav-label">{activePhase?.name || 'All Phases'}</span>
+              {isPhaseSettled ? <Lock size={10} /> : <div className="nav-label" style={{ fontSize: '9px', opacity: 0.6 }}>▼</div>}
             </div>
 
             {showPhaseDropdown && (
@@ -687,30 +717,30 @@ function AppInner() {
 
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '1.25rem' }}>
-            <button style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); setIsSidebarOpen(false); }}><Activity size={18} /> Overview</button>
-            <button style={navActive('Journal')} onClick={() => { setActiveTab('Journal'); setIsSidebarOpen(false); }}><Book size={18} /> Journal</button>
-            <button style={navActive('Ledger')} onClick={() => { setActiveTab('Ledger'); setIsSidebarOpen(false); }}><Layers size={18} /> Ledger</button>
-            <button style={navActive('Trial Balance')} onClick={() => { setActiveTab('Trial Balance'); setIsSidebarOpen(false); }}><Scale size={18} /> Trial Balance</button>
-            <button style={navActive('Reports')} onClick={() => { setActiveTab('Reports'); setIsSidebarOpen(false); }}><FileText size={18} /> Reports</button>
-            <button style={navActive('Attachments')} onClick={() => { setActiveTab('Attachments'); setIsSidebarOpen(false); }}><Image size={18} /> Attachments</button>
-            <button style={navActive('Procurement')} onClick={() => { setActiveTab('Procurement'); setIsSidebarOpen(false); }}><Package size={18} /> Procurement</button>
+            <button className="sidebar-nav-btn" style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); setIsSidebarOpen(false); }}><Activity size={18} /> <span className="nav-label">Overview</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Journal')} onClick={() => { setActiveTab('Journal'); setIsSidebarOpen(false); }}><Book size={18} /> <span className="nav-label">Journal</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Ledger')} onClick={() => { setActiveTab('Ledger'); setIsSidebarOpen(false); }}><Layers size={18} /> <span className="nav-label">Ledger</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Trial Balance')} onClick={() => { setActiveTab('Trial Balance'); setIsSidebarOpen(false); }}><Scale size={18} /> <span className="nav-label">Trial Balance</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Reports')} onClick={() => { setActiveTab('Reports'); setIsSidebarOpen(false); }}><FileText size={18} /> <span className="nav-label">Reports</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Attachments')} onClick={() => { setActiveTab('Attachments'); setIsSidebarOpen(false); }}><Image size={18} /> <span className="nav-label">Attachments</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Procurement')} onClick={() => { setActiveTab('Procurement'); setIsSidebarOpen(false); }}><Package size={18} /> <span className="nav-label">Procurement</span></button>
             
-            <div style={{ height: '1px', background: 'var(--border)', margin: '1rem 0.5rem' }} />
-            <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 1rem 0.4rem' }}>Management</p>
+            <div className="nav-divider" style={{ height: '1px', background: 'var(--border)', margin: '1rem 0.5rem' }} />
+            <p className="nav-label" style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0 1rem 0.4rem' }}>Management</p>
             
-            <button style={navActive('Categories')} onClick={() => { setActiveTab('Categories'); setIsSidebarOpen(false); }}><SettingsIcon size={18} /> Categories</button>
-            <button style={navActive('Settings')} onClick={() => { setActiveTab('Settings'); setIsSidebarOpen(false); }}><User size={18} /> Settings</button>
+            <button className="sidebar-nav-btn" style={navActive('Categories')} onClick={() => { setActiveTab('Categories'); setIsSidebarOpen(false); }}><SettingsIcon size={18} /> <span className="nav-label">Categories</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Settings')} onClick={() => { setActiveTab('Settings'); setIsSidebarOpen(false); }}><User size={18} /> <span className="nav-label">Settings</span></button>
           </div>
         </div>
         
         {/* Sticky Profile Section - Edge-to-edge */}
-        <div style={{ 
+        <div className="sidebar-profile" style={{ 
             background: 'var(--glass-bg)', 
             borderTop: '1px solid var(--border)', 
             padding: '0.75rem 1.25rem',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
-          <div style={{ overflow: 'hidden' }}>
+          <div className="nav-label" style={{ overflow: 'hidden' }}>
             <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{user?.name || user?.email?.split('@')[0] || 'User'}</p>
             <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '1px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>{user?.role || 'VIEWER'}</p>
           </div>
