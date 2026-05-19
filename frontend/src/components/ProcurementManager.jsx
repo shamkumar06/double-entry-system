@@ -46,6 +46,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [uploadingExtra, setUploadingExtra] = useState(false);
   const [galleryError, setGalleryError] = useState('');
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -124,6 +125,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
 
   const openGallery = async (item) => {
     setGalleryItem(item);
+    setLightboxOpen(false);
     setGalleryPhotos([]);
     setGalleryLoading(true);
     setCurrentPhotoIndex(0);
@@ -174,6 +176,9 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
       const res = await procurementApi.deletePhoto(projectId, galleryItem.id, photoId);
       if (res && res.photos) {
         setGalleryPhotos(res.photos);
+        if (res.photos.length === 0) {
+          setLightboxOpen(false);
+        }
         // Adjust index if we deleted the last file or the selected file
         setCurrentPhotoIndex(prev => {
           if (prev >= res.photos.length) {
@@ -268,314 +273,647 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
 
   return (
     <div style={{ animation: 'fadeIn 0.4s ease-out' }}>
-      {/* Visual Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Package size={28} color="var(--primary)" />
-            Procurement & Material Tracker
-          </h2>
-          <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            Manage delivery photos and invoices stored securely in your Google Drive folder
-          </p>
-        </div>
+      {galleryItem && !lightboxOpen ? (
+        <div style={{ animation: 'fadeIn 0.4s ease-out', width: '100%' }}>
+          {/* Breadcrumb / Navigation */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+            <button 
+              onClick={() => setGalleryItem(null)} 
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                color: 'var(--text-muted)', 
+                fontSize: '0.85rem',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                width: 'fit-content',
+                outline: 'none'
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--primary)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+            >
+              <ChevronLeft size={16} /> Back to Pipeline
+            </button>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <FolderOpen size={28} color="var(--primary)" />
+                  {galleryItem.materialName} Folder Assets
+                </h2>
+                {galleryItem.vendorName && (
+                  <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Vendor: <strong>{galleryItem.vendorName}</strong> | Phase: <strong>{phasesList.find(p => p.id === galleryItem.phaseId)?.name || 'Independent'}</strong>
+                  </p>
+                )}
+              </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <select 
-            value={filterPhaseId} 
-            onChange={(e) => setFilterPhaseId(e.target.value)}
-            style={{ 
-              padding: '0.6rem 1rem', 
-              background: 'var(--surface)', 
-              border: '1px solid var(--border)', 
-              borderRadius: '12px', 
-              color: 'var(--text-main)', 
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              outline: 'none'
-            }}
-          >
-            <option value="all">📁 All Phases</option>
-            {phasesList.map(p => (
-              <option key={p.id} value={p.id}>📂 {p.name}</option>
-            ))}
-          </select>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <input 
+                  type="file" 
+                  id="gallery-grid-upload-input" 
+                  multiple 
+                  accept="image/*"
+                  onChange={handleUploadExtraPhotos} 
+                  style={{ display: 'none' }} 
+                />
+                <button 
+                  onClick={() => document.getElementById('gallery-grid-upload-input').click()}
+                  disabled={uploadingExtra}
+                  className="btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.25rem', borderRadius: '12px', fontWeight: 700 }}
+                >
+                  {uploadingExtra ? (
+                    <>
+                      <Loader2 size={16} className="spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} />
+                      Add Extra Photos
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
 
-          <button onClick={handleOpenAdd} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.1rem', borderRadius: '12px', fontWeight: 700 }}>
-            <Plus size={16} /> Add Material
-          </button>
-        </div>
-      </div>
+          {/* Error Notice */}
+          {galleryError && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '0.85rem', marginBottom: '1.5rem', fontWeight: 600 }}>
+              ⚠️ {galleryError}
+            </div>
+          )}
 
-      {/* Visual Stats Overview */}
-      <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-        <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Estimated Budget</span>
-            <Layers size={18} color="var(--primary)" />
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.5rem' }}>
-            {formatCurrency(totalEstimatedCost)}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            For {items.length} items in pipeline
-          </div>
-        </div>
+          {/* Loader or Photo Card Grid */}
+          {galleryLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', background: 'var(--glass-bg)', borderRadius: '24px', border: '1px solid var(--border)' }}>
+              <Loader2 size={40} className="spin" color="var(--primary)" />
+              <p style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Fetching folder photos...</p>
+            </div>
+          ) : galleryPhotos.length === 0 ? (
+            <div className="glass-panel animate-in" style={{ padding: '4rem 2rem', borderRadius: '24px', textAlign: 'center', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
+              <Image size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>No Photos inside this Folder</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '380px', margin: '0.5rem auto 1.5rem auto' }}>
+                Store receipts, delivery challans, and material photos securely in this dedicated Google Drive folder.
+              </p>
+              <button 
+                onClick={() => document.getElementById('gallery-grid-upload-input').click()} 
+                className="btn-primary" 
+                style={{ padding: '0.6rem 1.2rem', borderRadius: '12px' }}
+              >
+                Upload First Photo
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(285px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+              {galleryPhotos.map((photo, idx) => (
+                <div 
+                  key={photo.id}
+                  className="glass-panel animate-in"
+                  style={{
+                    borderRadius: '24px',
+                    overflow: 'hidden',
+                    border: '1px solid var(--border)',
+                    background: 'var(--glass-bg)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)',
+                    position: 'relative'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-6px)';
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.boxShadow = '0 12px 30px rgba(59, 130, 246, 0.15)';
+                    const overlay = e.currentTarget.querySelector('.photo-overlay');
+                    if (overlay) overlay.style.opacity = 1;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                    const overlay = e.currentTarget.querySelector('.photo-overlay');
+                    if (overlay) overlay.style.opacity = 0;
+                  }}
+                  onClick={() => {
+                    setCurrentPhotoIndex(idx);
+                    setLightboxOpen(true);
+                  }}
+                >
+                  {/* Card Photo Preview */}
+                  <div style={{ position: 'relative', width: '100%', height: '180px', overflow: 'hidden', background: '#090d16' }}>
+                    <img 
+                      src={procurementApi.getPhotoViewUrl(projectId, photo.id)} 
+                      alt={photo.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    />
+                    
+                    {/* Source Tag */}
+                    <span 
+                      style={{ 
+                        position: 'absolute', 
+                        top: '12px', 
+                        left: '12px', 
+                        fontSize: '0.65rem', 
+                        fontWeight: 800, 
+                        padding: '0.25rem 0.55rem', 
+                        borderRadius: '8px', 
+                        background: 'rgba(15, 23, 42, 0.75)', 
+                        backdropFilter: 'blur(8px)', 
+                        color: photo.source === 'google' ? '#10b981' : '#3b82f6', 
+                        border: '1px solid rgba(255, 255, 255, 0.08)' 
+                      }}
+                    >
+                      {photo.source === 'google' ? '📁 Google Drive' : '☁️ Supabase'}
+                    </span>
 
-        <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Delivered / Spent Cost</span>
-            <DollarSign size={18} color="var(--success)" />
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.5rem' }}>
-            {formatCurrency(totalActualCost)}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Total actual cost of successfully arrived materials
-          </div>
-        </div>
-
-
-        <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Active Orders</span>
-            <Package size={18} color="var(--warning)" />
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--warning)', marginTop: '0.5rem' }}>
-            {activeOrdersCount}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Planning & Ordered status
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Delivered Materials</span>
-            <CheckCircle size={18} color="var(--primary)" />
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.5rem' }}>
-            {deliveredOrdersCount} / {items.length}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Successfully arrived on site
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid View */}
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
-          <Loader2 size={40} className="spin" color="var(--primary)" />
-          <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>Fetching Google Drive assets...</p>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '4rem 2rem', borderRadius: '24px', textAlign: 'center', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
-          <Package size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>No Procurement Items Found</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '380px', margin: '0.5rem auto 1.5rem auto' }}>
-            Track materials independently here. All files will be uploaded and stored directly in your private Google Drive.
-          </p>
-          <button onClick={handleOpenAdd} className="btn-primary" style={{ padding: '0.6rem 1.2rem', borderRadius: '12px' }}>
-            Create Your First Item
-          </button>
-        </div>
-      ) : (
-        <div style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', animation: 'fadeIn 0.3s ease-out' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Material & Vendor</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Phase</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Quantity</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Est. Rate</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Act. Rate</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Total Cost</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Status</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center' }}>Drive Folder</th>
-                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => {
-                const cgstVal = parseFloat(item.cgst) || 0;
-                const sgstVal = parseFloat(item.sgst) || 0;
-                const igstVal = parseFloat(item.igst) || 0;
-                const discVal = parseFloat(item.discount) || 0;
-
-                const baseEst = parseFloat(item.estimatedRate) * parseFloat(item.quantity) || 0;
-                const itemEst = item.status === 'CANCELLED' ? 0 : baseEst + cgstVal + sgstVal + igstVal - discVal;
-                
-                const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
-                const baseAct = (hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity) || 0;
-                const itemAct = item.status === 'CANCELLED' ? 0 : baseAct + cgstVal + sgstVal + igstVal - discVal;
-
-                const phaseName = phasesList.find(p => p.id === item.phaseId)?.name || 'Independent';
-
-                return (
-                  <tr 
-                    key={item.id} 
-                    style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.01)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <td style={{ padding: '1rem 1.25rem' }}>
-                      <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>{item.materialName}</div>
-                      {item.vendorName && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.vendorName}</div>}
-                      
-                      {/* Taxes & Discounts Badges */}
-                      {(cgstVal > 0 || sgstVal > 0 || igstVal > 0 || discVal > 0) && (
-                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
-                          {cgstVal > 0 && (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
-                              CGST: {formatCurrency(cgstVal)}
-                            </span>
-                          )}
-                          {sgstVal > 0 && (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
-                              SGST: {formatCurrency(sgstVal)}
-                            </span>
-                          )}
-                          {igstVal > 0 && (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(139, 92, 246, 0.08)', color: '#8b5cf6', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.15)' }}>
-                              IGST: {formatCurrency(igstVal)}
-                            </span>
-                          )}
-                          {discVal > 0 && (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
-                              Disc: -{formatCurrency(discVal)}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      
-                      {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.25rem' }}>📝 {item.notes}</div>}
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)', fontWeight: 600 }}>
-                      <span style={{ padding: '0.25rem 0.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', fontSize: '0.75rem' }}>
-                        📁 {phaseName}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)', fontWeight: 700 }}>
-                      {parseFloat(item.quantity)} <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.75rem' }}>{item.unit}</span>
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)' }}>
-                      {formatCurrency(parseFloat(item.estimatedRate))}
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem', color: item.actualRate ? 'var(--success)' : 'var(--text-muted)' }}>
-                      {item.actualRate ? formatCurrency(parseFloat(item.actualRate)) : '—'}
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem' }}>
-                      <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(itemAct)}</div>
-                      {itemAct !== itemEst && (
-                        <div style={{ fontSize: '0.65rem', color: itemAct > itemEst ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
-                          {itemAct > itemEst ? '▲' : '▼'} {formatCurrency(Math.abs(itemAct - itemEst))}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem' }}>
+                    {/* Hover Image Overlay */}
+                    <div 
+                      className="photo-overlay" 
+                      style={{ 
+                        position: 'absolute', 
+                        inset: 0, 
+                        background: 'rgba(15, 23, 42, 0.55)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        opacity: 0, 
+                        transition: 'opacity 0.25s ease', 
+                        backdropFilter: 'blur(3px)' 
+                      }}
+                    >
                       <span 
                         style={{ 
-                          fontSize: '0.65rem', 
+                          fontSize: '0.75rem', 
                           fontWeight: 800, 
-                          padding: '0.3rem 0.6rem', 
-                          borderRadius: '8px', 
-                          letterSpacing: '0.05em',
-                          background: 
-                            item.status === 'DELIVERED' ? 'rgba(16, 185, 129, 0.12)' :
-                            item.status === 'ORDERED' ? 'rgba(245, 158, 11, 0.12)' :
-                            item.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
-                          color: 
-                            item.status === 'DELIVERED' ? '#10b981' :
-                            item.status === 'ORDERED' ? '#f59e0b' :
-                            item.status === 'CANCELLED' ? '#ef4848' : '#3b82f6',
-                          border: 
-                            item.status === 'DELIVERED' ? '1px solid rgba(16, 185, 129, 0.2)' :
-                            item.status === 'ORDERED' ? '1px solid rgba(245, 158, 11, 0.2)' :
-                            item.status === 'CANCELLED' ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
+                          color: '#fff', 
+                          background: '#3b82f6', 
+                          padding: '0.45rem 0.85rem', 
+                          borderRadius: '10px', 
+                          boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)' 
                         }}
                       >
-                        {item.status}
+                        Preview Image ➔
                       </span>
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
-                      <button 
-                        onClick={() => openGallery(item)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '0.5rem',
-                          borderRadius: '10px',
-                          background: item.driveViewUrl ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)',
-                          border: item.driveViewUrl ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid var(--border)',
-                          color: item.driveViewUrl ? '#3b82f6' : 'var(--text-muted)',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'scale(1.1)';
-                          if (item.driveViewUrl) {
-                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                          } else {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'scale(1)';
-                          e.currentTarget.style.background = item.driveViewUrl ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)';
-                        }}
-                        title={item.driveViewUrl ? "Open Gallery & Folder Viewer" : "Create Folder / Add Photos"}
-                      >
-                        <FolderOpen size={18} fill={item.driveViewUrl ? "rgba(59, 130, 246, 0.2)" : "transparent"} />
-                      </button>
-                    </td>
-                    <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
-                        {item.status === 'DELIVERED' && onPrefillExpense && (
-                          <button 
-                            onClick={() => onPrefillExpense({
-                              description: `Procurement: ${item.materialName} (${parseFloat(item.quantity)} ${item.unit})`,
-                              amount: itemAct,
-                              actualAmount: baseAct,
-                              cgst: parseFloat(item.cgst) || 0,
-                              sgst: parseFloat(item.sgst) || 0,
-                              igst: parseFloat(item.igst) || 0,
-                              discount: parseFloat(item.discount) || 0,
-                              attachmentUrl: item.driveViewUrl,
-                              phaseId: item.phaseId
-                            })}
-                            className="btn-primary" 
-                            style={{ padding: '0.35rem 0.75rem', borderRadius: '10px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'linear-gradient(135deg, var(--success) 0%, #059669 100%)', border: 'none', fontWeight: 800 }}
-                          >
-                            🧾 Book expense
-                          </button>
-                        )}
+                    </div>
+                  </div>
 
-                        <button 
-                          onClick={() => handleOpenEdit(item)}
-                          style={{ padding: '0.45rem', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}
-                          title="Edit Item"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-
-                        <button 
-                          onClick={() => handleDelete(item.id)}
-                          style={{ padding: '0.45rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: 'var(--danger)', cursor: 'pointer' }}
-                          title="Delete Item"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                  {/* Metadata fields */}
+                  <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flex: 1 }}>
+                    <div 
+                      style={{ 
+                        fontWeight: 800, 
+                        color: 'var(--text-main)', 
+                        fontSize: '0.85rem', 
+                        wordBreak: 'break-all', 
+                        display: '-webkit-box', 
+                        WebkitBoxOrient: 'vertical', 
+                        WebkitLineClamp: 2, 
+                        overflow: 'hidden', 
+                        lineHeight: 1.4 
+                      }}
+                    >
+                      {photo.name}
+                    </div>
+                    
+                    <div 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '0.35rem', 
+                        fontSize: '0.7rem', 
+                        color: 'var(--text-muted)', 
+                        marginTop: 'auto', 
+                        borderTop: '1px solid var(--border)', 
+                        paddingTop: '0.75rem' 
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Uploaded On</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                          {photo.createdTime ? new Date(photo.createdTime).toLocaleString() : '—'}
+                        </span>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>File Size</span>
+                        <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                          {formatBytes(photo.size)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
 
+                  {/* Direct download / delete actions */}
+                  <div 
+                    style={{ padding: '0 1.25rem 1.25rem 1.25rem', display: 'flex', gap: '0.5rem' }} 
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <a 
+                      href={procurementApi.getPhotoDownloadUrl(projectId, photo.id)}
+                      download
+                      style={{ 
+                        flex: 1, 
+                        padding: '0.5rem', 
+                        borderRadius: '8px', 
+                        border: '1px solid var(--border)', 
+                        background: 'rgba(255, 255, 255, 0.02)', 
+                        color: 'var(--text-main)', 
+                        fontSize: '0.7rem', 
+                        fontWeight: 700, 
+                        textDecoration: 'none', 
+                        textAlign: 'center', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: '0.25rem',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
+                    >
+                      <Download size={12} /> Download
+                    </a>
+                    
+                    <button
+                      onClick={() => handleDeletePhoto(photo.id)}
+                      style={{ 
+                        flex: 1, 
+                        padding: '0.5rem', 
+                        borderRadius: '8px', 
+                        border: '1px solid rgba(239, 68, 68, 0.2)', 
+                        background: 'rgba(239, 68, 68, 0.05)', 
+                        color: '#ef4444', 
+                        fontSize: '0.7rem', 
+                        fontWeight: 700, 
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.25rem',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Dashed "+ Add Photo" Card */}
+              <div 
+                className="glass-panel animate-in" 
+                style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '1rem', 
+                  border: '2px dashed var(--border)', 
+                  borderRadius: '24px', 
+                  cursor: 'pointer', 
+                  minHeight: '300px', 
+                  transition: 'all 0.2s', 
+                  color: 'var(--text-muted)',
+                  background: 'rgba(255, 255, 255, 0.01)'
+                }}
+                onClick={() => document.getElementById('gallery-grid-upload-input').click()}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.background = 'var(--surface-hover)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.01)'; }}
+              >
+                {uploadingExtra ? (
+                  <>
+                    <Loader2 size={32} className="spin" color="var(--primary)" />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Uploading Photos...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus size={32} />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Add Extra Photos</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Visual Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Package size={28} color="var(--primary)" />
+                Procurement & Material Tracker
+              </h2>
+              <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                Manage delivery photos and invoices stored securely in your Google Drive folder
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <select 
+                value={filterPhaseId} 
+                onChange={(e) => setFilterPhaseId(e.target.value)}
+                style={{ 
+                  padding: '0.6rem 1rem', 
+                  background: 'var(--surface)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: '12px', 
+                  color: 'var(--text-main)', 
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }}
+              >
+                <option value="all">📁 All Phases</option>
+                {phasesList.map(p => (
+                  <option key={p.id} value={p.id}>📂 {p.name}</option>
+                ))}
+              </select>
+
+              <button onClick={handleOpenAdd} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.1rem', borderRadius: '12px', fontWeight: 700 }}>
+                <Plus size={16} /> Add Material
+              </button>
+            </div>
+          </div>
+
+          {/* Visual Stats Overview */}
+          <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Total Estimated Budget</span>
+                <Layers size={18} color="var(--primary)" />
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.5rem' }}>
+                {formatCurrency(totalEstimatedCost)}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                For {items.length} items in pipeline
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Delivered / Spent Cost</span>
+                <DollarSign size={18} color="var(--success)" />
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.5rem' }}>
+                {formatCurrency(totalActualCost)}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Total actual cost of successfully arrived materials
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Active Orders</span>
+                <Package size={18} color="var(--warning)" />
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--warning)', marginTop: '0.5rem' }}>
+                {activeOrdersCount}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Planning & Ordered status
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: '20px', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Delivered Materials</span>
+                <CheckCircle size={18} color="var(--primary)" />
+              </div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.5rem' }}>
+                {deliveredOrdersCount} / {items.length}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Successfully arrived on site
+              </div>
+            </div>
+          </div>
+
+          {/* Main Grid View */}
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+              <Loader2 size={40} className="spin" color="var(--primary)" />
+              <p style={{ marginTop: '1rem', color: 'var(--text-muted)' }}>Fetching Google Drive assets...</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '4rem 2rem', borderRadius: '24px', textAlign: 'center', background: 'var(--glass-bg)', border: '1px solid var(--border)' }}>
+              <Package size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>No Procurement Items Found</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '380px', margin: '0.5rem auto 1.5rem auto' }}>
+                Track materials independently here. All files will be uploaded and stored directly in your private Google Drive.
+              </p>
+              <button onClick={handleOpenAdd} className="btn-primary" style={{ padding: '0.6rem 1.2rem', borderRadius: '12px' }}>
+                Create Your First Item
+              </button>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', animation: 'fadeIn 0.3s ease-out' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Material & Vendor</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Phase</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Quantity</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Est. Rate</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Act. Rate</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Total Cost</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Status</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center' }}>Drive Folder</th>
+                    <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map(item => {
+                    const cgstVal = parseFloat(item.cgst) || 0;
+                    const sgstVal = parseFloat(item.sgst) || 0;
+                    const igstVal = parseFloat(item.igst) || 0;
+                    const discVal = parseFloat(item.discount) || 0;
+
+                    const baseEst = parseFloat(item.estimatedRate) * parseFloat(item.quantity) || 0;
+                    const itemEst = item.status === 'CANCELLED' ? 0 : baseEst + cgstVal + sgstVal + igstVal - discVal;
+                    
+                    const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+                    const baseAct = (hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity) || 0;
+                    const itemAct = item.status === 'CANCELLED' ? 0 : baseAct + cgstVal + sgstVal + igstVal - discVal;
+
+                    const phaseName = phasesList.find(p => p.id === item.phaseId)?.name || 'Independent';
+
+                    return (
+                      <tr 
+                        key={item.id} 
+                        style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.01)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>{item.materialName}</div>
+                          {item.vendorName && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.vendorName}</div>}
+                          
+                          {/* Taxes & Discounts Badges */}
+                          {(cgstVal > 0 || sgstVal > 0 || igstVal > 0 || discVal > 0) && (
+                            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                              {cgstVal > 0 && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                                  CGST: {formatCurrency(cgstVal)}
+                                </span>
+                              )}
+                              {sgstVal > 0 && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                                  SGST: {formatCurrency(sgstVal)}
+                                </span>
+                              )}
+                              {igstVal > 0 && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(139, 92, 246, 0.08)', color: '#8b5cf6', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.15)' }}>
+                                  IGST: {formatCurrency(igstVal)}
+                                </span>
+                              )}
+                              {discVal > 0 && (
+                                <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                                  Disc: -{formatCurrency(discVal)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.25rem' }}>📝 {item.notes}</div>}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                          <span style={{ padding: '0.25rem 0.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', fontSize: '0.75rem' }}>
+                            📁 {phaseName}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)', fontWeight: 700 }}>
+                          {parseFloat(item.quantity)} <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.75rem' }}>{item.unit}</span>
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)' }}>
+                          {formatCurrency(parseFloat(item.estimatedRate))}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', color: item.actualRate ? 'var(--success)' : 'var(--text-muted)' }}>
+                          {item.actualRate ? formatCurrency(parseFloat(item.actualRate)) : '—'}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(itemAct)}</div>
+                          {itemAct !== itemEst && (
+                            <div style={{ fontSize: '0.65rem', color: itemAct > itemEst ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+                              {itemAct > itemEst ? '▲' : '▼'} {formatCurrency(Math.abs(itemAct - itemEst))}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem' }}>
+                          <span 
+                            style={{ 
+                              fontSize: '0.65rem', 
+                              fontWeight: 800, 
+                              padding: '0.3rem 0.6rem', 
+                              borderRadius: '8px', 
+                              letterSpacing: '0.05em',
+                              background: 
+                                item.status === 'DELIVERED' ? 'rgba(16, 185, 129, 0.12)' :
+                                item.status === 'ORDERED' ? 'rgba(245, 158, 11, 0.12)' :
+                                item.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                              color: 
+                                item.status === 'DELIVERED' ? '#10b981' :
+                                item.status === 'ORDERED' ? '#f59e0b' :
+                                item.status === 'CANCELLED' ? '#ef4848' : '#3b82f6',
+                              border: 
+                                item.status === 'DELIVERED' ? '1px solid rgba(16, 185, 129, 0.2)' :
+                                item.status === 'ORDERED' ? '1px solid rgba(245, 158, 11, 0.2)' :
+                                item.status === 'CANCELLED' ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
+                            }}
+                          >
+                            {item.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
+                          <button 
+                            onClick={() => openGallery(item)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0.5rem',
+                              borderRadius: '10px',
+                              background: item.driveViewUrl ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                              border: item.driveViewUrl ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid var(--border)',
+                              color: item.driveViewUrl ? '#3b82f6' : 'var(--text-muted)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'scale(1.1)';
+                              if (item.driveViewUrl) {
+                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                              } else {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'scale(1)';
+                              e.currentTarget.style.background = item.driveViewUrl ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+                            }}
+                            title={item.driveViewUrl ? "Open Gallery & Folder Viewer" : "Create Folder / Add Photos"}
+                          >
+                            <FolderOpen size={18} fill={item.driveViewUrl ? "rgba(59, 130, 246, 0.2)" : "transparent"} />
+                          </button>
+                        </td>
+                        <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
+                            {item.status === 'DELIVERED' && onPrefillExpense && (
+                              <button 
+                                onClick={() => onPrefillExpense({
+                                  description: `Procurement: ${item.materialName} (${parseFloat(item.quantity)} ${item.unit})`,
+                                  amount: itemAct,
+                                  actualAmount: baseAct,
+                                  cgst: parseFloat(item.cgst) || 0,
+                                  sgst: parseFloat(item.sgst) || 0,
+                                  igst: parseFloat(item.igst) || 0,
+                                  discount: parseFloat(item.discount) || 0,
+                                  attachmentUrl: item.driveViewUrl,
+                                  phaseId: item.phaseId
+                                })}
+                                className="btn-primary" 
+                                style={{ padding: '0.35rem 0.75rem', borderRadius: '10px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'linear-gradient(135deg, var(--success) 0%, #059669 100%)', border: 'none', fontWeight: 800 }}
+                              >
+                                🧾 Book expense
+                              </button>
+                            )}
+
+                            <button 
+                              onClick={() => handleOpenEdit(item)}
+                              style={{ padding: '0.45rem', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}
+                              title="Edit Item"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              style={{ padding: '0.45rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: 'var(--danger)', cursor: 'pointer' }}
+                              title="Delete Item"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
       {/* Upload/Edit Modal */}
@@ -884,7 +1222,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
       )}
 
       {/* Procurement Media Gallery & Lightbox Modal */}
-      {galleryItem && createPortal(
+      {galleryItem && lightboxOpen && createPortal(
         <div 
           className="modal-overlay" 
           style={{ 
@@ -946,7 +1284,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                   )}
                 </div>
                 <button 
-                  onClick={() => setGalleryItem(null)}
+                  onClick={() => setLightboxOpen(false)}
                   style={{ 
                     background: 'rgba(255,255,255,0.06)', 
                     border: '1px solid rgba(255,255,255,0.1)', 
