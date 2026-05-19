@@ -38,6 +38,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
   // Form Existing Photos State
   const [formExistingPhotos, setFormExistingPhotos] = useState([]);
   const [formPhotosLoading, setFormPhotosLoading] = useState(false);
+  const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
 
 
   // Image Preview Modal
@@ -75,7 +76,15 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     }
   }, [activePhase]);
 
-  const handleOpenAdd = () => {
+  // Click away listener to close phase shortcut dropdown
+  useEffect(() => {
+    if (!showPhaseDropdown) return;
+    const handleOutsideClick = () => setShowPhaseDropdown(false);
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [showPhaseDropdown]);
+
+  const handleOpenAdd = (phaseId = null) => {
     setEditingItem(null);
     setMaterialName('');
     setVendorName('');
@@ -85,7 +94,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     setActualRate('');
     setStatus('PLANNING');
     setNotes('');
-    setSelectedPhaseId(activePhase?.id || '');
+    setSelectedPhaseId(typeof phaseId === 'string' ? phaseId : (activePhase?.id || ''));
     setImageFiles([]);
     setCgst('');
     setSgst('');
@@ -647,7 +656,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', position: 'relative' }}>
               <select 
                 value={filterPhaseId} 
                 onChange={(e) => setFilterPhaseId(e.target.value)}
@@ -669,8 +678,11 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
               </select>
 
               <button 
-                onClick={handleOpenAdd} 
-                title="Add Procurement Material"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPhaseDropdown(prev => !prev);
+                }}
+                title="Add Procurement Material Shortcut"
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -696,6 +708,112 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
               >
                 <Plus size={18} />
               </button>
+
+              {showPhaseDropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: '44px',
+                  right: 0,
+                  width: '220px',
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  backdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '14px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
+                  padding: '0.5rem',
+                  zIndex: 9999,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.15rem',
+                  animation: 'fadeIn 0.15s ease-out'
+                }}
+                onClick={e => e.stopPropagation()}
+                >
+                  <div style={{ 
+                    fontSize: '0.65rem', 
+                    fontWeight: 800, 
+                    color: 'var(--text-muted)', 
+                    padding: '0.4rem 0.6rem', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.05em',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                    marginBottom: '0.25rem'
+                  }}>
+                    Select Phase to Add
+                  </div>
+                  
+                  {/* Option 1: Independent */}
+                  <button
+                    onClick={() => {
+                      setShowPhaseDropdown(false);
+                      handleOpenAdd('');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      width: '100%',
+                      padding: '0.5rem 0.6rem',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'var(--text-main)',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.color = 'var(--primary)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--text-main)';
+                    }}
+                  >
+                    <span>📁</span> Independent (No Phase)
+                  </button>
+
+                  {/* Option List: Phases */}
+                  {phasesList.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        setShowPhaseDropdown(false);
+                        handleOpenAdd(p.id);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        padding: '0.5rem 0.6rem',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: 'var(--text-main)',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.color = 'var(--primary)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-main)';
+                      }}
+                    >
+                      <span>📂</span> {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
