@@ -35,6 +35,10 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
   const [igst, setIgst] = useState('');
   const [discount, setDiscount] = useState('');
 
+  // Form Existing Photos State
+  const [formExistingPhotos, setFormExistingPhotos] = useState([]);
+  const [formPhotosLoading, setFormPhotosLoading] = useState(false);
+
 
   // Image Preview Modal
   const [previewImage, setPreviewImage] = useState(null);
@@ -111,6 +115,31 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     setFormError('');
     setShowFormModal(true);
 
+    // Fetch existing files for visual feedback in edit mode
+    setFormExistingPhotos([]);
+    if (item.driveFileId) {
+      setFormPhotosLoading(true);
+      procurementApi.listPhotos(projectId, item.id)
+        .then(photos => {
+          setFormExistingPhotos(photos || []);
+        })
+        .catch(e => console.error('Failed to list photos in edit:', e))
+        .finally(() => setFormPhotosLoading(false));
+    }
+  };
+
+  const handleDeletePhotoInForm = async (photoId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this photo?')) return;
+    try {
+      const res = await procurementApi.deletePhoto(projectId, editingItem.id, photoId);
+      if (res && res.photos) {
+        setFormExistingPhotos(res.photos);
+        fetchItems(); // Sync main gallery & table too
+      }
+    } catch (e) {
+      console.error('Failed to delete photo in edit modal:', e);
+      alert(e.message || 'Failed to delete photo.');
+    }
   };
 
   const handleDelete = async (itemId) => {
@@ -1103,6 +1132,78 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                 </div>
               </div>
 
+              {/* Existing Uploaded Photos (Only in Edit mode) */}
+              {editingItem && (
+                <div style={{
+                  padding: '1rem',
+                  borderRadius: '16px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border)',
+                  marginTop: '0.25rem'
+                }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
+                    📂 Current Folder Photos ({formExistingPhotos.length})
+                  </div>
+                  {formPhotosLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0' }}>
+                      <Loader2 size={14} className="spin" color="var(--primary)" />
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Retrieving existing files...</span>
+                    </div>
+                  ) : formExistingPhotos.length === 0 ? (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      No photos uploaded to this item yet.
+                    </span>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      {formExistingPhotos.map(photo => (
+                        <div 
+                          key={photo.id} 
+                          style={{ 
+                            position: 'relative', 
+                            width: '64px', 
+                            height: '64px', 
+                            borderRadius: '10px', 
+                            overflow: 'hidden', 
+                            border: '1px solid var(--border)',
+                            background: 'rgba(0,0,0,0.2)'
+                          }}
+                        >
+                          <img 
+                            src={procurementApi.getPhotoViewUrl(projectId, photo.id)} 
+                            alt={photo.name} 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          />
+                          <button 
+                            type="button"
+                            onClick={() => handleDeletePhotoInForm(photo.id)}
+                            style={{ 
+                              position: 'absolute', 
+                              top: '2px', 
+                              right: '2px', 
+                              background: 'rgba(239, 68, 68, 0.95)', 
+                              color: '#fff', 
+                              border: 'none', 
+                              borderRadius: '50%', 
+                              width: '18px', 
+                              height: '18px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center', 
+                              cursor: 'pointer',
+                              padding: 0,
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            }}
+                            title="Delete file"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '0.75rem', alignItems: 'center' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>Upload Photo(s) (Google Drive)</label>
@@ -1113,6 +1214,40 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                     onChange={e => setImageFiles(Array.from(e.target.files))}
                     style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
                   />
+
+                  {/* Selected new files display */}
+                  {imageFiles.length > 0 && (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>New Photos to Upload:</span>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        {imageFiles.map((file, idx) => (
+                          <div 
+                            key={idx} 
+                            style={{ 
+                              background: 'rgba(16, 185, 129, 0.08)', 
+                              border: '1px solid rgba(16, 185, 129, 0.15)', 
+                              borderRadius: '8px', 
+                              padding: '0.2rem 0.5rem', 
+                              fontSize: '0.7rem', 
+                              color: '#fff', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '0.35rem' 
+                            }}
+                          >
+                            <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
+                            <button 
+                              type="button" 
+                              onClick={() => setImageFiles(prev => prev.filter((_, i) => i !== idx))}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
 
