@@ -249,5 +249,26 @@ export const procurementApi = {
   delete: (projectId, itemId) => {
     return api.delete(`/projects/${projectId}/procurement/items/${itemId}`);
   },
+  listPhotos: (projectId, itemId) => {
+    return api.get(`/projects/${projectId}/procurement/items/${itemId}/photos`);
+  },
+  uploadPhotos: (projectId, itemId, formData) => {
+    return api.post(`/projects/${projectId}/procurement/items/${itemId}/photos`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  deletePhoto: (projectId, itemId, photoId) => {
+    return api.delete(`/projects/${projectId}/procurement/items/${itemId}/photos`, {
+      data: { photoId }
+    });
+  },
+  getPhotoViewUrl: (projectId, fileId) => {
+    return `${API_URL}/projects/${projectId}/procurement/photos/view?fileId=${encodeURIComponent(fileId)}`;
+  },
+  getPhotoDownloadUrl: (projectId, fileId) => {
+    return `${API_URL}/projects/${projectId}/procurement/photos/view?fileId=${encodeURIComponent(fileId)}&download=true`;
+  }
 };
 

@@ -574,5 +574,209 @@ export async function uploadToExistingFolder(
   }
 }
 
+/**
+ * Lists all files inside a given Google Drive folder or Supabase folder path.
+ * Returns metadata including file name, created time, size, and view/download links.
+ */
+export async function listFilesInFolder(
+  folderId: string
+): Promise<Array<{
+  id: string;
+  name: string;
+  size?: number;
+  createdTime?: string;
+  webViewLink?: string;
+  webContentLink?: string;
+  source: 'google' | 'supabase';
+}>> {
+  // Supabase Storage
+  if (folderId && folderId.startsWith('supabase:')) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase Storage credentials not configured");
+    }
+
+    const folderSlug = folderId.replace('supabase:procurement/', '');
+    const axios = require('axios');
+
+    try {
+      const listUrl = `${supabaseUrl}/storage/v1/object/list/attachments`;
+      const listRes = await axios.post(listUrl, {
+        prefix: `procurement/${folderSlug}`
+      }, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        }
+      });
+
+      const files = listRes.data || [];
+      return files.map((f: any) => {
+        const filePath = `procurement/${folderSlug}/${f.name}`;
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/attachments/${filePath}`;
+        return {
+          id: `supabase:${filePath}`,
+          name: f.name,
+          size: f.metadata?.size || 0,
+          createdTime: f.created_at || f.updated_at,
+          webViewLink: publicUrl,
+          webContentLink: publicUrl,
+          source: 'supabase'
+        };
+      });
+    } catch (err: any) {
+      console.error("Failed to list Supabase files in folder:", err.message);
+      return [];
+    }
+  }
+
+  // Google Drive
+  if (!drive) {
+    throw new Error("Google Drive credentials not configured");
+  }
+
+  try {
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'files(id, name, size, createdTime, webViewLink, webContentLink)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    } as any);
+
+    const files = response.data.files || [];
+    return files.map((f: any) => ({
+      id: f.id || '',
+      name: f.name || '',
+      size: f.size ? parseInt(f.size) : undefined,
+      createdTime: f.createdTime || undefined,
+      webViewLink: f.webViewLink || undefined,
+      webContentLink: f.webContentLink || undefined,
+      source: 'google'
+    }));
+  } catch (error: any) {
+    console.error('Google Drive listFilesInFolder error:', error.message);
+    throw new Error(`Google Drive listing failed: ${error.message}`);
+  }
+}
+
+/**
+ * Deletes a file from either Google Drive or Supabase Storage.
+ */
+export async function deleteFile(
+  fileId: string
+): Promise<void> {
+  if (fileId && fileId.startsWith('supabase:')) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase Storage credentials not configured");
+    }
+
+    const filePath = fileId.replace('supabase:', '');
+    const axios = require('axios');
+
+    try {
+      const deleteUrl = `${supabaseUrl}/storage/v1/object/attachments`;
+      await axios.delete(deleteUrl, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          prefixes: [filePath]
+        }
+      });
+    } catch (err: any) {
+      console.error("Failed to delete Supabase file:", err.message);
+      throw err;
+    }
+    return;
+  }
+
+  if (!drive) {
+    throw new Error("Google Drive credentials not configured");
+  }
+
+  try {
+    await drive.files.delete({
+      fileId: fileId,
+      supportsAllDrives: true,
+    } as any);
+  } catch (error: any) {
+    console.error('Google Drive file delete error:', error.message);
+    throw new Error(`Google Drive delete failed: ${error.message}`);
+  }
+}
+
+/**
+ * Streams a file from either Google Drive or Supabase Storage for proxying.
+ */
+export async function downloadFileStream(
+  fileId: string
+): Promise<{ stream: Readable; mimeType: string; filename: string }> {
+  // Supabase Storage
+  if (fileId && fileId.startsWith('supabase:')) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Supabase Storage credentials not configured");
+    }
+
+    const filePath = fileId.replace('supabase:', '');
+    const filename = filePath.substring(filePath.lastIndexOf('/') + 1);
+    const axios = require('axios');
+
+    try {
+      const getUrl = `${supabaseUrl}/storage/v1/object/authenticated/${filePath}`;
+      const response = await axios.get(getUrl, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        },
+        responseType: 'stream'
+      });
+
+      return {
+        stream: response.data,
+        mimeType: response.headers['content-type'] || 'image/png',
+        filename
+      };
+    } catch (err: any) {
+      console.error("Failed to stream Supabase file:", err.message);
+      throw err;
+    }
+  }
+
+  // Google Drive
+  if (!drive) {
+    throw new Error("Google Drive credentials not configured");
+  }
+
+  try {
+    const meta = await drive.files.get({
+      fileId: fileId,
+      fields: 'name, mimeType',
+      supportsAllDrives: true,
+    } as any);
+
+    const response = await drive.files.get({
+      fileId: fileId,
+      alt: 'media',
+      supportsAllDrives: true,
+    }, { responseType: 'stream' });
+
+    return {
+      stream: response.data as Readable,
+      mimeType: meta.data.mimeType || 'application/octet-stream',
+      filename: meta.data.name || 'file'
+    };
+  } catch (error: any) {
+    console.error('Google Drive downloadFileStream error:', error.message);
+    throw new Error(`Google Drive stream failed: ${error.message}`);
+  }
+}
+
 
 

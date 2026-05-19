@@ -33,6 +33,12 @@ router.post('/:projectId/procurement', authenticate, requireAdmin, upload.any(),
 router.put('/:projectId/procurement/items/:itemId', authenticate, requireAdmin, upload.any(), procurement.updateProcurement);
 router.delete('/:projectId/procurement/items/:itemId', authenticate, requireAdmin, procurement.deleteProcurement);
 
+// Photo Gallery & Management Routes
+router.get('/:projectId/procurement/items/:itemId/photos', authenticate, procurement.listPhotos);
+router.post('/:projectId/procurement/items/:itemId/photos', authenticate, requireAdmin, upload.any(), procurement.uploadPhotos);
+router.delete('/:projectId/procurement/items/:itemId/photos', authenticate, requireAdmin, procurement.deletePhoto);
+router.get('/:projectId/procurement/photos/view', authenticate, procurement.streamPhotoProxy);
+
 
 export default router;
 

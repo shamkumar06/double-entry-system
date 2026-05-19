@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2, Edit3, Image, FileText, CheckCircle, Package, Layers, DollarSign, Calendar, Info, Loader2, ArrowRight, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, Edit3, Image, FileText, CheckCircle, Package, Layers, DollarSign, Calendar, Info, Loader2, ArrowRight, FolderOpen, Download, ExternalLink, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { procurementApi } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
 
@@ -38,6 +38,14 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
 
   // Image Preview Modal
   const [previewImage, setPreviewImage] = useState(null);
+
+  // Photos Gallery / Lightbox Viewer States
+  const [galleryItem, setGalleryItem] = useState(null);
+  const [galleryPhotos, setGalleryPhotos] = useState([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [uploadingExtra, setUploadingExtra] = useState(false);
+  const [galleryError, setGalleryError] = useState('');
 
   const fetchItems = async () => {
     setLoading(true);
@@ -112,6 +120,83 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     } catch (e) {
       alert(e.message || 'Failed to delete item');
     }
+  };
+
+  const openGallery = async (item) => {
+    setGalleryItem(item);
+    setGalleryPhotos([]);
+    setGalleryLoading(true);
+    setCurrentPhotoIndex(0);
+    setGalleryError('');
+    try {
+      const data = await procurementApi.listPhotos(projectId, item.id);
+      setGalleryPhotos(data || []);
+    } catch (e) {
+      console.error('Failed to list photos:', e);
+      setGalleryError(e.message || 'Failed to retrieve files.');
+    } finally {
+      setGalleryLoading(false);
+    }
+  };
+
+  const handleUploadExtraPhotos = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploadingExtra(true);
+    setGalleryError('');
+    try {
+      const formData = new FormData();
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+
+      const res = await procurementApi.uploadPhotos(projectId, galleryItem.id, formData);
+      if (res && res.photos) {
+        setGalleryPhotos(res.photos);
+        setCurrentPhotoIndex(res.photos.length - files.length); // Focus on first new upload
+        fetchItems(); // Refresh main table
+      }
+    } catch (e) {
+      console.error('Failed to upload extra photos:', e);
+      setGalleryError(e.message || 'Upload failed.');
+    } finally {
+      setUploadingExtra(false);
+    }
+  };
+
+  const handleDeletePhoto = async (photoId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this photo?')) return;
+
+    setUploadingExtra(true);
+    setGalleryError('');
+    try {
+      const res = await procurementApi.deletePhoto(projectId, galleryItem.id, photoId);
+      if (res && res.photos) {
+        setGalleryPhotos(res.photos);
+        // Adjust index if we deleted the last file or the selected file
+        setCurrentPhotoIndex(prev => {
+          if (prev >= res.photos.length) {
+            return Math.max(0, res.photos.length - 1);
+          }
+          return prev;
+        });
+      }
+    } catch (e) {
+      console.error('Failed to delete photo:', e);
+      setGalleryError(e.message || 'Deletion failed.');
+    } finally {
+      setUploadingExtra(false);
+    }
+  };
+
+  const formatBytes = (bytes, decimals = 2) => {
+    if (!bytes) return '—';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
   const handleSubmit = async (e) => {
@@ -414,32 +499,36 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                       </span>
                     </td>
                     <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
-                      {item.driveViewUrl ? (
-                        <a 
-                          href={item.driveViewUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '0.5rem',
-                            borderRadius: '10px',
-                            background: 'rgba(59, 130, 246, 0.12)',
-                            border: '1px solid rgba(59, 130, 246, 0.2)',
-                            color: '#3b82f6',
-                            cursor: 'pointer',
-                            transition: 'transform 0.1s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                          title="Open Material Folder in Google Drive"
-                        >
-                          <FolderOpen size={18} fill="rgba(59, 130, 246, 0.2)" />
-                        </a>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>No folder</span>
-                      )}
+                      <button 
+                        onClick={() => openGallery(item)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0.5rem',
+                          borderRadius: '10px',
+                          background: item.driveViewUrl ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                          border: item.driveViewUrl ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid var(--border)',
+                          color: item.driveViewUrl ? '#3b82f6' : 'var(--text-muted)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.1)';
+                          if (item.driveViewUrl) {
+                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                          } else {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)';
+                          e.currentTarget.style.background = item.driveViewUrl ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+                        }}
+                        title={item.driveViewUrl ? "Open Gallery & Folder Viewer" : "Create Folder / Add Photos"}
+                      >
+                        <FolderOpen size={18} fill={item.driveViewUrl ? "rgba(59, 130, 246, 0.2)" : "transparent"} />
+                      </button>
                     </td>
                     <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -789,6 +878,460 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
             >
               Open File in Drive Tab ➔
             </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Procurement Media Gallery & Lightbox Modal */}
+      {galleryItem && createPortal(
+        <div 
+          className="modal-overlay" 
+          style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 1100, 
+            background: 'rgba(5, 8, 16, 0.88)', 
+            backdropFilter: 'blur(16px)',
+            padding: '2rem'
+          }}
+        >
+          <div 
+            style={{ 
+              display: 'flex', 
+              width: '100%', 
+              maxWidth: '1200px', 
+              height: '85vh', 
+              background: 'rgba(15, 23, 42, 0.65)', 
+              borderRadius: '24px', 
+              border: '1px solid rgba(255, 255, 255, 0.1)', 
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7)', 
+              overflow: 'hidden',
+              backdropFilter: 'blur(30px)'
+            }}
+          >
+            {/* Left: Main Slider/Gallery Panel (70%) */}
+            <div 
+              style={{ 
+                flex: '1', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                position: 'relative', 
+                background: 'rgba(0, 0, 0, 0.4)',
+                borderRight: '1px solid rgba(255, 255, 255, 0.08)'
+              }}
+            >
+              {/* Close Icon / Header Info */}
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between', 
+                  padding: '1.25rem 2rem', 
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                  background: 'rgba(0,0,0,0.2)'
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#fff' }}>
+                    {galleryItem.materialName}
+                  </h4>
+                  {galleryItem.vendorName && (
+                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>
+                      Vendor: {galleryItem.vendorName}
+                    </span>
+                  )}
+                </div>
+                <button 
+                  onClick={() => setGalleryItem(null)}
+                  style={{ 
+                    background: 'rgba(255,255,255,0.06)', 
+                    border: '1px solid rgba(255,255,255,0.1)', 
+                    color: '#fff', 
+                    borderRadius: '50%', 
+                    width: '36px', 
+                    height: '36px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    cursor: 'pointer',
+                    transition: 'background 0.2s' 
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Loader */}
+              {galleryLoading ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <Loader2 size={36} className="spin" color="#3b82f6" />
+                  <p style={{ marginTop: '1rem', color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Listing files securely...</p>
+                </div>
+              ) : galleryError ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+                  <Info size={40} color="#ef4444" style={{ animation: 'bounce 1s infinite' }} />
+                  <p style={{ marginTop: '1rem', color: '#ef4444', fontSize: '0.85rem', textAlign: 'center' }}>{galleryError}</p>
+                </div>
+              ) : galleryPhotos.length === 0 ? (
+                // Empty State Upload Trigger
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+                  <div 
+                    onClick={() => document.getElementById('gallery-modal-upload-input').click()}
+                    style={{ 
+                      width: '100%', 
+                      maxWidth: '400px', 
+                      padding: '3rem 2rem', 
+                      borderRadius: '20px', 
+                      border: '2px dashed rgba(255, 255, 255, 0.15)', 
+                      background: 'rgba(255,255,255,0.02)', 
+                      textAlign: 'center', 
+                      cursor: 'pointer', 
+                      transition: 'border 0.2s, background 0.2s' 
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#3b82f6';
+                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.04)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                    }}
+                  >
+                    <Image size={40} color="rgba(255,255,255,0.3)" style={{ marginBottom: '1rem' }} />
+                    <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>No Photos in Folder Yet</h5>
+                    <p style={{ margin: '0.5rem 0 1.5rem 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>
+                      Create this folder in your Drive by uploading some files now.
+                    </p>
+                    <span className="btn-primary" style={{ padding: '0.5rem 1.25rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 600 }}>
+                      + Add Photos
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                // Image Slider
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', overflow: 'hidden', padding: '1rem' }}>
+                  {/* Image Display */}
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
+                    {galleryPhotos[currentPhotoIndex] && (
+                      <img 
+                        src={procurementApi.getPhotoViewUrl(projectId, galleryPhotos[currentPhotoIndex].id)} 
+                        alt={galleryPhotos[currentPhotoIndex].name} 
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '52vh', 
+                          borderRadius: '16px', 
+                          objectFit: 'contain',
+                          boxShadow: '0 15px 40px rgba(0,0,0,0.6)',
+                          border: '1px solid rgba(255,255,255,0.08)'
+                        }} 
+                      />
+                    )}
+
+                    {/* Left Navigation Arrow */}
+                    {galleryPhotos.length > 1 && (
+                      <button 
+                        onClick={() => setCurrentPhotoIndex(prev => (prev === 0 ? galleryPhotos.length - 1 : prev - 1))}
+                        style={{ 
+                          position: 'absolute', 
+                          left: '1rem', 
+                          background: 'rgba(15, 23, 42, 0.6)', 
+                          border: '1px solid rgba(255,255,255,0.1)', 
+                          borderRadius: '50%', 
+                          width: '40px', 
+                          height: '40px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          color: '#fff', 
+                          cursor: 'pointer',
+                          backdropFilter: 'blur(8px)',
+                          transition: 'background 0.2s' 
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#3b82f6'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.6)'}
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+                    )}
+
+                    {/* Right Navigation Arrow */}
+                    {galleryPhotos.length > 1 && (
+                      <button 
+                        onClick={() => setCurrentPhotoIndex(prev => (prev === galleryPhotos.length - 1 ? 0 : prev + 1))}
+                        style={{ 
+                          position: 'absolute', 
+                          right: '1rem', 
+                          background: 'rgba(15, 23, 42, 0.6)', 
+                          border: '1px solid rgba(255,255,255,0.1)', 
+                          borderRadius: '50%', 
+                          width: '40px', 
+                          height: '40px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          color: '#fff', 
+                          cursor: 'pointer',
+                          backdropFilter: 'blur(8px)',
+                          transition: 'background 0.2s' 
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#3b82f6'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.6)'}
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Thumbnail Row */}
+                  <div 
+                    style={{ 
+                      width: '100%', 
+                      padding: '1rem 0', 
+                      display: 'flex', 
+                      gap: '0.5rem', 
+                      justifyContent: 'center', 
+                      overflowX: 'auto',
+                      background: 'rgba(0,0,0,0.2)',
+                      borderTop: '1px solid rgba(255,255,255,0.05)'
+                    }}
+                  >
+                    {galleryPhotos.map((p, idx) => (
+                      <div 
+                        key={p.id}
+                        onClick={() => setCurrentPhotoIndex(idx)}
+                        style={{ 
+                          width: '60px', 
+                          height: '60px', 
+                          borderRadius: '8px', 
+                          overflow: 'hidden', 
+                          border: idx === currentPhotoIndex ? '2px solid #3b82f6' : '2px solid transparent', 
+                          opacity: idx === currentPhotoIndex ? 1 : 0.5,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <img 
+                          src={procurementApi.getPhotoViewUrl(projectId, p.id)} 
+                          alt="thumbnail" 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Glassmorphic Sidebar (30%) */}
+            <div 
+              style={{ 
+                width: '320px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                background: 'rgba(15, 23, 42, 0.4)',
+                padding: '1.5rem',
+                justifyContent: 'space-between',
+                boxSizing: 'border-box'
+              }}
+            >
+              {/* File details & description */}
+              <div>
+                <h5 style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(255,255,255,0.4)', fontWeight: 700 }}>
+                  Asset Details
+                </h5>
+
+                {galleryPhotos.length > 0 && galleryPhotos[currentPhotoIndex] ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Name */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.75rem 1rem' }}>
+                      <label style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '0.2rem' }}>File Name</label>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fff', wordBreak: 'break-all' }}>
+                        {galleryPhotos[currentPhotoIndex].name}
+                      </span>
+                    </div>
+
+                    {/* Date Created */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.75rem 1rem' }}>
+                      <label style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '0.2rem' }}>Uploaded On</label>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}>
+                        {galleryPhotos[currentPhotoIndex].createdTime ? new Date(galleryPhotos[currentPhotoIndex].createdTime).toLocaleString() : '—'}
+                      </span>
+                    </div>
+
+                    {/* Size */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.75rem 1rem' }}>
+                      <label style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '0.2rem' }}>File Size</label>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}>
+                        {formatBytes(galleryPhotos[currentPhotoIndex].size)}
+                      </span>
+                    </div>
+
+                    {/* Storage Provider */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '0.75rem 1rem' }}>
+                      <label style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', display: 'block', marginBottom: '0.2rem' }}>Provider</label>
+                      <span 
+                        style={{ 
+                          fontSize: '0.7rem', 
+                          fontWeight: 700, 
+                          color: galleryPhotos[currentPhotoIndex].source === 'google' ? '#10b981' : '#3b82f6',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem'
+                        }}
+                      >
+                        {galleryPhotos[currentPhotoIndex].source === 'google' ? '📁 Google Drive' : '☁️ Supabase Cloud'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                    No file selected.
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons & Upload shortcuts */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '2rem' }}>
+                <input 
+                  type="file" 
+                  id="gallery-modal-upload-input" 
+                  multiple 
+                  accept="image/*"
+                  onChange={handleUploadExtraPhotos} 
+                  style={{ display: 'none' }} 
+                />
+
+                {galleryPhotos.length > 0 && galleryPhotos[currentPhotoIndex] && (
+                  <>
+                    {/* Redirect to Drive / Direct Web Link */}
+                    {galleryPhotos[currentPhotoIndex].webViewLink && (
+                      <a 
+                        href={galleryPhotos[currentPhotoIndex].webViewLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn-primary" 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          gap: '0.5rem', 
+                          padding: '0.6rem 1rem', 
+                          borderRadius: '12px', 
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          textAlign: 'center',
+                          textDecoration: 'none',
+                          color: '#fff',
+                          background: 'rgba(255,255,255,0.08)',
+                          border: '1px solid rgba(255,255,255,0.1)'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                      >
+                        <ExternalLink size={14} />
+                        View Source Link
+                      </a>
+                    )}
+
+                    {/* Download Button */}
+                    <a 
+                      href={procurementApi.getPhotoDownloadUrl(projectId, galleryPhotos[currentPhotoIndex].id)}
+                      download
+                      className="btn-primary" 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.6rem 1rem', 
+                        borderRadius: '12px', 
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        textDecoration: 'none',
+                        color: '#fff',
+                        background: '#3b82f6',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#2563eb'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = '#3b82f6'}
+                    >
+                      <Download size={14} />
+                      Download File
+                    </a>
+
+                    {/* Delete File Button */}
+                    <button 
+                      onClick={() => handleDeletePhoto(galleryPhotos[currentPhotoIndex].id)}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        gap: '0.5rem', 
+                        padding: '0.6rem 1rem', 
+                        borderRadius: '12px', 
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: '#ef4444',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'}
+                    >
+                      <Trash2 size={14} />
+                      Delete File
+                    </button>
+                  </>
+                )}
+
+                {/* Add More Photos Shortcut */}
+                <button 
+                  onClick={() => document.getElementById('gallery-modal-upload-input').click()}
+                  disabled={uploadingExtra}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '0.5rem', 
+                    padding: '0.6rem 1rem', 
+                    borderRadius: '12px', 
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#10b981',
+                    background: 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.08)';
+                  }}
+                >
+                  {uploadingExtra ? (
+                    <>
+                      <Loader2 size={14} className="spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={14} />
+                      Add Extra Photos
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>,
         document.body

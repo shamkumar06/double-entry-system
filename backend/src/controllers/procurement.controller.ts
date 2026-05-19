@@ -210,3 +210,144 @@ export async function deleteProcurement(req: Request, res: Response): Promise<vo
   }
 }
 
+/**
+ * Lists all photos inside a procurement item's folder.
+ */
+export async function listPhotos(req: Request, res: Response): Promise<void> {
+  try {
+    const itemId = String(req.params.itemId);
+    const existing = await procurementService.getProcurementById(itemId);
+    if (!existing) {
+      res.status(404).json({ message: 'Procurement item not found' });
+      return;
+    }
+
+    if (!existing.driveFileId) {
+      res.json([]);
+      return;
+    }
+
+    const photos = await driveService.listFilesInFolder(existing.driveFileId);
+    res.json(photos);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to list photos' });
+  }
+}
+
+/**
+ * Uploads extra photos directly to a procurement item's folder.
+ */
+export async function uploadPhotos(req: Request, res: Response): Promise<void> {
+  try {
+    const itemId = String(req.params.itemId);
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      res.status(400).json({ message: 'No files uploaded' });
+      return;
+    }
+
+    const existing = await procurementService.getProcurementById(itemId);
+    if (!existing) {
+      res.status(404).json({ message: 'Procurement item not found' });
+      return;
+    }
+
+    const files = req.files as Express.Multer.File[];
+    let driveFileId = existing.driveFileId;
+    let driveViewUrl = existing.driveViewUrl;
+
+    if (existing.driveFileId) {
+      const appendRes = await driveService.uploadToExistingFolder(
+        existing.driveFileId,
+        files,
+        existing.materialName
+      );
+      if (appendRes && appendRes.fileId) {
+        driveFileId = appendRes.fileId;
+        driveViewUrl = appendRes.viewUrl;
+      }
+    } else {
+      const uploadRes = await driveService.createFolderAndUploadToDrive(
+        existing.materialName,
+        files
+      );
+      driveFileId = uploadRes.fileId;
+      driveViewUrl = uploadRes.viewUrl;
+    }
+
+    // Save database updates if changed
+    if (driveFileId !== existing.driveFileId || driveViewUrl !== existing.driveViewUrl) {
+      await procurementService.updateProcurement(itemId, {
+        driveFileId,
+        driveViewUrl
+      });
+    }
+
+    if (!driveFileId) {
+      res.status(400).json({ message: 'No folder ID generated' });
+      return;
+    }
+
+    // Return refreshed photos list
+    const photos = await driveService.listFilesInFolder(driveFileId);
+    res.json({ success: true, photos, driveViewUrl });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to upload photos' });
+  }
+}
+
+/**
+ * Deletes a specific photo from a procurement item's folder.
+ */
+export async function deletePhoto(req: Request, res: Response): Promise<void> {
+  try {
+    const itemId = String(req.params.itemId);
+    const { photoId } = req.body;
+    if (!photoId) {
+      res.status(400).json({ message: 'photoId is required' });
+      return;
+    }
+
+    const existing = await procurementService.getProcurementById(itemId);
+    if (!existing) {
+      res.status(404).json({ message: 'Procurement item not found' });
+      return;
+    }
+
+    await driveService.deleteFile(photoId);
+
+    // Refresh photos list
+    const photos = existing.driveFileId ? await driveService.listFilesInFolder(existing.driveFileId) : [];
+    res.json({ success: true, photos });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to delete photo' });
+  }
+}
+
+/**
+ * Streams a photo file directly as a proxy to bypass cookie restrictions in third-party images.
+ */
+export async function streamPhotoProxy(req: Request, res: Response): Promise<void> {
+  try {
+    const fileId = String(req.query.fileId);
+    if (!fileId) {
+      res.status(400).json({ message: 'fileId is required' });
+      return;
+    }
+
+    const download = req.query.download === 'true';
+
+    const { stream, mimeType, filename } = await driveService.downloadFileStream(fileId);
+
+    res.setHeader('Content-Type', mimeType);
+    if (download) {
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    } else {
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    }
+
+    stream.pipe(res);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Failed to stream photo' });
+  }
+}
+
