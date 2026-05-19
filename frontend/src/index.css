@@ -1260,6 +1260,39 @@ select option, select optgroup {
     grid-template-columns: 1fr !important;
     gap: 1rem !important;
   }
+  .settings-grid-2col {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  .settings-user-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.75rem !important;
+    padding: 0.85rem !important;
+  }
+  .settings-user-card > div {
+    width: 100% !important;
+  }
+  .settings-user-card button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .ledger-layout, .trial-balance-layout {
+    flex-direction: column-reverse !important;
+    gap: 1.25rem !important;
+  }
+  .phase-filter-sidebar {
+    width: 100% !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+  .phase-filter-sidebar button {
+    flex: 1 1 auto !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
 
   /* Attachments (Receipts Gallery) Responsive Styles */
   .attachments-panel {

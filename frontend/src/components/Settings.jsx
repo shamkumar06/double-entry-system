@@ -347,7 +347,7 @@ export default function Settings({ activeProject, onUpdate, user }) {
           {showCreateUser && (
             <form onSubmit={handleCreateUser} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>➕ Create New User</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="settings-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                 <div>
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Full Name (optional)</label>
                   <input style={inp} value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} placeholder="e.g. John Doe" />
@@ -385,7 +385,7 @@ export default function Settings({ activeProject, onUpdate, user }) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {allUsers.map(u => (
-                  <div key={u.id} style={{
+                  <div key={u.id} className="settings-user-card" style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '0.85rem 1.1rem', borderRadius: '10px', background: 'var(--surface)',
                     border: u.role === 'ADMIN' ? '1px solid rgba(245,158,11,0.35)' : '1px solid var(--border)',
