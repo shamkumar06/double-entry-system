@@ -83,6 +83,49 @@ app.get('/api/diagnose', async (_req, res) => {
   }
 });
 
+app.get('/api/test-drive-status', async (_req, res) => {
+  const diagnostics: any = {
+    GOOGLE_SERVICE_ACCOUNT_JSON_PRESENT: !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
+    GOOGLE_SERVICE_ACCOUNT_JSON_LENGTH: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ? process.env.GOOGLE_SERVICE_ACCOUNT_JSON.length : 0,
+    parsedSuccessfully: false,
+    parseError: null,
+    tokenFetchSuccess: false,
+    tokenFetchError: null,
+    clientEmail: null,
+    projectId: null,
+  };
+
+  const jsonStr = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (jsonStr) {
+    try {
+      const credentials = JSON.parse(jsonStr.trim());
+      diagnostics.parsedSuccessfully = true;
+      diagnostics.clientEmail = credentials.client_email;
+      diagnostics.projectId = credentials.project_id;
+
+      const { google } = require('googleapis');
+      const authObj = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/drive'],
+      });
+
+      const client = await authObj.getClient();
+      const tokenRes = await client.getAccessToken();
+      if (tokenRes && tokenRes.token) {
+        diagnostics.tokenFetchSuccess = true;
+      }
+    } catch (err: any) {
+      if (diagnostics.parsedSuccessfully) {
+        diagnostics.tokenFetchError = err.message || String(err);
+      } else {
+        diagnostics.parseError = err.message || String(err);
+      }
+    }
+  }
+
+  res.json({ success: true, diagnostics });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/accounting', accountingRoutes);
