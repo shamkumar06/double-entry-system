@@ -636,6 +636,11 @@ function AppInner() {
                     setEditingTransaction({
                       description: expenseDetails.description,
                       amount: expenseDetails.amount,
+                      actualAmount: expenseDetails.actualAmount,
+                      cgst: expenseDetails.cgst,
+                      sgst: expenseDetails.sgst,
+                      igst: expenseDetails.igst,
+                      discount: expenseDetails.discount,
                       attachmentUrl: expenseDetails.attachmentUrl,
                       phaseId: expenseDetails.phaseId,
                       date: new Date().toISOString()

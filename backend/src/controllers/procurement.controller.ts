@@ -36,6 +36,10 @@ export async function createProcurement(req: Request, res: Response): Promise<vo
       actualRate,
       status,
       notes,
+      cgst,
+      sgst,
+      igst,
+      discount,
     } = req.body;
 
     if (!materialName || !quantity || !unit || !estimatedRate) {
@@ -69,6 +73,10 @@ export async function createProcurement(req: Request, res: Response): Promise<vo
       driveFileId,
       driveViewUrl,
       notes: notes ? String(notes) : null,
+      cgst: cgst ? parseFloat(cgst) : null,
+      sgst: sgst ? parseFloat(sgst) : null,
+      igst: igst ? parseFloat(igst) : null,
+      discount: discount ? parseFloat(discount) : null,
     });
 
     res.status(201).json(item);
@@ -93,6 +101,10 @@ export async function updateProcurement(req: Request, res: Response): Promise<vo
       actualRate,
       status,
       notes,
+      cgst,
+      sgst,
+      igst,
+      discount,
     } = req.body;
 
     const existing = await procurementService.getProcurementById(itemId);
@@ -132,6 +144,10 @@ export async function updateProcurement(req: Request, res: Response): Promise<vo
       driveFileId,
       driveViewUrl,
       notes: notes !== undefined ? (notes ? String(notes) : null) : undefined,
+      cgst: cgst !== undefined ? (cgst ? parseFloat(cgst) : null) : undefined,
+      sgst: sgst !== undefined ? (sgst ? parseFloat(sgst) : null) : undefined,
+      igst: igst !== undefined ? (igst ? parseFloat(igst) : null) : undefined,
+      discount: discount !== undefined ? (discount ? parseFloat(discount) : null) : undefined,
     });
 
     res.json(updated);

@@ -29,6 +29,12 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
   const [selectedPhaseId, setSelectedPhaseId] = useState('');
   const [imageFiles, setImageFiles] = useState([]);
 
+  // Tax and Discount States
+  const [cgst, setCgst] = useState('');
+  const [sgst, setSgst] = useState('');
+  const [igst, setIgst] = useState('');
+  const [discount, setDiscount] = useState('');
+
 
   // Image Preview Modal
   const [previewImage, setPreviewImage] = useState(null);
@@ -68,6 +74,10 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     setNotes('');
     setSelectedPhaseId(activePhase?.id || '');
     setImageFiles([]);
+    setCgst('');
+    setSgst('');
+    setIgst('');
+    setDiscount('');
     setFormError('');
     setShowFormModal(true);
 
@@ -85,6 +95,10 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     setNotes(item.notes || '');
     setSelectedPhaseId(item.phaseId || '');
     setImageFiles([]);
+    setCgst(item.cgst ? item.cgst.toString() : '');
+    setSgst(item.sgst ? item.sgst.toString() : '');
+    setIgst(item.igst ? item.igst.toString() : '');
+    setDiscount(item.discount ? item.discount.toString() : '');
     setFormError('');
     setShowFormModal(true);
 
@@ -121,6 +135,10 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
       formData.append('status', status);
       formData.append('notes', notes);
       formData.append('phaseId', selectedPhaseId);
+      formData.append('cgst', cgst);
+      formData.append('sgst', sgst);
+      formData.append('igst', igst);
+      formData.append('discount', discount);
       if (imageFiles && imageFiles.length > 0) {
         imageFiles.forEach(file => {
           formData.append('files', file);
@@ -152,7 +170,12 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     .reduce((sum, item) => {
       const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
       const rate = hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate);
-      return sum + (rate * parseFloat(item.quantity) || 0);
+      const base = rate * parseFloat(item.quantity) || 0;
+      const cgstVal = parseFloat(item.cgst) || 0;
+      const sgstVal = parseFloat(item.sgst) || 0;
+      const igstVal = parseFloat(item.igst) || 0;
+      const discVal = parseFloat(item.discount) || 0;
+      return sum + (base + cgstVal + sgstVal + igstVal - discVal);
     }, 0);
   const activeOrdersCount = items.filter(item => item.status === 'PLANNING' || item.status === 'ORDERED').length;
   const deliveredOrdersCount = items.filter(item => item.status === 'DELIVERED').length;
@@ -290,9 +313,18 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
             </thead>
             <tbody>
               {items.map(item => {
-                const itemEst = item.status === 'CANCELLED' ? 0 : parseFloat(item.estimatedRate) * parseFloat(item.quantity);
+                const cgstVal = parseFloat(item.cgst) || 0;
+                const sgstVal = parseFloat(item.sgst) || 0;
+                const igstVal = parseFloat(item.igst) || 0;
+                const discVal = parseFloat(item.discount) || 0;
+
+                const baseEst = parseFloat(item.estimatedRate) * parseFloat(item.quantity) || 0;
+                const itemEst = item.status === 'CANCELLED' ? 0 : baseEst + cgstVal + sgstVal + igstVal - discVal;
+                
                 const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
-                const itemAct = item.status === 'CANCELLED' ? 0 : (hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity);
+                const baseAct = (hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity) || 0;
+                const itemAct = item.status === 'CANCELLED' ? 0 : baseAct + cgstVal + sgstVal + igstVal - discVal;
+
                 const phaseName = phasesList.find(p => p.id === item.phaseId)?.name || 'Independent';
 
                 return (
@@ -305,6 +337,33 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                     <td style={{ padding: '1rem 1.25rem' }}>
                       <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>{item.materialName}</div>
                       {item.vendorName && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.vendorName}</div>}
+                      
+                      {/* Taxes & Discounts Badges */}
+                      {(cgstVal > 0 || sgstVal > 0 || igstVal > 0 || discVal > 0) && (
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                          {cgstVal > 0 && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                              CGST: {formatCurrency(cgstVal)}
+                            </span>
+                          )}
+                          {sgstVal > 0 && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                              SGST: {formatCurrency(sgstVal)}
+                            </span>
+                          )}
+                          {igstVal > 0 && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(139, 92, 246, 0.08)', color: '#8b5cf6', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.15)' }}>
+                              IGST: {formatCurrency(igstVal)}
+                            </span>
+                          )}
+                          {discVal > 0 && (
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.1rem 0.35rem', background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                              Disc: -{formatCurrency(discVal)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
                       {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.25rem' }}>📝 {item.notes}</div>}
                     </td>
                     <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)', fontWeight: 600 }}>
@@ -389,6 +448,11 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                             onClick={() => onPrefillExpense({
                               description: `Procurement: ${item.materialName} (${parseFloat(item.quantity)} ${item.unit})`,
                               amount: itemAct,
+                              actualAmount: baseAct,
+                              cgst: parseFloat(item.cgst) || 0,
+                              sgst: parseFloat(item.sgst) || 0,
+                              igst: parseFloat(item.igst) || 0,
+                              discount: parseFloat(item.discount) || 0,
                               attachmentUrl: item.driveViewUrl,
                               phaseId: item.phaseId
                             })}
@@ -441,7 +505,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
             padding: '1.5rem'
           }}
         >
-          <div className="modal-content glass-panel animate-in" style={{ width: '100%', maxWidth: '520px', padding: '1.75rem', borderRadius: '28px', background: 'var(--background)', border: '1px solid var(--border)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+          <div className="modal-content glass-panel animate-in" style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', borderRadius: '28px', background: 'var(--background)', border: '1px solid var(--border)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 1.25rem 0' }}>
               {editingItem ? '✏️ Edit Procurement Material' : '📦 Add Procurement Material'}
             </h3>
@@ -543,6 +607,72 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                     placeholder="If purchased/delivered"
                     style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--glass-bg)', border: '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-main)', fontSize: '0.85rem' }}
                   />
+                </div>
+              </div>
+
+              {/* Tax & Discount Section */}
+              <div style={{
+                padding: '1rem', 
+                borderRadius: '16px',
+                background: 'rgba(255, 255, 255, 0.02)', 
+                border: '1px solid var(--border)',
+                marginTop: '0.5rem',
+                marginBottom: '0.5rem'
+              }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em' }}>
+                  💰 Tax & Discount (Optional)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>CGST Amount</label>
+                    <input 
+                      type="number" 
+                      step="any"
+                      value={cgst} 
+                      onChange={e => setCgst(e.target.value)}
+                      placeholder="e.g. 9.00"
+                      style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--glass-bg)', border: '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>SGST Amount</label>
+                    <input 
+                      type="number" 
+                      step="any"
+                      value={sgst} 
+                      onChange={e => setSgst(e.target.value)}
+                      placeholder="e.g. 9.00"
+                      style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--glass-bg)', border: '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>IGST Amount</label>
+                    <input 
+                      type="number" 
+                      step="any"
+                      value={igst} 
+                      onChange={e => setIgst(e.target.value)}
+                      placeholder="e.g. 18.00"
+                      style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--glass-bg)', border: '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>Discount Amount</label>
+                    <input 
+                      type="number" 
+                      step="any"
+                      value={discount} 
+                      onChange={e => setDiscount(e.target.value)}
+                      placeholder="e.g. 50.00"
+                      style={{ width: '100%', padding: '0.65rem 0.85rem', background: 'var(--glass-bg)', border: '1px solid var(--border)', borderRadius: '12px', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                  💡 Entered values will be added/subtracted to/from the total cost and prefilled during expense booking.
                 </div>
               </div>
 

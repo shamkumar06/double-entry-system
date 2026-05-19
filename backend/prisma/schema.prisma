@@ -181,6 +181,10 @@ model ProcurementItem {
   unit          String            // e.g., "bags", "tons", "units", "cft"
   estimatedRate Decimal           @db.Decimal(15, 2)
   actualRate    Decimal?          @db.Decimal(15, 2)
+  cgst          Decimal?          @db.Decimal(15, 2)
+  sgst          Decimal?          @db.Decimal(15, 2)
+  igst          Decimal?          @db.Decimal(15, 2)
+  discount      Decimal?          @db.Decimal(15, 2)
   status        ProcurementStatus @default(PLANNING)
   driveFileId   String?           // Google Drive file ID
   driveViewUrl  String?           // Google Drive public URL

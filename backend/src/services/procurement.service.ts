@@ -15,6 +15,10 @@ export interface CreateProcurementInput {
   driveFileId?: string | null;
   driveViewUrl?: string | null;
   notes?: string | null;
+  cgst?: number | null;
+  sgst?: number | null;
+  igst?: number | null;
+  discount?: number | null;
 }
 
 export interface UpdateProcurementInput {
@@ -29,6 +33,10 @@ export interface UpdateProcurementInput {
   driveFileId?: string | null;
   driveViewUrl?: string | null;
   notes?: string | null;
+  cgst?: number | null;
+  sgst?: number | null;
+  igst?: number | null;
+  discount?: number | null;
 }
 
 export async function getProcurements(projectId: string, phaseId?: string | null) {
@@ -64,6 +72,10 @@ export async function createProcurement(data: CreateProcurementInput) {
       driveFileId: data.driveFileId || null,
       driveViewUrl: data.driveViewUrl || null,
       notes: data.notes || null,
+      cgst: data.cgst !== undefined ? data.cgst : null,
+      sgst: data.sgst !== undefined ? data.sgst : null,
+      igst: data.igst !== undefined ? data.igst : null,
+      discount: data.discount !== undefined ? data.discount : null,
     },
   });
 }
@@ -83,6 +95,10 @@ export async function updateProcurement(id: string, data: UpdateProcurementInput
       driveFileId: data.driveFileId !== undefined ? data.driveFileId : undefined,
       driveViewUrl: data.driveViewUrl !== undefined ? data.driveViewUrl : undefined,
       notes: data.notes,
+      cgst: data.cgst !== undefined ? data.cgst : undefined,
+      sgst: data.sgst !== undefined ? data.sgst : undefined,
+      igst: data.igst !== undefined ? data.igst : undefined,
+      discount: data.discount !== undefined ? data.discount : undefined,
     },
   });
 }
