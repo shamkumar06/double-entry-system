@@ -27,6 +27,7 @@ router.put('/:projectId/phases/:phaseId', authenticate, requireAdmin, project.up
 router.delete('/:projectId/phases/:phaseId', authenticate, requireAdmin, project.deletePhase);
 
 router.post('/:projectId/phases/:phaseId/settle', authenticate, requireAdmin, project.settlePhase);
+router.post('/:projectId/phases/:phaseId/unsettle', authenticate, requireAdmin, project.unsettlePhase);
 router.post('/:projectId/phases/:phaseId/reallocate', authenticate, requireAdmin, project.reallocateSurplus);
 
 // Procurement Routes

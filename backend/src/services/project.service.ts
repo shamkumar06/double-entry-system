@@ -334,6 +334,42 @@ export const updatePhase = async (
   return updatedPhase;
 };
 
+export const unsettlePhase = async (projectId: string, phaseId: string) => {
+  const phase = await prisma.phase.findFirst({ where: { id: phaseId, projectId } });
+  if (!phase) throw new AppError('Phase not found.', 404);
+
+  // Soft-delete ALL settlement transactions for this phase (handles both DB-settled and tx-settled)
+  const settlementTransactions = await prisma.transaction.findMany({
+    where: {
+      phaseId,
+      isDeleted: false,
+      lines: {
+        some: {
+          account: { name: 'Settlement Amount' },
+        },
+      },
+    },
+  });
+
+  if (settlementTransactions.length > 0) {
+    await prisma.transaction.updateMany({
+      where: { id: { in: settlementTransactions.map((t) => t.id) } },
+      data: { isDeleted: true },
+    });
+  }
+
+  // Reset phase settlement state
+  const updatedPhase = await prisma.phase.update({
+    where: { id: phaseId },
+    data: {
+      isSettled: false,
+      returnedAmount: new Prisma.Decimal(0),
+    },
+  });
+
+  return updatedPhase;
+};
+
 export const deletePhase = async (projectId: string, phaseId: string) => {
   const phase = await prisma.phase.findFirst({ where: { id: phaseId, projectId } });
   if (!phase) throw new AppError('Phase not found.', 404);

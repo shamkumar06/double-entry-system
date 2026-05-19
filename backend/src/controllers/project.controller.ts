@@ -86,6 +86,16 @@ export const settlePhase = async (req: Request, res: Response, next: NextFunctio
   } catch (err) { next(err); }
 };
 
+export const unsettlePhase = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await projectService.unsettlePhase(
+      req.params.projectId as string,
+      req.params.phaseId as string
+    );
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};
+
 export const reallocateSurplus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { sourcePhaseId } = req.body;

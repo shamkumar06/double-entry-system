@@ -127,7 +127,12 @@ export default function Settings({ activeProject, onUpdate, user }) {
       onConfirm: async () => {
         setSettlingId(phase.id);
         try {
-          await accountingApi.updatePhase(activeProject.id, phase.id, { isSettled: !phase.isSettled });
+          if (phase.isSettled) {
+            // Use dedicated unsettle endpoint — handles all edge cases cleanly
+            await accountingApi.unsettlePhase(activeProject.id, phase.id);
+          } else {
+            await accountingApi.updatePhase(activeProject.id, phase.id, { isSettled: true });
+          }
           await fetchPhases();
           if (onUpdate) onUpdate();
         } catch (e) {
