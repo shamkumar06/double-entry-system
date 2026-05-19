@@ -5,6 +5,33 @@ import { accountingApi } from '../services/api';
 import { parseDescription } from '../utils/descriptionParser';
 
 const STUDIO_STYLES = `
+    .report-studio-container {
+        display: flex;
+        height: calc(100vh - 120px);
+        overflow: hidden;
+        border-radius: 16px;
+        background: var(--background);
+        border: 1px solid var(--border);
+    }
+    .report-studio-controls {
+        width: 380px;
+        min-width: 380px;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border);
+        background: var(--surface);
+        z-index: 10;
+        height: 100%;
+    }
+    .report-preview-pane {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+        background: var(--background);
+        height: 100%;
+    }
     .studio-section {
         background: var(--surface);
         border-radius: 12px;
