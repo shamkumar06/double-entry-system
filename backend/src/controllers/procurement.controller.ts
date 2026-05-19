@@ -3,6 +3,27 @@ import * as procurementService from '../services/procurement.service';
 import * as driveService from '../services/drive.service';
 
 /**
+ * Robustly sanitizes values that can be empty or the string "undefined"/"null" from React frontend FormData.
+ */
+function sanitizeStringOrNull(val: any): string | null {
+  if (val === undefined || val === null) return null;
+  const s = String(val).trim();
+  if (s === '' || s === 'undefined' || s === 'null') return null;
+  return s;
+}
+
+/**
+ * Robustly parses decimals and filters out empty, "undefined", "null" or non-numeric strings, returning null instead of NaN.
+ */
+function sanitizeDecimalOrNull(val: any): number | null {
+  if (val === undefined || val === null) return null;
+  const s = String(val).trim();
+  if (s === '' || s === 'undefined' || s === 'null') return null;
+  const parsed = parseFloat(s);
+  return isNaN(parsed) ? null : parsed;
+}
+
+/**
  * Lists all procurement items for a project
  */
 export async function listProcurements(req: Request, res: Response): Promise<void> {
@@ -62,21 +83,21 @@ export async function createProcurement(req: Request, res: Response): Promise<vo
 
     const item = await procurementService.createProcurement({
       projectId,
-      phaseId: phaseId ? String(phaseId) : null,
+      phaseId: sanitizeStringOrNull(phaseId),
       materialName: String(materialName),
-      vendorName: vendorName ? String(vendorName) : null,
+      vendorName: sanitizeStringOrNull(vendorName),
       quantity: parseFloat(quantity),
       unit: String(unit),
       estimatedRate: parseFloat(estimatedRate),
-      actualRate: actualRate ? parseFloat(actualRate) : null,
+      actualRate: sanitizeDecimalOrNull(actualRate),
       status: status || 'PLANNING',
       driveFileId,
       driveViewUrl,
-      notes: notes ? String(notes) : null,
-      cgst: cgst ? parseFloat(cgst) : null,
-      sgst: sgst ? parseFloat(sgst) : null,
-      igst: igst ? parseFloat(igst) : null,
-      discount: discount ? parseFloat(discount) : null,
+      notes: sanitizeStringOrNull(notes),
+      cgst: sanitizeDecimalOrNull(cgst),
+      sgst: sanitizeDecimalOrNull(sgst),
+      igst: sanitizeDecimalOrNull(igst),
+      discount: sanitizeDecimalOrNull(discount),
     });
 
     res.status(201).json(item);
@@ -133,21 +154,21 @@ export async function updateProcurement(req: Request, res: Response): Promise<vo
     }
 
     const updated = await procurementService.updateProcurement(itemId, {
-      phaseId: phaseId !== undefined ? (phaseId ? String(phaseId) : null) : undefined,
+      phaseId: phaseId !== undefined ? sanitizeStringOrNull(phaseId) : undefined,
       materialName: materialName ? String(materialName) : undefined,
-      vendorName: vendorName !== undefined ? (vendorName ? String(vendorName) : null) : undefined,
+      vendorName: vendorName !== undefined ? sanitizeStringOrNull(vendorName) : undefined,
       quantity: quantity !== undefined ? parseFloat(quantity) : undefined,
       unit: unit ? String(unit) : undefined,
       estimatedRate: estimatedRate !== undefined ? parseFloat(estimatedRate) : undefined,
-      actualRate: actualRate !== undefined ? (actualRate ? parseFloat(actualRate) : null) : undefined,
+      actualRate: actualRate !== undefined ? sanitizeDecimalOrNull(actualRate) : undefined,
       status,
       driveFileId,
       driveViewUrl,
-      notes: notes !== undefined ? (notes ? String(notes) : null) : undefined,
-      cgst: cgst !== undefined ? (cgst ? parseFloat(cgst) : null) : undefined,
-      sgst: sgst !== undefined ? (sgst ? parseFloat(sgst) : null) : undefined,
-      igst: igst !== undefined ? (igst ? parseFloat(igst) : null) : undefined,
-      discount: discount !== undefined ? (discount ? parseFloat(discount) : null) : undefined,
+      notes: notes !== undefined ? sanitizeStringOrNull(notes) : undefined,
+      cgst: cgst !== undefined ? sanitizeDecimalOrNull(cgst) : undefined,
+      sgst: sgst !== undefined ? sanitizeDecimalOrNull(sgst) : undefined,
+      igst: igst !== undefined ? sanitizeDecimalOrNull(igst) : undefined,
+      discount: discount !== undefined ? sanitizeDecimalOrNull(discount) : undefined,
     });
 
     res.json(updated);
