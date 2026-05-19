@@ -473,6 +473,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
             {/* Lightbox */}
             {current && (
                 <div
+                    className="lightbox-overlay"
                     onClick={closeLightbox}
                     style={{
                         position: 'fixed', inset: 0, zIndex: 2000,
@@ -491,7 +492,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                     }}>
                         {/* Close button - now sticky/fixed at top right of viewport */}
                         <button onClick={closeLightbox} style={{
-                            position: 'fixed', top: '1.25rem', right: '2rem',
+                            position: 'fixed', top: '1.25rem', right: '1.25rem',
                             background: 'rgba(255,255,255,0.15)', border: 'none',
                             borderRadius: '50%', width: '44px', height: '44px',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -505,7 +506,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                         {/* Nav arrows - kept fixed */}
                         {filtered.length > 1 && (
                             <>
-                                <button onClick={prev} style={{
+                                <button className="lightbox-nav-btn prev" onClick={prev} style={{
                                     position: 'fixed', left: '1rem', top: '50%', transform: 'translateY(-50%)',
                                     background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
                                     width: '44px', height: '44px', display: 'flex', alignItems: 'center',
@@ -514,7 +515,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                                 }}>
                                     <ChevronLeft size={22} />
                                 </button>
-                                <button onClick={next} style={{
+                                <button className="lightbox-nav-btn next" onClick={next} style={{
                                     position: 'fixed', right: '1rem', top: '50%', transform: 'translateY(-50%)',
                                     background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
                                     width: '44px', height: '44px', display: 'flex', alignItems: 'center',
@@ -527,7 +528,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                         )}
 
                         {/* Counter pill at the top */}
-                        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', fontWeight: 600, background: 'rgba(255,255,255,0.1)', padding: '0.4rem 1rem', borderRadius: '20px' }}>
+                        <div className="lightbox-counter" style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', fontWeight: 600, background: 'rgba(255,255,255,0.1)', padding: '0.4rem 1rem', borderRadius: '20px' }}>
                             {lightboxIndex + 1} / {filtered.length}
                         </div>
 
@@ -543,7 +544,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                         </div>
 
                         {/* Details card */}
-                        <div style={{
+                        <div className="lightbox-details-card" style={{
                             background: 'rgba(255,255,255,0.08)',
                             backdropFilter: 'blur(20px)',
                             borderRadius: '20px',
@@ -555,6 +556,7 @@ export default function ReceiptsGallery({ projectId, phaseId }) {
                             gap: '1.5rem',
                             marginBottom: '2rem',
                             boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                            boxSizing: 'border-box'
                         }}>
                             <div>
                                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Description</div>

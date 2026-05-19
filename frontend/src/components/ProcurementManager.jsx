@@ -1539,9 +1539,9 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
       )}
 
       {/* Procurement Media Gallery & Lightbox Modal */}
-      {galleryItem && lightboxOpen && createPortal(
+      {lightboxOpen && galleryItem && createPortal(
         <div 
-          className="modal-overlay" 
+          className="lightbox-overlay" 
           style={{ 
             position: 'fixed', 
             inset: 0, 
@@ -1555,6 +1555,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
           }}
         >
           <div 
+            className="lightbox-details-card"
             style={{ 
               display: 'flex', 
               width: '100%', 
@@ -1691,6 +1692,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                     {/* Left Navigation Arrow */}
                     {galleryPhotos.length > 1 && (
                       <button 
+                        className="lightbox-nav-btn prev"
                         onClick={() => setCurrentPhotoIndex(prev => (prev === 0 ? galleryPhotos.length - 1 : prev - 1))}
                         style={{ 
                           position: 'absolute', 
@@ -1718,6 +1720,7 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                     {/* Right Navigation Arrow */}
                     {galleryPhotos.length > 1 && (
                       <button 
+                        className="lightbox-nav-btn next"
                         onClick={() => setCurrentPhotoIndex(prev => (prev === galleryPhotos.length - 1 ? 0 : prev + 1))}
                         style={{ 
                           position: 'absolute', 

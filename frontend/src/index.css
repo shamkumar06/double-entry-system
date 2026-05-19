@@ -1400,3 +1400,37 @@ select option, select optgroup {
     display: none !important;
   }
 }
+
+/* Lightbox Mobile Fixes */
+@media (max-width: 768px) {
+  .lightbox-overlay {
+    padding: 1rem 0.5rem !important;
+  }
+  .lightbox-overlay > div {
+    min-height: 100vh !important;
+    justify-content: flex-start !important;
+    padding-top: 4rem !important;
+    padding-bottom: 4rem !important;
+  }
+  .lightbox-nav-btn {
+    top: auto !important;
+    bottom: 2rem !important;
+    transform: none !important;
+  }
+  .lightbox-nav-btn.prev {
+    left: 2rem !important;
+  }
+  .lightbox-nav-btn.next {
+    right: 2rem !important;
+  }
+  .lightbox-details-card {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    padding: 1.25rem 1rem !important;
+  }
+  .lightbox-counter {
+    top: 1.5rem !important;
+    left: 1rem !important;
+    font-size: 0.8rem !important;
+  }
+}
