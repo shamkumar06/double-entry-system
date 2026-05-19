@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { accountingApi, getImageUrl } from '../services/api';
-import { GitBranch, Plus, Trash2, ArrowRight, ChevronLeft, Edit2 } from 'lucide-react';
+import { GitBranch, Plus, Trash2, ArrowRight, ChevronLeft, Edit2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useCurrency } from '../context/SettingsContext';
 import ConfirmationDialog from './ConfirmationDialog';
 
@@ -838,6 +838,67 @@ export default function PhaseSelector({ project, user, onSelectPhase, onBack }) 
                                                     >
                                                         View
                                                     </a>
+                                                    
+                                                    {/* Move Up */}
+                                                    <button 
+                                                        type="button" 
+                                                        disabled={idx === 0}
+                                                        onClick={() => {
+                                                            const arr = editingId ? [...editPhaseLetters] : [...newPhaseLetters];
+                                                            const temp = arr[idx];
+                                                            arr[idx] = arr[idx - 1];
+                                                            arr[idx - 1] = temp;
+                                                            if (editingId) {
+                                                                setEditPhaseLetters(arr);
+                                                            } else {
+                                                                setNewPhaseLetters(arr);
+                                                            }
+                                                        }}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: idx === 0 ? 'var(--text-muted)' : 'var(--text-main)', 
+                                                            opacity: idx === 0 ? 0.3 : 1,
+                                                            cursor: idx === 0 ? 'default' : 'pointer', 
+                                                            padding: '0.15rem', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center' 
+                                                        }}
+                                                        title="Move Up"
+                                                    >
+                                                        <ChevronUp size={16} />
+                                                    </button>
+
+                                                    {/* Move Down */}
+                                                    <button 
+                                                        type="button" 
+                                                        disabled={idx === ((editingId ? editPhaseLetters : newPhaseLetters) || []).length - 1}
+                                                        onClick={() => {
+                                                            const arr = editingId ? [...editPhaseLetters] : [...newPhaseLetters];
+                                                            const temp = arr[idx];
+                                                            arr[idx] = arr[idx + 1];
+                                                            arr[idx + 1] = temp;
+                                                            if (editingId) {
+                                                                setEditPhaseLetters(arr);
+                                                            } else {
+                                                                setNewPhaseLetters(arr);
+                                                            }
+                                                        }}
+                                                        style={{ 
+                                                            background: 'none', 
+                                                            border: 'none', 
+                                                            color: idx === ((editingId ? editPhaseLetters : newPhaseLetters) || []).length - 1 ? 'var(--text-muted)' : 'var(--text-main)', 
+                                                            opacity: idx === ((editingId ? editPhaseLetters : newPhaseLetters) || []).length - 1 ? 0.3 : 1,
+                                                            cursor: idx === ((editingId ? editPhaseLetters : newPhaseLetters) || []).length - 1 ? 'default' : 'pointer', 
+                                                            padding: '0.15rem', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center' 
+                                                        }}
+                                                        title="Move Down"
+                                                    >
+                                                        <ChevronDown size={16} />
+                                                    </button>
+
                                                     <button 
                                                         type="button" 
                                                         onClick={() => {
