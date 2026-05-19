@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit3, Image, FileText, CheckCircle, Package, Layers, DollarSign, Calendar, Info, Loader2, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, Edit3, Image, FileText, CheckCircle, Package, Layers, DollarSign, Calendar, Info, Loader2, ArrowRight, FolderOpen } from 'lucide-react';
 import { procurementApi } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
+
 
 export default function ProcurementManager({ projectId, activePhase, phasesList, onPrefillExpense }) {
   const { formatCurrency } = useCurrency();
@@ -25,7 +26,8 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
   const [status, setStatus] = useState('PLANNING');
   const [notes, setNotes] = useState('');
   const [selectedPhaseId, setSelectedPhaseId] = useState('');
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
+
 
   // Image Preview Modal
   const [previewImage, setPreviewImage] = useState(null);
@@ -64,9 +66,10 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     setStatus('PLANNING');
     setNotes('');
     setSelectedPhaseId(activePhase?.id || '');
-    setImageFile(null);
+    setImageFiles([]);
     setFormError('');
     setShowFormModal(true);
+
   };
 
   const handleOpenEdit = (item) => {
@@ -80,9 +83,10 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     setStatus(item.status);
     setNotes(item.notes || '');
     setSelectedPhaseId(item.phaseId || '');
-    setImageFile(null);
+    setImageFiles([]);
     setFormError('');
     setShowFormModal(true);
+
   };
 
   const handleDelete = async (itemId) => {
@@ -116,9 +120,12 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
       formData.append('status', status);
       formData.append('notes', notes);
       formData.append('phaseId', selectedPhaseId);
-      if (imageFile) {
-        formData.append('file', imageFile);
+      if (imageFiles && imageFiles.length > 0) {
+        imageFiles.forEach(file => {
+          formData.append('files', file);
+        });
       }
+
 
       if (editingItem) {
         await procurementApi.update(projectId, editingItem.id, formData);
@@ -258,188 +265,155 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
           </button>
         </div>
       ) : (
-        <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
-          {items.map(item => {
-            const itemEst = parseFloat(item.estimatedRate) * parseFloat(item.quantity);
-            const itemAct = (item.actualRate ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity);
-            const hasDriveImage = !!item.driveViewUrl;
+        <div style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '24px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', animation: 'fadeIn 0.3s ease-out' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Material & Vendor</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Phase</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Quantity</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Est. Rate</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Act. Rate</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Total Cost</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)' }}>Status</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center' }}>Drive Folder</th>
+                <th style={{ padding: '1rem 1.25rem', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => {
+                const itemEst = parseFloat(item.estimatedRate) * parseFloat(item.quantity);
+                const itemAct = (item.actualRate ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate)) * parseFloat(item.quantity);
+                const phaseName = phasesList.find(p => p.id === item.phaseId)?.name || 'Independent';
 
-            return (
-              <div 
-                key={item.id} 
-                className="glass-panel animate-in" 
-                style={{ 
-                  borderRadius: '24px', 
-                  background: 'var(--glass-bg)', 
-                  border: '1px solid var(--border)', 
-                  padding: '1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  transition: 'transform 0.2s',
-                  position: 'relative'
-                }}
-              >
-                <div>
-                  {/* Title & Badge */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                    <div>
-                      <h4 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
-                        {item.materialName}
-                      </h4>
-                      {item.vendorName && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Vendor: {item.vendorName}</span>
-                      )}
-                    </div>
-                    <span 
-                      style={{ 
-                        fontSize: '0.65rem', 
-                        fontWeight: 800, 
-                        padding: '0.3rem 0.6rem', 
-                        borderRadius: '8px', 
-                        letterSpacing: '0.05em',
-                        background: 
-                          item.status === 'DELIVERED' ? 'rgba(16, 185, 129, 0.15)' :
-                          item.status === 'ORDERED' ? 'rgba(245, 158, 11, 0.15)' :
-                          item.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
-                        color: 
-                          item.status === 'DELIVERED' ? '#10b981' :
-                          item.status === 'ORDERED' ? '#f59e0b' :
-                          item.status === 'CANCELLED' ? '#ef4848' : '#3b82f6',
-                        border: 
-                          item.status === 'DELIVERED' ? '1px solid rgba(16, 185, 129, 0.25)' :
-                          item.status === 'ORDERED' ? '1px solid rgba(245, 158, 11, 0.25)' :
-                          item.status === 'CANCELLED' ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(59, 130, 246, 0.25)'
-                      }}
-                    >
-                      {item.status}
-                    </span>
-                  </div>
-
-                  {/* Quantity & Unit Row */}
-                  <div style={{ display: 'flex', gap: '1rem', background: 'var(--surface)', padding: '0.75rem 1rem', borderRadius: '16px', margin: '0.75rem 0', border: '1px solid var(--border)' }}>
-                    <div>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>QUANTITY</span>
-                      <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{parseFloat(item.quantity)} {item.unit}</strong>
-                    </div>
-                    <div style={{ width: '1px', background: 'var(--border)' }} />
-                    <div>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>ESTIMATED RATE</span>
-                      <strong style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>{formatCurrency(parseFloat(item.estimatedRate))}/{item.unit}</strong>
-                    </div>
-                    {item.actualRate && (
-                      <>
-                        <div style={{ width: '1px', background: 'var(--border)' }} />
-                        <div>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>ACTUAL RATE</span>
-                          <strong style={{ fontSize: '0.9rem', color: 'var(--success)' }}>{formatCurrency(parseFloat(item.actualRate))}/{item.unit}</strong>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Google Drive Visual Preview Card */}
-                  {hasDriveImage ? (
-                    <div 
-                      onClick={() => setPreviewImage(item.driveViewUrl)}
-                      style={{ 
-                        position: 'relative', 
-                        height: '140px', 
-                        borderRadius: '16px', 
-                        overflow: 'hidden', 
-                        border: '1px solid var(--border)',
-                        cursor: 'pointer',
-                        background: '#000',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '0.75rem'
-                      }}
-                    >
-                      <img 
-                        src={item.driveViewUrl} 
-                        alt={item.materialName} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }} 
-                        onError={(e) => {
-                          // Fallback to visual placeholder if direct embed is blocked by user browser
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                      {/* Google Drive Badging */}
-                      <div style={{ display: 'none', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', padding: '1rem' }}>
-                        <Image size={24} color="var(--primary)" />
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-main)', fontWeight: 700, marginTop: '0.25rem' }}>Visual Receipt Attached</span>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Click to view on Google Drive</span>
-                      </div>
-                      
-                      <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', padding: '0.25rem 0.5rem', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <span style={{ fontSize: '0.55rem', color: '#fff', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📁 Google Drive Asset</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                      <Info size={14} /> No visual photo attached to this material
-                    </div>
-                  )}
-
-                  {/* Notes */}
-                  {item.notes && (
-                    <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', background: 'rgba(255,255,255,0.02)', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                      📝 {item.notes}
-                    </p>
-                  )}
-                </div>
-
-                {/* Footer Buttons */}
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Cost: <strong style={{ color: 'var(--text-main)' }}>{formatCurrency(itemAct)}</strong>
-                    {itemAct !== itemEst && (
-                      <span style={{ display: 'block', fontSize: '0.65rem', color: itemAct > itemEst ? 'var(--danger)' : 'var(--success)' }}>
-                        ({itemAct > itemEst ? '+' : ''}{formatCurrency(itemAct - itemEst)} deviation)
+                return (
+                  <tr 
+                    key={item.id} 
+                    style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.01)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '1rem 1.25rem' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--text-main)', fontSize: '0.9rem' }}>{item.materialName}</div>
+                      {item.vendorName && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.vendorName}</div>}
+                      {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.25rem' }}>📝 {item.notes}</div>}
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                      <span style={{ padding: '0.25rem 0.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', fontSize: '0.75rem' }}>
+                        📁 {phaseName}
                       </span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    {item.status === 'DELIVERED' && onPrefillExpense && (
-                      <button 
-                        onClick={() => onPrefillExpense({
-                          description: `Procurement: ${item.materialName} (${parseFloat(item.quantity)} ${item.unit})`,
-                          amount: itemAct,
-                          attachmentUrl: item.driveViewUrl,
-                          phaseId: item.phaseId
-                        })}
-                        className="btn-primary" 
-                        style={{ padding: '0.35rem 0.75rem', borderRadius: '10px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'linear-gradient(135deg, var(--success) 0%, #059669 100%)', border: 'none', fontWeight: 800 }}
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)', fontWeight: 700 }}>
+                      {parseFloat(item.quantity)} <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.75rem' }}>{item.unit}</span>
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem', color: 'var(--text-main)' }}>
+                      {formatCurrency(parseFloat(item.estimatedRate))}
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem', color: item.actualRate ? 'var(--success)' : 'var(--text-muted)' }}>
+                      {item.actualRate ? formatCurrency(parseFloat(item.actualRate)) : '—'}
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(itemAct)}</div>
+                      {itemAct !== itemEst && (
+                        <div style={{ fontSize: '0.65rem', color: itemAct > itemEst ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+                          {itemAct > itemEst ? '▲' : '▼'} {formatCurrency(Math.abs(itemAct - itemEst))}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem' }}>
+                      <span 
+                        style={{ 
+                          fontSize: '0.65rem', 
+                          fontWeight: 800, 
+                          padding: '0.3rem 0.6rem', 
+                          borderRadius: '8px', 
+                          letterSpacing: '0.05em',
+                          background: 
+                            item.status === 'DELIVERED' ? 'rgba(16, 185, 129, 0.12)' :
+                            item.status === 'ORDERED' ? 'rgba(245, 158, 11, 0.12)' :
+                            item.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                          color: 
+                            item.status === 'DELIVERED' ? '#10b981' :
+                            item.status === 'ORDERED' ? '#f59e0b' :
+                            item.status === 'CANCELLED' ? '#ef4848' : '#3b82f6',
+                          border: 
+                            item.status === 'DELIVERED' ? '1px solid rgba(16, 185, 129, 0.2)' :
+                            item.status === 'ORDERED' ? '1px solid rgba(245, 158, 11, 0.2)' :
+                            item.status === 'CANCELLED' ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
+                        }}
                       >
-                        🧾 Book expense
-                      </button>
-                    )}
+                        {item.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
+                      {item.driveViewUrl ? (
+                        <a 
+                          href={item.driveViewUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0.5rem',
+                            borderRadius: '10px',
+                            background: 'rgba(59, 130, 246, 0.12)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            color: '#3b82f6',
+                            cursor: 'pointer',
+                            transition: 'transform 0.1s'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          title="Open Material Folder in Google Drive"
+                        >
+                          <FolderOpen size={18} fill="rgba(59, 130, 246, 0.2)" />
+                        </a>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>No folder</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {item.status === 'DELIVERED' && onPrefillExpense && (
+                          <button 
+                            onClick={() => onPrefillExpense({
+                              description: `Procurement: ${item.materialName} (${parseFloat(item.quantity)} ${item.unit})`,
+                              amount: itemAct,
+                              attachmentUrl: item.driveViewUrl,
+                              phaseId: item.phaseId
+                            })}
+                            className="btn-primary" 
+                            style={{ padding: '0.35rem 0.75rem', borderRadius: '10px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'linear-gradient(135deg, var(--success) 0%, #059669 100%)', border: 'none', fontWeight: 800 }}
+                          >
+                            🧾 Book expense
+                          </button>
+                        )}
 
-                    <button 
-                      onClick={() => handleOpenEdit(item)}
-                      style={{ padding: '0.4rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}
-                      title="Edit Item"
-                    >
-                      <Edit3 size={14} />
-                    </button>
+                        <button 
+                          onClick={() => handleOpenEdit(item)}
+                          style={{ padding: '0.45rem', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text-main)', cursor: 'pointer' }}
+                          title="Edit Item"
+                        >
+                          <Edit3 size={14} />
+                        </button>
 
-                    <button 
-                      onClick={() => handleDelete(item.id)}
-                      style={{ padding: '0.4rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: 'var(--danger)', cursor: 'pointer' }}
-                      title="Delete Item"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          style={{ padding: '0.45rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', color: 'var(--danger)', cursor: 'pointer' }}
+                          title="Delete Item"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+
       )}
 
       {/* Upload/Edit Modal */}
@@ -552,14 +526,16 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
 
               <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '0.75rem', alignItems: 'center' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>Upload Photo (Google Drive)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>Upload Photo(s) (Google Drive)</label>
                   <input 
                     type="file" 
                     accept="image/*"
-                    onChange={e => setImageFile(e.target.files[0])}
+                    multiple
+                    onChange={e => setImageFiles(Array.from(e.target.files))}
                     style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
                   />
                 </div>
+
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>Status</label>

@@ -29,9 +29,10 @@ router.post('/:projectId/phases/:phaseId/reallocate', authenticate, requireAdmin
 
 // Procurement Routes
 router.get('/:projectId/procurement', authenticate, procurement.listProcurements);
-router.post('/:projectId/procurement', authenticate, requireAdmin, upload.single('file'), procurement.createProcurement);
-router.put('/:projectId/procurement/items/:itemId', authenticate, requireAdmin, upload.single('file'), procurement.updateProcurement);
+router.post('/:projectId/procurement', authenticate, requireAdmin, upload.array('files', 10), procurement.createProcurement);
+router.put('/:projectId/procurement/items/:itemId', authenticate, requireAdmin, upload.array('files', 10), procurement.updateProcurement);
 router.delete('/:projectId/procurement/items/:itemId', authenticate, requireAdmin, procurement.deleteProcurement);
+
 
 export default router;
 

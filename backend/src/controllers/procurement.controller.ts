@@ -46,9 +46,12 @@ export async function createProcurement(req: Request, res: Response): Promise<vo
     let driveFileId: string | null = null;
     let driveViewUrl: string | null = null;
 
-    // Upload file to Google Drive if one was attached in the request
-    if (req.file) {
-      const uploadRes = await driveService.uploadToDrive(req.file);
+    // Upload files to Google Drive folder if any were attached in the request
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      const uploadRes = await driveService.createFolderAndUploadToDrive(
+        String(materialName),
+        req.files as Express.Multer.File[]
+      );
       driveFileId = uploadRes.fileId;
       driveViewUrl = uploadRes.viewUrl;
     }
@@ -101,16 +104,20 @@ export async function updateProcurement(req: Request, res: Response): Promise<vo
     let driveFileId = existing.driveFileId;
     let driveViewUrl = existing.driveViewUrl;
 
-    if (req.file) {
-      // Delete old photo from Google Drive
-      if (existing.driveFileId) {
-        await driveService.deleteFromDrive(existing.driveFileId);
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      const files = req.files as Express.Multer.File[];
+      if (existing.driveFileId && !existing.driveFileId.startsWith('supabase:')) {
+        // Folder already exists, append new files to it!
+        await driveService.uploadToExistingFolder(existing.driveFileId, files);
+      } else {
+        // Folder does not exist yet (or was previously empty), create a new one!
+        const uploadRes = await driveService.createFolderAndUploadToDrive(
+          materialName ? String(materialName) : existing.materialName,
+          files
+        );
+        driveFileId = uploadRes.fileId;
+        driveViewUrl = uploadRes.viewUrl;
       }
-
-      // Upload new photo
-      const uploadRes = await driveService.uploadToDrive(req.file);
-      driveFileId = uploadRes.fileId;
-      driveViewUrl = uploadRes.viewUrl;
     }
 
     const updated = await procurementService.updateProcurement(itemId, {

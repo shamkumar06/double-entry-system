@@ -253,4 +253,195 @@ export async function deleteFromDrive(fileId: string): Promise<void> {
   }
 }
 
+/**
+ * Creates a subfolder in Google Drive named after the materialName,
+ * uploads multiple files inside it renamed as image-1, image-2, etc.,
+ * and returns the folder's ID and web view link.
+ */
+export async function createFolderAndUploadToDrive(
+  materialName: string,
+  files: Express.Multer.File[]
+): Promise<{ fileId: string; viewUrl: string }> {
+  if (!drive) {
+    throw new Error("Google Drive credentials not configured");
+  }
+
+  try {
+    // 1. Create the subfolder under GOOGLE_DRIVE_FOLDER_ID
+    const folderMetadata: any = {
+      name: materialName,
+      mimeType: 'application/vnd.google-apps.folder',
+    };
+
+    if (FOLDER_ID) {
+      folderMetadata.parents = [FOLDER_ID];
+    }
+
+    const folderResponse = await drive.files.create({
+      requestBody: folderMetadata,
+      fields: 'id, webViewLink',
+      supportsAllDrives: true,
+    } as any);
+
+    const folderId = folderResponse.data.id;
+    const folderViewUrl = folderResponse.data.webViewLink;
+
+    if (!folderId) {
+      throw new Error('Failed to create folder in Google Drive');
+    }
+
+    // Grant read permission to the folder so anyone can view its contents
+    try {
+      await drive.permissions.create({
+        fileId: folderId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+        supportsAllDrives: true,
+      } as any);
+    } catch (permErr: any) {
+      console.warn('Could not set public permission on Google Drive folder:', permErr.message);
+    }
+
+    // 2. Upload each file into the newly created folder
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.originalname ? file.originalname.substring(file.originalname.lastIndexOf('.')) : '.png';
+      const fileName = `image-${i + 1}${ext}`;
+
+      const fileMetadata = {
+        name: fileName,
+        parents: [folderId],
+      };
+
+      const bufferStream = new Readable();
+      bufferStream.push(file.buffer);
+      bufferStream.push(null);
+
+      const media = {
+        mimeType: file.mimetype,
+        body: bufferStream,
+      };
+
+      const fileResponse = await drive.files.create({
+        requestBody: fileMetadata,
+        media: media,
+        fields: 'id',
+        supportsAllDrives: true,
+      } as any);
+
+      const fileId = fileResponse.data.id;
+
+      // Make the individual file public-readable too
+      if (fileId) {
+        try {
+          await drive.permissions.create({
+            fileId: fileId,
+            requestBody: {
+              role: 'reader',
+              type: 'anyone',
+            },
+            supportsAllDrives: true,
+          } as any);
+        } catch (permErr: any) {
+          console.warn(`Could not set public permission on file ${fileName}:`, permErr.message);
+        }
+      }
+    }
+
+    return {
+      fileId: folderId,
+      viewUrl: folderViewUrl || `https://drive.google.com/drive/folders/${folderId}`,
+    };
+  } catch (error: any) {
+    console.error('Google Drive Folder & Files Upload Error:', error.message);
+    throw new Error(`Google Drive folder upload failed: ${error.message}`);
+  }
+}
+
+/**
+ * Uploads multiple files into an existing Google Drive folder.
+ */
+export async function uploadToExistingFolder(
+  folderId: string,
+  files: Express.Multer.File[]
+): Promise<void> {
+  if (!drive) {
+    throw new Error("Google Drive credentials not configured");
+  }
+
+  try {
+    // Get existing files in the folder to determine next index (e.g. image-3, image-4)
+    const listResponse = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'files(name)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    } as any);
+
+    const existingNames = listResponse.data.files?.map(f => f.name || '') || [];
+    let startIndex = 0;
+    
+    // Find the highest image number to continue from
+    existingNames.forEach(name => {
+      const match = name.match(/image-(\d+)/);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > startIndex) {
+          startIndex = num;
+        }
+      }
+    });
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.originalname ? file.originalname.substring(file.originalname.lastIndexOf('.')) : '.png';
+      const fileName = `image-${startIndex + i + 1}${ext}`;
+
+      const fileMetadata = {
+        name: fileName,
+        parents: [folderId],
+      };
+
+      const bufferStream = new Readable();
+      bufferStream.push(file.buffer);
+      bufferStream.push(null);
+
+      const media = {
+        mimeType: file.mimetype,
+        body: bufferStream,
+      };
+
+      const fileResponse = await drive.files.create({
+        requestBody: fileMetadata,
+        media: media,
+        fields: 'id',
+        supportsAllDrives: true,
+      } as any);
+
+      const fileId = fileResponse.data.id;
+
+      if (fileId) {
+        try {
+          await drive.permissions.create({
+            fileId: fileId,
+            requestBody: {
+              role: 'reader',
+              type: 'anyone',
+            },
+            supportsAllDrives: true,
+          } as any);
+        } catch (permErr: any) {
+          console.warn(`Could not set public permission on file ${fileName}:`, permErr.message);
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error('Google Drive upload to existing folder error:', error.message);
+    throw new Error(`Google Drive append failed: ${error.message}`);
+  }
+}
+
+
 
