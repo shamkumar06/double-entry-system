@@ -679,22 +679,24 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                   height: '38px', 
                   borderRadius: '10px', 
                   background: '#090d16', 
-                  border: '1px solid rgba(255, 255, 255, 0.1)', 
-                  color: '#fff', 
+                  border: '1px solid rgba(255, 255, 255, 0.15)', 
+                  color: '#ffffff', 
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   padding: 0
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.currentTarget.style.background = '#1e293b';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.35)';
+                  e.currentTarget.style.color = '#ffffff';
                 }}
                 onMouseLeave={e => {
                   e.currentTarget.style.background = '#090d16';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                  e.currentTarget.style.color = '#ffffff';
                 }}
               >
-                <Plus size={18} />
+                <Plus size={18} color="#ffffff" style={{ color: '#ffffff' }} />
               </button>
             </div>
           </div>
