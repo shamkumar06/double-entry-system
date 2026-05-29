@@ -153,7 +153,12 @@ export default function Analytics({ projectId, projectName, phaseId }) {
             }
         });
 
-        const categoryByPhaseData = Object.values(phaseCategoryMap);
+        let categoryByPhaseData = Object.values(phaseCategoryMap);
+        categoryByPhaseData.sort((a, b) => {
+            const indexA = phaseComparisonData.findIndex(p => p.name === a.name);
+            const indexB = phaseComparisonData.findIndex(p => p.name === b.name);
+            return indexA - indexB;
+        });
         const categories = Array.from(categorySet);
         
         const netCashFlowData = Object.values(cashFlowMap).sort((a,b) => a.timestamp - b.timestamp);
@@ -509,7 +514,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                         {/* Phase Budget vs Spend */}
-                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignSelf: 'start' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                 <BarChart3 size={20} color="var(--primary)" />
                                 Phase Budget vs. Spend
