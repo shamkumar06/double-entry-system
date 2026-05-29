@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { accountingApi } from '../services/api';
+import React, { useMemo } from 'react';
+import { useProjectData } from '../context/ProjectDataContext';
 import { useFormatting } from '../context/SettingsContext';
 import { 
     PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
@@ -13,42 +13,26 @@ const INCOME_COLORS = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#
 
 export default function Analytics({ projectId, projectName, phaseId }) {
     const { formatCurrency, formatDate } = useFormatting();
-    const [transactions, setTransactions] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { journal, phaseFinances, projectFinances, loading } = useProjectData();
 
-    const fetchJournal = async () => {
-        setLoading(true);
-        try {
-            const data = await accountingApi.getJournal(projectId, phaseId);
-            setTransactions(data);
-        } catch (error) {
-            console.error("Failed to fetch journal for analytics", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (projectId) {
-            fetchJournal();
-        }
-    }, [projectId, phaseId]);
+    // Use exact totals calculated by the context
+    const totalIncome = phaseId ? (phaseFinances[phaseId]?.received || 0) : (projectFinances?.received || 0);
+    const totalExpense = phaseId ? (phaseFinances[phaseId]?.spent || 0) : (projectFinances?.spent || 0);
+    const balance = phaseId ? (phaseFinances[phaseId]?.balance || 0) : (projectFinances?.balance || 0);
 
     const { 
-        totalIncome, 
-        totalExpense, 
-        balance,
         expenseByCategory,
         dailyData,
         incomeByCategory
     } = useMemo(() => {
+        const activeJournal = phaseId ? journal.filter(tx => tx.phaseId === phaseId || tx.phase?.id === phaseId) : journal;
         let tIncome = 0;
         let tExpense = 0;
         const expMap = {};
         const incMap = {};
         const dateMap = {};
 
-        transactions.forEach(tx => {
+        activeJournal.forEach(tx => {
             const isExpense = tx.lines?.some(l => l.account?.type === 'EXPENSE' || l.account?.type === 'ASSET' && l.type === 'CREDIT' && tx.lines?.some(l2 => l2.account?.type === 'EXPENSE'));
             const isIncome = tx.lines?.some(l => l.account?.type === 'INCOME' || l.account?.type === 'EQUITY' || l.account?.type === 'LIABILITY'); // Approximations for funding
             
@@ -109,14 +93,11 @@ export default function Analytics({ projectId, projectName, phaseId }) {
         });
 
         return {
-            totalIncome: tIncome,
-            totalExpense: tExpense,
-            balance: tIncome - tExpense,
             expenseByCategory: expCategoryData,
             incomeByCategory: incCategoryData,
             dailyData: dailyArr
         };
-    }, [transactions]);
+    }, [journal, phaseId]);
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
