@@ -620,10 +620,23 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
 
                     {/* Sender / Receiver */}
                     <datalist id="entity-suggestions">
-                        <option value="Cash Drawer" />
-                        <option value="Main Bank Account" />
-                        <option value="Vendor" /><option value="Client" />
-                        <option value="Staff / Employee" />
+                        {selectedCatType === 'ASSET' ? (
+                            <>
+                                <option value="Main Cash Account" />
+                                <option value="Main Bank Account" />
+                                {(members || []).filter(m => m.isActive !== false).map(m => (
+                                    <option key={m.id} value={m.name} />
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                <option value="Cash Drawer" />
+                                <option value="Main Bank Account" />
+                                <option value="Vendor" />
+                                <option value="Client" />
+                                <option value="Staff / Employee" />
+                            </>
+                        )}
                     </datalist>
                     <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
                         <div style={{
