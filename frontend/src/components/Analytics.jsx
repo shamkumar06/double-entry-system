@@ -7,9 +7,7 @@ import {
 } from 'recharts';
 import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target } from 'lucide-react';
 
-const COLORS = ['#0284c7', '#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#e0f2fe', '#f0f9ff', '#0369a1', '#075985', '#0c4a6e'];
-const EXPENSE_COLORS = ['#ef4444', '#f87171', '#fca5a5', '#fecaca', '#fee2e2', '#b91c1c', '#991b1b', '#7f1d1d'];
-const INCOME_COLORS = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5', '#059669', '#047857', '#065f46'];
+const CHART_COLORS = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#10b981', '#f43f5e', '#0ea5e9', '#84cc16', '#eab308'];
 
 export default function Analytics({ projectId, projectName, phaseId }) {
     const { formatCurrency, formatDate } = useFormatting();
@@ -171,7 +169,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         Expense Breakdown
                     </h4>
                     {expenseByCategory.length > 0 ? (
-                        <div style={{ height: 300, width: '100%' }}>
+                        <div style={{ height: 380, width: '100%' }}>
                             <ResponsiveContainer>
                                 <PieChart>
                                     <Pie
@@ -184,11 +182,11 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         dataKey="value"
                                     >
                                         {expenseByCategory.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]} />
+                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                                         ))}
                                     </Pie>
                                     <RechartsTooltip content={<CustomTooltip />} />
-                                    <Legend />
+                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '20px' }} />
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
@@ -206,7 +204,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         Funding Sources
                     </h4>
                     {incomeByCategory.length > 0 ? (
-                        <div style={{ height: 300, width: '100%' }}>
+                        <div style={{ height: 380, width: '100%' }}>
                             <ResponsiveContainer>
                                 <PieChart>
                                     <Pie
@@ -219,11 +217,11 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         dataKey="value"
                                     >
                                         {incomeByCategory.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={INCOME_COLORS[index % INCOME_COLORS.length]} />
+                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                                         ))}
                                     </Pie>
                                     <RechartsTooltip content={<CustomTooltip />} />
-                                    <Legend />
+                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '20px' }} />
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
