@@ -53,7 +53,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
             const isIncome = tx.lines?.some(l => l.account?.type === 'INCOME' || l.account?.type === 'EQUITY' || l.account?.type === 'LIABILITY'); // Approximations for funding
             
             // Refine expense/income detection for student projects
-            const amount = tx.lines?.[0]?.amount || 0;
+            const amount = Number(tx.lines?.[0]?.amount) || 0;
             const primaryAccount = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || 'Unknown';
             const incomeAccount = tx.lines?.find(l => l.type === 'CREDIT')?.account?.name || 'Unknown';
 
