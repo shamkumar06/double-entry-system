@@ -41,9 +41,9 @@ export const listProjects = async () => {
         });
       });
 
-      const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
-      const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
-      const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
+      const effectiveReturned = manualSettlement;
+      const effectiveReallocated = manualReallocation;
+      const effectiveIsSettled = phase.isSettled;
 
       return {
         id: phase.id,
@@ -111,9 +111,9 @@ export const getProject = async (id: string) => {
       });
     });
 
-    const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
-    const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
-    const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
+    const effectiveReturned = manualSettlement;
+    const effectiveReallocated = manualReallocation;
+    const effectiveIsSettled = phase.isSettled;
 
     return {
       id: phase.id,
@@ -201,9 +201,9 @@ export const listPhases = async (projectId: string) => {
       });
     });
 
-    const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
-    const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
-    const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
+    const effectiveReturned = manualSettlement;
+    const effectiveReallocated = manualReallocation;
+    const effectiveIsSettled = phase.isSettled;
 
     return {
       id: phase.id,
@@ -301,29 +301,8 @@ export const updatePhase = async (
 
   if (isUnsettling) {
     updateData.returnedAmount = new Prisma.Decimal(0);
-    // Find all transactions under this phase that use the 'Settlement Amount' account
-    const settlementTransactions = await prisma.transaction.findMany({
-      where: {
-        phaseId,
-        isDeleted: false,
-        lines: {
-          some: {
-            account: {
-              name: 'Settlement Amount',
-            },
-          },
-        },
-      },
-    });
-
-    if (settlementTransactions.length > 0) {
-      await prisma.transaction.updateMany({
-        where: {
-          id: { in: settlementTransactions.map((t) => t.id) },
-        },
-        data: { isDeleted: true },
-      });
-    }
+    // REMOVED: Destructive soft-delete of all settlement transactions.
+    // Ledger records of partial returns should be preserved even when reopening a phase.
   }
 
   const updatedPhase = await prisma.phase.update({
@@ -338,25 +317,8 @@ export const unsettlePhase = async (projectId: string, phaseId: string) => {
   const phase = await prisma.phase.findFirst({ where: { id: phaseId, projectId } });
   if (!phase) throw new AppError('Phase not found.', 404);
 
-  // Soft-delete ALL settlement transactions for this phase (handles both DB-settled and tx-settled)
-  const settlementTransactions = await prisma.transaction.findMany({
-    where: {
-      phaseId,
-      isDeleted: false,
-      lines: {
-        some: {
-          account: { name: 'Settlement Amount' },
-        },
-      },
-    },
-  });
-
-  if (settlementTransactions.length > 0) {
-    await prisma.transaction.updateMany({
-      where: { id: { in: settlementTransactions.map((t) => t.id) } },
-      data: { isDeleted: true },
-    });
-  }
+  // REMOVED: Soft-delete ALL settlement transactions for this phase.
+  // We keep historical returns in the ledger, just toggle the phase state to OPEN.
 
   // Reset phase settlement state
   const updatedPhase = await prisma.phase.update({
@@ -410,9 +372,9 @@ export const getPhaseFinancials = async (projectId: string) => {
       });
     });
 
-    const effectiveReturned = Math.max(Number(phase.returnedAmount || 0), manualSettlement);
-    const effectiveReallocated = Math.max(Number(phase.reallocatedAmount || 0), manualReallocation);
-    const effectiveIsSettled = phase.isSettled || manualSettlement > 0;
+    const effectiveReturned = manualSettlement;
+    const effectiveReallocated = manualReallocation;
+    const effectiveIsSettled = phase.isSettled;
 
     return {
       id: phase.id,

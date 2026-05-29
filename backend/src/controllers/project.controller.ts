@@ -169,29 +169,72 @@ export const listMembers = async (req: Request, res: Response, next: NextFunctio
 
 export const addMember = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const member = await prisma.projectMember.create({
-      data: {
-        projectId: req.params.projectId as string,
-        name: req.body.name,
-        role: req.body.role || 'STUDENT',
-        phone: req.body.phone || null,
-      },
+    const member = await prisma.$transaction(async (tx) => {
+      const newMember = await tx.projectMember.create({
+        data: {
+          projectId: req.params.projectId as string,
+          name: req.body.name,
+          role: req.body.role || 'STUDENT',
+          phone: req.body.phone || null,
+        },
+      });
+
+      // Automatically create a ledger ASSET account for the new cashier
+      const maxCodeAcc = await tx.accountCategory.findFirst({
+        where: { type: 'ASSET' },
+        orderBy: { code: 'desc' }
+      });
+      const newCode = maxCodeAcc ? maxCodeAcc.code + 1 : 1000;
+
+      await tx.accountCategory.create({
+        data: {
+          name: req.body.name,
+          type: 'ASSET',
+          code: newCode
+        }
+      });
+
+      return newMember;
     });
+
     res.status(201).json({ success: true, data: member });
   } catch (err) { next(err); }
 };
 
 export const updateMember = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const member = await prisma.projectMember.update({
-      where: { id: req.params.memberId as string },
-      data: {
-        ...(req.body.name !== undefined && { name: req.body.name }),
-        ...(req.body.role !== undefined && { role: req.body.role }),
-        ...(req.body.phone !== undefined && { phone: req.body.phone }),
-        ...(req.body.isActive !== undefined && { isActive: req.body.isActive }),
-      },
+    const memberId = req.params.memberId as string;
+    
+    const member = await prisma.$transaction(async (tx) => {
+      const existingMember = await tx.projectMember.findUnique({ where: { id: memberId } });
+      if (!existingMember) throw new Error('Member not found');
+
+      const updatedMember = await tx.projectMember.update({
+        where: { id: memberId },
+        data: {
+          ...(req.body.name !== undefined && { name: req.body.name }),
+          ...(req.body.role !== undefined && { role: req.body.role }),
+          ...(req.body.phone !== undefined && { phone: req.body.phone }),
+          ...(req.body.isActive !== undefined && { isActive: req.body.isActive }),
+        },
+      });
+
+      // Keep ledger Account in sync if name changes
+      if (req.body.name && req.body.name !== existingMember.name) {
+        const existingAcc = await tx.accountCategory.findFirst({
+          where: { name: existingMember.name, type: 'ASSET' }
+        });
+        if (existingAcc) {
+          await tx.accountCategory.update({
+            where: { id: existingAcc.id },
+            data: { name: req.body.name }
+          });
+        }
+      }
+
+      return updatedMember;
     });
+
     res.json({ success: true, data: member });
   } catch (err) { next(err); }
 };

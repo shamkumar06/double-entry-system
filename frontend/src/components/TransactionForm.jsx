@@ -264,21 +264,30 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
 
             const finalReference = formData.payment_mode === 'Cash' ? '' : formData.reference;
 
-            // Try to find a Cash/Bank account to use as the offsetting balance.
-            const cashAccount = categories.find(c => c.name.toLowerCase().includes('cash') || c.name.toLowerCase().includes('bank')) || categories[0];
+            // Double Entry Mapping: Determine the offset account.
+            let offsetAccount = null;
+            if (formData.cashier_name) {
+                // If a cashier made this transaction, use their personal ASSET ledger account
+                offsetAccount = categories.find(c => c.name === formData.cashier_name && c.type === 'ASSET');
+            }
+            
+            // Fallback to Main Cash/Bank if no cashier is selected or cashier account not found
+            if (!offsetAccount) {
+                offsetAccount = categories.find(c => c.name.toLowerCase().includes('cash') || c.name.toLowerCase().includes('bank')) || categories[0];
+            }
+
             const primaryAccountId = formData.category_id;
             const primaryCategory = categories.find(c => c.id === primaryAccountId);
 
-            // Double Entry Mapping: If it's an Expense, debit it. If Income, credit it.
             let lines = [];
             const amt = parseFloat(formData.amount);
             
             if (primaryCategory?.type === 'REVENUE' || primaryCategory?.type === 'LIABILITY') {
-                lines.push({ accountId: cashAccount.id, type: 'DEBIT', amount: amt });
+                lines.push({ accountId: offsetAccount.id, type: 'DEBIT', amount: amt });
                 lines.push({ accountId: primaryAccountId, type: 'CREDIT', amount: amt });
             } else {
                 lines.push({ accountId: primaryAccountId, type: 'DEBIT', amount: amt });
-                lines.push({ accountId: cashAccount.id, type: 'CREDIT', amount: amt });
+                lines.push({ accountId: offsetAccount.id, type: 'CREDIT', amount: amt });
             }
 
             const payload = {
