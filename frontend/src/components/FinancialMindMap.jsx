@@ -93,7 +93,7 @@ const getLayoutedElements = (nodes, edges) => {
 // === MAIN COMPONENT ===
 
 export default function FinancialMindMap() {
-    const { journal, members, projectFinances } = useProjectData();
+    const { journal, members, projectFinances, cashierFinances } = useProjectData();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState(null);
@@ -101,17 +101,16 @@ export default function FinancialMindMap() {
 
     // Graph Generation Logic
     useEffect(() => {
-        if (!journal || !members) return;
+        if (!journal || !members || !cashierFinances) return;
 
         const nodesMap = new Map();
         const edgesMap = new Map();
 
-        const addNode = (id, title, type, amount = 0) => {
+        const addNode = (id, title, type, exactAmount = null) => {
             if (!nodesMap.has(id)) {
-                nodesMap.set(id, { id, type, data: { title, amount: 0 } });
-            }
-            if (amount > 0) {
-                nodesMap.get(id).data.amount += amount;
+                nodesMap.set(id, { id, type, data: { title, amount: exactAmount || 0 } });
+            } else if (exactAmount !== null) {
+                nodesMap.get(id).data.amount = exactAmount;
             }
         };
 
@@ -133,7 +132,16 @@ export default function FinancialMindMap() {
             edgesMap.get(edgeId).data.count += 1;
         };
 
-        addNode('ROOT', 'Main Cash Account', 'root');
+        // Seed all cashiers reliably from Context
+        addNode('ROOT', 'Main Cash Account', 'root', projectFinances?.received || 0);
+        Object.values(cashierFinances).forEach(cf => {
+            if (cf.received > 0 || cf.spent > 0) {
+                const member = members.find(m => m.name === cf.name);
+                const role = member?.role === 'GUIDE' ? 'guide' : 'student';
+                addNode(cf.name, cf.name, role, cf.received);
+            }
+        });
+
         let totalDistributed = 0;
         let totalVendors = new Set();
         let pendingCount = 0;
@@ -155,16 +163,14 @@ export default function FinancialMindMap() {
                     if (line.type === 'DEBIT') receivers.push({ name: acctName, amount: amt });
                 } else if (acctType === 'EXPENSE' && line.type === 'DEBIT') {
                     expenses.push({ amount: amt });
+                } else if (acctType === 'INCOME' && line.type === 'CREDIT') {
+                    // Explicit income source
                 }
             });
 
             // Funding (from ROOT to Receiver)
             if (senders.length === 0 && receivers.length > 0) {
                 receivers.forEach(r => {
-                    const member = members.find(m => m.name === r.name);
-                    const role = member?.role === 'GUIDE' ? 'guide' : 'student';
-                    addNode('ROOT', 'Main Cash Account', 'root', r.amount);
-                    addNode(r.name, r.name, role, r.amount);
                     addEdge('ROOT', r.name, r.amount);
                     totalDistributed += r.amount;
                 });
@@ -175,10 +181,6 @@ export default function FinancialMindMap() {
                 senders.forEach(s => {
                     receivers.forEach(r => {
                         const amount = Math.min(s.amount, r.amount);
-                        const senderRole = members.find(m => m.name === s.name)?.role === 'GUIDE' ? 'guide' : 'student';
-                        const receiverRole = members.find(m => m.name === r.name)?.role === 'GUIDE' ? 'guide' : 'student';
-                        addNode(s.name, s.name, senderRole, 0);
-                        addNode(r.name, r.name, receiverRole, amount);
                         addEdge(s.name, r.name, amount);
                     });
                 });
@@ -189,10 +191,15 @@ export default function FinancialMindMap() {
                 senders.forEach(s => {
                     const vendorName = tx.party || 'Unknown Vendor';
                     const vendorId = `VENDOR_${vendorName}`;
-                    const amount = s.amount; // Use the sender's credit amount for this specific vendor link
-                    addNode(vendorId, vendorName, 'vendor', amount);
-                    const senderRole = members.find(m => m.name === s.name)?.role === 'GUIDE' ? 'guide' : 'student';
-                    addNode(s.name, s.name, senderRole, 0);
+                    const amount = expenses.reduce((sum, e) => sum + e.amount, 0); 
+                    
+                    // Add vendor node (amounts accumulate for vendors)
+                    if (!nodesMap.has(vendorId)) {
+                        addNode(vendorId, vendorName, 'vendor', amount);
+                    } else {
+                        nodesMap.get(vendorId).data.amount += amount;
+                    }
+                    
                     addEdge(s.name, vendorId, amount);
                     totalVendors.add(vendorName);
                 });
