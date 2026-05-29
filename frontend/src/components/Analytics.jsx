@@ -237,7 +237,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease-out' }}>
             
             {/* KPI Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
                 <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--success)' }}>
                     <div style={{ padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: 'var(--success)' }}>
                         <Target size={24} />
@@ -301,10 +301,14 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 
-                {/* Expense Breakdown */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                {/* Row 1: 3-Split */}
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '1 1 30%', minWidth: '320px', display: 'flex' }}>
+                        {/* Expense Breakdown */}
+                <div className="glass-panel" style={{ width: "100%", padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                         <PieChartIcon size={20} color="var(--danger)" />
                         Expense Breakdown
@@ -376,9 +380,10 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
                     )}
                 </div>
-
-                {/* Custom Fund Distribution Flow */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                    </div>
+                    <div style={{ flex: '1 1 30%', minWidth: '320px', display: 'flex' }}>
+                        {/* Custom Fund Distribution Flow */}
+                <div className="glass-panel" style={{ width: "100%", padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                         <Layers size={20} color="var(--primary)" />
                         Fund Distribution Pipeline
@@ -473,8 +478,46 @@ export default function Analytics({ projectId, projectName, phaseId }) {
 
                     </div>
                 </div>
-                {/* Cumulative Burn Down / Up */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                    </div>
+                    <div style={{ flex: '1 1 30%', minWidth: '320px', display: 'flex' }}>
+                        {/* Payment Modes */}
+                <div className="glass-panel" style={{ width: "100%", padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                        <Wallet size={20} color="#ec4899" />
+                        Payment Mode Distribution
+                    </h4>
+                    {paymentModes.length > 0 ? (
+                        <div style={{ height: 320, width: '100%' }}>
+                            <ResponsiveContainer>
+                                <PieChart>
+                                    <Pie
+                                        data={paymentModes}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={0}
+                                        outerRadius={100}
+                                        dataKey="value"
+                                    >
+                                        {paymentModes.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[(index + 4) % CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip content={<CustomTooltip />} />
+                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No payment modes</div>
+                    )}
+                </div>
+                    </div>
+                </div>
+
+                {/* Row 2: Full Width */}
+                <div style={{ width: '100%', display: 'flex' }}>
+                    {/* Cumulative Burn Down / Up */}
+                <div className="glass-panel" style={{ width: "100%", padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                         <Activity size={20} color="var(--primary)" />
                         Cumulative Budget vs Spending
@@ -505,9 +548,13 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
                     )}
                 </div>
+                </div>
 
-                {/* Daily Spending Velocity */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                {/* Row 3: 2-Split */}
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: '2 1 60%', minWidth: '400px', display: 'flex' }}>
+                        {/* Daily Spending Velocity */}
+                <div className="glass-panel" style={{ width: "100%", padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                         <BarChart3 size={20} color="var(--accent)" />
                         Daily Spending Velocity
@@ -528,9 +575,10 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No data available</div>
                     )}
                 </div>
-
-                {/* Top Vendors & Payees */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                    </div>
+                    <div style={{ flex: '1 1 30%', minWidth: '320px', display: 'flex' }}>
+                        {/* Top Vendors & Payees */}
+                <div className="glass-panel" style={{ width: "100%", padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                         <Truck size={20} color="#f59e0b" />
                         Top Payees / Vendors
@@ -555,9 +603,13 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No vendors recorded</div>
                     )}
                 </div>
+                    </div>
+                </div>
 
-                {/* Cashier Leaderboard */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                {/* Row 4: Full Width */}
+                <div style={{ width: '100%', display: 'flex' }}>
+                    {/* Cashier Leaderboard */}
+                <div className="glass-panel" style={{ width: "100%", padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                         <Users size={20} color="#14b8a6" />
                         Cashier Activity Volume
@@ -578,37 +630,6 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No cashier data</div>
                     )}
                 </div>
-
-                {/* Payment Modes */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
-                        <Wallet size={20} color="#ec4899" />
-                        Payment Mode Distribution
-                    </h4>
-                    {paymentModes.length > 0 ? (
-                        <div style={{ height: 320, width: '100%' }}>
-                            <ResponsiveContainer>
-                                <PieChart>
-                                    <Pie
-                                        data={paymentModes}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={0}
-                                        outerRadius={100}
-                                        dataKey="value"
-                                    >
-                                        {paymentModes.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[(index + 4) % CHART_COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip content={<CustomTooltip />} />
-                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    ) : (
-                        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No payment modes</div>
-                    )}
                 </div>
 
             </div>
@@ -705,10 +726,10 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
                     )}
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
                         {/* Net Cash Flow Timeline (Composed Chart) */}
-                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                 <Activity size={20} color="var(--success)" />
                                 Net Cash Flow Timeline (Income vs Expense)
@@ -733,7 +754,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                         {/* Phase Budget vs Spend */}
-                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                 <BarChart3 size={20} color="var(--primary)" />
                                 Phase Budget vs. Spend
@@ -758,7 +779,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                         {/* Category Spending by Phase */}
-                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                 <Layers size={20} color="var(--accent)" />
                                 Category Breakdown by Phase
@@ -818,7 +839,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                         {/* Spending Shape (Radar Chart) */}
-                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                 <Target size={20} color="#f59e0b" />
                                 Project Spending Profile
