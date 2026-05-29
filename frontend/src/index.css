@@ -1614,3 +1614,8 @@ select option, select optgroup {
   }
 }
 
+/* Recharts Outline Fix */
+.recharts-wrapper, .recharts-surface {
+  outline: none !important;
+}
+

@@ -351,7 +351,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                     <XAxis dataKey="date" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                                    <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                    <YAxis width={80} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                     <RechartsTooltip content={<CustomTooltip />} />
                                     <Legend />
                                     <ReferenceLine y={totalIncome} stroke="var(--success)" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Total Allocation', fill: 'var(--success)' }} />
@@ -378,7 +378,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 <BarChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                     <XAxis dataKey="date" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                                    <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                    <YAxis width={80} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                     <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'var(--surface-hover)'}} />
                                     <Bar dataKey="expense" name="Daily Expense" fill="var(--accent)" radius={[4, 4, 0, 0]} />
                                 </BarChart>
@@ -428,7 +428,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 <BarChart data={cashierLeaderboard} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                     <XAxis dataKey="name" stroke="var(--text-muted)" />
-                                    <YAxis stroke="var(--text-muted)" tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                    <YAxis width={80} stroke="var(--text-muted)" tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                     <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'var(--surface-hover)'}} />
                                     <Bar dataKey="value" name="Total Handled" fill="#14b8a6" radius={[4, 4, 0, 0]} />
                                 </BarChart>
@@ -495,7 +495,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         <ComposedChart data={netCashFlowData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                             <XAxis dataKey="date" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                                            <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                            <YAxis width={80} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                             <RechartsTooltip content={<CustomTooltip />} />
                                             <Legend />
                                             <Bar dataKey="income" name="Funding Received" barSize={20} fill="var(--success)" radius={[4, 4, 0, 0]} />
@@ -520,7 +520,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         <BarChart data={phaseComparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                             <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                                            <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                            <YAxis width={80} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                             <RechartsTooltip content={<CustomTooltip />} />
                                             <Legend />
                                             <Bar dataKey="received" name="Total Funding" fill="var(--success)" radius={[4, 4, 0, 0]} />
@@ -545,7 +545,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                             <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                                            <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                            <YAxis width={80} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                             <RechartsTooltip content={<CustomTooltip />} />
                                             <Legend />
                                             {categoriesSet.map((cat, index) => (
