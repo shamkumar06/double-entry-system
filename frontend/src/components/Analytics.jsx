@@ -389,7 +389,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         Fund Distribution Pipeline
                     </h4>
                     
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative', padding: '1rem 0', justifyContent: 'center' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative', padding: '1rem 0', justifyContent: 'flex-start' }}>
                         
                         {/* Funding Node */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 2 }}>
@@ -494,8 +494,8 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         data={paymentModes}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={0}
-                                        outerRadius={100}
+                                        innerRadius={75}
+                                        outerRadius={110}
                                         dataKey="value"
                                     >
                                         {paymentModes.map((entry, index) => (
