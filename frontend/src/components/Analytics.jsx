@@ -427,7 +427,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                             <ResponsiveContainer>
                                 <BarChart data={cashierLeaderboard} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                    <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} />
+                                    <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                     <YAxis width={100} stroke="var(--text-muted)" tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                     <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'var(--surface-hover)'}} />
                                     <Bar dataKey="value" name="Total Handled" fill="#14b8a6" radius={[4, 4, 0, 0]} />
@@ -519,7 +519,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                     <ResponsiveContainer>
                                         <BarChart data={phaseComparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                            <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} interval={0} />
+                                            <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                             <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                             <RechartsTooltip content={<CustomTooltip />} />
                                             <Legend />
@@ -545,7 +545,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         <ResponsiveContainer>
                                             <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                                <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} interval={0} />
+                                                <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                                 <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                                 <RechartsTooltip content={<CustomTooltip />} />
                                                 {categoriesSet.map((cat, index) => {
