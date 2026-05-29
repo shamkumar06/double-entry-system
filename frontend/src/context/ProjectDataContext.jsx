@@ -233,24 +233,39 @@ export function ProjectDataProvider({ children }) {
 
             // Compute per-cashier finances from journal
             const cashierFinances = {};
-            (journal || []).forEach(tx => {
-                const name = tx.cashierName;
-                if (!name) return;
-                if (!cashierFinances[name]) {
-                    cashierFinances[name] = { name, received: 0, spent: 0, holding: 0, transactions: 0 };
+            (members || []).forEach(m => {
+                if (m.isActive !== false) {
+                    cashierFinances[m.name] = { name: m.name, received: 0, spent: 0, holding: 0, transactions: 0 };
                 }
-                cashierFinances[name].transactions += 1;
+            });
+
+            (journal || []).forEach(tx => {
+                let txInvolvedCashiers = new Set();
+                
                 (tx.lines || []).forEach(line => {
                     const amt = Number(line.amount) || 0;
+                    const acctName = line.account?.name;
                     const acctType = line.account?.type;
-                    if (acctType === 'EXPENSE' && line.type === 'DEBIT') {
-                        cashierFinances[name].spent += amt;
-                    } else if ((acctType === 'ASSET') && line.type === 'DEBIT') {
-                        cashierFinances[name].received += amt;
+
+                    if (acctType === 'ASSET' && cashierFinances[acctName]) {
+                        txInvolvedCashiers.add(acctName);
+                        if (line.type === 'DEBIT') {
+                            cashierFinances[acctName].received += amt;
+                        } else if (line.type === 'CREDIT') {
+                            cashierFinances[acctName].spent += amt;
+                        }
                     }
                 });
+
+                if (tx.cashierName && cashierFinances[tx.cashierName]) {
+                    txInvolvedCashiers.add(tx.cashierName);
+                }
+
+                txInvolvedCashiers.forEach(name => {
+                    if (cashierFinances[name]) cashierFinances[name].transactions += 1;
+                });
             });
-            // Compute holding = received - spent for each cashier
+
             Object.values(cashierFinances).forEach(cf => {
                 cf.holding = cf.received - cf.spent;
             });

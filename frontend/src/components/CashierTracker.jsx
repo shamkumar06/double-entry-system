@@ -51,19 +51,25 @@ export default function CashierTracker({ projectId, projectName, phaseId }) {
 
     // Filter journal by cashier
     const getTransactionsForCashier = (name) => {
-        const filtered = phaseId
-            ? journal.filter(tx => tx.cashierName === name && (tx.phaseId === phaseId || tx.phase?.id === phaseId))
-            : journal.filter(tx => tx.cashierName === name);
+        const filtered = journal.filter(tx => {
+            if (phaseId && tx.phaseId !== phaseId && tx.phase?.id !== phaseId) return false;
+            if (tx.cashierName === name) return true;
+            if (tx.toEntity === name || tx.fromEntity === name) return true;
+            if (tx.lines?.some(l => l.account?.name === name)) return true;
+            return false;
+        });
         return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
     };
 
     // Build timeline of all transactions sorted by date
     const timeline = useMemo(() => {
-        const txs = phaseId
-            ? journal.filter(tx => tx.cashierName && (tx.phaseId === phaseId || tx.phase?.id === phaseId))
-            : journal.filter(tx => tx.cashierName);
+        const txs = journal.filter(tx => {
+            if (phaseId && tx.phaseId !== phaseId && tx.phase?.id !== phaseId) return false;
+            // Only include transactions that have some cashier involvement
+            return tx.cashierName || tx.lines?.some(l => cashierData[l.account?.name]);
+        });
         return txs.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 25);
-    }, [journal, phaseId]);
+    }, [journal, phaseId, cashierData]);
 
     // Status color for cashier node
     const getStatusColor = (data) => {
