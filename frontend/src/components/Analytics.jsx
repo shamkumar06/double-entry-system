@@ -472,10 +472,8 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                     </div>
+                    </div>
                 </div>
-
-            </div>
-
                 {/* Cumulative Burn Down / Up */}
                 <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
                     <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
