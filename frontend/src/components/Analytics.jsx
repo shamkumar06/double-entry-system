@@ -529,7 +529,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                                 <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                                 <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                                 <RechartsTooltip content={<CustomTooltip />} />
-                                                <Legend />
+                                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                                 <Bar dataKey="received" name="Total Funding" fill="var(--success)" radius={[4, 4, 0, 0]} />
                                                 <Bar dataKey="spent" name="Total Spent" fill="var(--danger)" radius={[4, 4, 0, 0]} />
                                             </BarChart>
