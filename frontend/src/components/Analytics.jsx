@@ -30,6 +30,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
         let guideReceived = 0;
         let studentReceived = 0;
         let guideName = 'Main Cashier (Guide)';
+        let students = [];
 
         if (members && cashierFinances) {
             const guide = members.find(m => m.role === 'GUIDE');
@@ -43,6 +44,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
             members.forEach(m => {
                 if (m.role === 'STUDENT' && cashierFinances[m.name]) {
                     studentReceived += cashierFinances[m.name].received;
+                    students.push({ name: m.name, received: cashierFinances[m.name].received });
                 }
             });
         }
@@ -52,6 +54,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
             guideName,
             guideReceived,
             studentReceived,
+            students,
             totalSpent: totalSpentAmount
         };
     }, [totalIncome, totalExpense, members, cashierFinances]);
@@ -451,6 +454,17 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 <div style={{ width: '100%', height: '8px', background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
                                     <div style={{ width: `${Math.min(100, (fundFlowData.studentReceived / (fundFlowData.totalFunding || 1)) * 100)}%`, height: '100%', background: '#f59e0b' }}></div>
                                 </div>
+                                
+                                {fundFlowData.students && fundFlowData.students.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.75rem', paddingLeft: '0.75rem', borderLeft: '2px solid rgba(245, 158, 11, 0.2)' }}>
+                                        {fundFlowData.students.map(student => (
+                                            <div key={student.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{student.name}</span>
+                                                <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 600 }}>{formatCurrency(student.received)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
