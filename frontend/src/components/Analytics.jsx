@@ -4,9 +4,9 @@ import { useFormatting } from '../context/SettingsContext';
 import { 
     PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
     BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, AreaChart, Area, ReferenceLine,
-    ComposedChart, Scatter
+    ComposedChart, Scatter, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
-import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target, FileText, Percent, Tag, Truck, Wallet, Users, BarChart3 } from 'lucide-react';
+import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target, FileText, Percent, Tag, Truck, Wallet, Users, BarChart3, Layers, LayoutGrid } from 'lucide-react';
 
 const CHART_COLORS = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#10b981', '#f43f5e', '#0ea5e9', '#84cc16', '#eab308'];
 
@@ -100,6 +100,68 @@ export default function Analytics({ projectId, projectName, phaseId }) {
             totalDiscounts: tDiscounts
         };
     }, [journal, phaseId]);
+
+    // Phase-Wise Analytics (Only computed if viewing at Project Level)
+    const { phaseComparisonData, categoryByPhaseData, netCashFlowData, radarData, categoriesSet } = useMemo(() => {
+        if (phaseId) return { phaseComparisonData: [], categoryByPhaseData: [], netCashFlowData: [], radarData: [], categoriesSet: [] };
+
+        // 1. Phase Budget vs Spend
+        const phaseComparisonData = Object.values(phaseFinances).map(ph => ({
+            name: ph.name || 'Unknown Phase',
+            received: ph.received || 0,
+            spent: ph.spent || 0
+        }));
+
+        // 2. Category Spending by Phase
+        const phaseCategoryMap = {};
+        const categorySet = new Set();
+        
+        // 3. Net Cash Flow
+        const cashFlowMap = {};
+
+        // 4. Radar Data
+        const radarMap = {};
+
+        journal.forEach(tx => {
+            const phName = tx.phase?.name || 'Unassigned';
+            const amount = Number(tx.lines?.[0]?.amount) || 0;
+            const expenseLine = tx.lines?.find(l => l.account?.type === 'EXPENSE' && l.type === 'DEBIT');
+            
+            // Timeline
+            const dateStr = new Date(tx.date).toLocaleDateString();
+            if (!cashFlowMap[dateStr]) cashFlowMap[dateStr] = { date: dateStr, timestamp: new Date(tx.date).getTime(), income: 0, expense: 0 };
+            
+            // Check if Income
+            const isIncome = tx.lines?.some(l => l.account?.name === 'Main Cash Account' && l.type === 'DEBIT') && tx.lines?.some(l => l.account?.type === 'INCOME' || l.account?.name === 'Funding Source');
+            if (isIncome) {
+                cashFlowMap[dateStr].income += amount;
+            }
+
+            if (expenseLine) {
+                const category = expenseLine.account.name;
+                
+                // Stacked Bar
+                if (!phaseCategoryMap[phName]) phaseCategoryMap[phName] = { name: phName };
+                phaseCategoryMap[phName][category] = (phaseCategoryMap[phName][category] || 0) + amount;
+                categorySet.add(category);
+                
+                // Timeline
+                cashFlowMap[dateStr].expense += amount;
+                
+                // Radar
+                radarMap[category] = (radarMap[category] || 0) + amount;
+            }
+        });
+
+        const categoryByPhaseData = Object.values(phaseCategoryMap);
+        const categories = Array.from(categorySet);
+        
+        const netCashFlowData = Object.values(cashFlowMap).sort((a,b) => a.timestamp - b.timestamp);
+        
+        const radarData = Object.entries(radarMap).map(([subject, A]) => ({ subject, A })).sort((a,b) => b.A - a.A).slice(0, 6); // Top 6 categories
+
+        return { phaseComparisonData, categoryByPhaseData, netCashFlowData, radarData, categoriesSet: categories };
+    }, [journal, phaseFinances, phaseId]);
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
@@ -410,6 +472,119 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                 </div>
 
             </div>
+
+            {/* PHASE-WISE ANALYTICS (Only at Project Level) */}
+            {!phaseId && (
+                <div style={{ marginTop: '1rem', borderTop: '2px dashed var(--border)', paddingTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                        <LayoutGrid color="var(--primary)" />
+                        Phase-Wise Analytics & Deep Insights
+                    </h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+                        
+                        {/* Net Cash Flow Timeline (Composed Chart) */}
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                                <Activity size={20} color="var(--success)" />
+                                Net Cash Flow Timeline (Income vs Expense)
+                            </h4>
+                            {netCashFlowData.length > 0 ? (
+                                <div style={{ height: 350, width: '100%' }}>
+                                    <ResponsiveContainer>
+                                        <ComposedChart data={netCashFlowData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                            <XAxis dataKey="date" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
+                                            <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                            <RechartsTooltip content={<CustomTooltip />} />
+                                            <Legend />
+                                            <Bar dataKey="income" name="Funding Received" barSize={20} fill="var(--success)" radius={[4, 4, 0, 0]} />
+                                            <Area type="monotone" dataKey="expense" name="Daily Expense" fill="var(--danger)" stroke="var(--danger)" opacity={0.5} />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No cash flow data</div>
+                            )}
+                        </div>
+
+                        {/* Phase Budget vs Spend */}
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                                <BarChart3 size={20} color="var(--primary)" />
+                                Phase Budget vs. Spend
+                            </h4>
+                            {phaseComparisonData.length > 0 ? (
+                                <div style={{ height: 350, width: '100%' }}>
+                                    <ResponsiveContainer>
+                                        <BarChart data={phaseComparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                            <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
+                                            <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                            <RechartsTooltip content={<CustomTooltip />} />
+                                            <Legend />
+                                            <Bar dataKey="received" name="Total Funding" fill="var(--success)" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="spent" name="Total Spent" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No phases to compare</div>
+                            )}
+                        </div>
+
+                        {/* Category Spending by Phase */}
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                                <Layers size={20} color="var(--accent)" />
+                                Category Breakdown by Phase
+                            </h4>
+                            {categoryByPhaseData.length > 0 ? (
+                                <div style={{ height: 350, width: '100%' }}>
+                                    <ResponsiveContainer>
+                                        <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                            <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
+                                            <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                            <RechartsTooltip content={<CustomTooltip />} />
+                                            <Legend />
+                                            {categoriesSet.map((cat, index) => (
+                                                <Bar key={cat} dataKey={cat} name={cat} stackId="a" fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                            ))}
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No categories to compare</div>
+                            )}
+                        </div>
+
+                        {/* Spending Shape (Radar Chart) */}
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                                <Target size={20} color="#f59e0b" />
+                                Project Spending Profile
+                            </h4>
+                            {radarData.length > 0 ? (
+                                <div style={{ height: 400, width: '100%' }}>
+                                    <ResponsiveContainer>
+                                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                                            <PolarGrid stroke="var(--border)" />
+                                            <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-main)', fontSize: 12 }} />
+                                            <PolarRadiusAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickFormatter={(val) => `₹${val}`} />
+                                            <Radar name="Spent" dataKey="A" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.5} />
+                                            <RechartsTooltip content={<CustomTooltip />} />
+                                        </RadarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No data to profile</div>
+                            )}
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
