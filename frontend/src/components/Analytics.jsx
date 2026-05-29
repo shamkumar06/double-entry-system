@@ -425,7 +425,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     {cashierLeaderboard.length > 0 ? (
                         <div style={{ height: 320, width: '100%' }}>
                             <ResponsiveContainer>
-                                <BarChart data={cashierLeaderboard} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <BarChart data={cashierLeaderboard} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                     <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                     <YAxis width={100} stroke="var(--text-muted)" tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
@@ -517,7 +517,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                             {phaseComparisonData.length > 0 ? (
                                 <div style={{ height: 350, width: '100%' }}>
                                     <ResponsiveContainer>
-                                        <BarChart data={phaseComparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <BarChart data={phaseComparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                             <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                             <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
@@ -543,7 +543,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
                                     <div style={{ height: 350, width: '100%' }}>
                                         <ResponsiveContainer>
-                                            <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                                 <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                                 <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
