@@ -515,7 +515,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                         {/* Phase Budget vs Spend */}
-                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignSelf: 'start' }}>
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                 <BarChart3 size={20} color="var(--primary)" />
                                 Phase Budget vs. Spend
@@ -571,7 +571,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                         {/* Category Spending by Phase */}
-                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
                                 <Layers size={20} color="var(--accent)" />
                                 Category Breakdown by Phase
