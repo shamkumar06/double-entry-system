@@ -3,7 +3,7 @@ import { useProjectData } from '../context/ProjectDataContext';
 import { useFormatting } from '../context/SettingsContext';
 import { 
     PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, AreaChart, Area
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, AreaChart, Area, ReferenceLine
 } from 'recharts';
 import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target } from 'lucide-react';
 
@@ -20,79 +20,48 @@ export default function Analytics({ projectId, projectName, phaseId }) {
 
     const { 
         expenseByCategory,
-        dailyData,
-        incomeByCategory
+        dailyData
     } = useMemo(() => {
         const activeJournal = phaseId ? journal.filter(tx => tx.phaseId === phaseId || tx.phase?.id === phaseId) : journal;
-        let tIncome = 0;
         let tExpense = 0;
         const expMap = {};
-        const incMap = {};
         const dateMap = {};
 
         activeJournal.forEach(tx => {
-            const isExpense = tx.lines?.some(l => l.account?.type === 'EXPENSE' || l.account?.type === 'ASSET' && l.type === 'CREDIT' && tx.lines?.some(l2 => l2.account?.type === 'EXPENSE'));
-            const isIncome = tx.lines?.some(l => l.account?.type === 'INCOME' || l.account?.type === 'EQUITY' || l.account?.type === 'LIABILITY'); // Approximations for funding
-            
-            // Refine expense/income detection for student projects
             const amount = Number(tx.lines?.[0]?.amount) || 0;
             const primaryAccount = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || 'Unknown';
-            const incomeAccount = tx.lines?.find(l => l.type === 'CREDIT')?.account?.name || 'Unknown';
-
-            // Actual expense logic based on your double entry system
-            // Usually, debit to Expense account means expense
             const expenseLine = tx.lines?.find(l => l.account?.type === 'EXPENSE' && l.type === 'DEBIT');
-            const incomeLine = tx.lines?.find(l => (l.account?.type === 'INCOME' || l.account?.type === 'EQUITY') && l.type === 'CREDIT');
 
             const dateStr = new Date(tx.date).toLocaleDateString();
             if (!dateMap[dateStr]) {
-                dateMap[dateStr] = { date: dateStr, timestamp: new Date(tx.date).getTime(), income: 0, expense: 0 };
+                dateMap[dateStr] = { date: dateStr, timestamp: new Date(tx.date).getTime(), expense: 0 };
             }
 
             if (expenseLine) {
                 tExpense += amount;
                 expMap[expenseLine.account.name] = (expMap[expenseLine.account.name] || 0) + amount;
                 dateMap[dateStr].expense += amount;
-            } else if (incomeLine) {
-                tIncome += amount;
-                incMap[incomeLine.account.name] = (incMap[incomeLine.account.name] || 0) + amount;
-                dateMap[dateStr].income += amount;
             } else {
-                 // Fallback for custom entries: assume DEBIT to anything other than Asset is expense if CREDIT is Asset (Cash/Bank)
                  const creditAsset = tx.lines?.find(l => l.account?.type === 'ASSET' && l.type === 'CREDIT');
                  if (creditAsset) {
                      tExpense += amount;
                      expMap[primaryAccount] = (expMap[primaryAccount] || 0) + amount;
                      dateMap[dateStr].expense += amount;
-                 } else {
-                     const debitAsset = tx.lines?.find(l => l.account?.type === 'ASSET' && l.type === 'DEBIT');
-                     if (debitAsset) {
-                         tIncome += amount;
-                         incMap[incomeAccount] = (incMap[incomeAccount] || 0) + amount;
-                         dateMap[dateStr].income += amount;
-                     }
                  }
             }
         });
 
-        // Format for Recharts
         const expCategoryData = Object.entries(expMap).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
-        const incCategoryData = Object.entries(incMap).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
         
-        // Sort daily data and calculate cumulative
         const dailyArr = Object.values(dateMap).sort((a,b) => a.timestamp - b.timestamp);
-        let cumIncome = 0;
         let cumExpense = 0;
         dailyArr.forEach(d => {
-            cumIncome += d.income;
             cumExpense += d.expense;
-            d.cumulativeIncome = cumIncome;
             d.cumulativeExpense = cumExpense;
         });
 
         return {
             expenseByCategory: expCategoryData,
-            incomeByCategory: incCategoryData,
             dailyData: dailyArr
         };
     }, [journal, phaseId]);
@@ -197,40 +166,6 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     )}
                 </div>
 
-                {/* Income Breakdown */}
-                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
-                        <TrendingUp size={20} color="var(--success)" />
-                        Funding Sources
-                    </h4>
-                    {incomeByCategory.length > 0 ? (
-                        <div style={{ height: 380, width: '100%' }}>
-                            <ResponsiveContainer>
-                                <PieChart>
-                                    <Pie
-                                        data={incomeByCategory}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
-                                        paddingAngle={2}
-                                        dataKey="value"
-                                    >
-                                        {incomeByCategory.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip content={<CustomTooltip />} />
-                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '20px' }} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    ) : (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-                            No funding sources recorded yet.
-                        </div>
-                    )}
-                </div>
 
                 {/* Cumulative Burn Down / Up */}
                 <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
@@ -243,10 +178,6 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                             <ResponsiveContainer>
                                 <AreaChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <defs>
-                                        <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="var(--success)" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="var(--success)" stopOpacity={0}/>
-                                        </linearGradient>
                                         <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="var(--danger)" stopOpacity={0.3}/>
                                             <stop offset="95%" stopColor="var(--danger)" stopOpacity={0}/>
@@ -257,8 +188,8 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                     <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
                                     <RechartsTooltip content={<CustomTooltip />} />
                                     <Legend />
-                                    <Area type="monotone" name="Total Funding" dataKey="cumulativeIncome" stroke="var(--success)" fillOpacity={1} fill="url(#colorIncome)" strokeWidth={3} />
-                                    <Area type="monotone" name="Total Spent" dataKey="cumulativeExpense" stroke="var(--danger)" fillOpacity={1} fill="url(#colorExpense)" strokeWidth={3} />
+                                    <ReferenceLine y={totalIncome} stroke="var(--success)" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Total Allocation', fill: 'var(--success)' }} />
+                                    <Area type="monotone" name="Cumulative Spent" dataKey="cumulativeExpense" stroke="var(--danger)" fillOpacity={1} fill="url(#colorExpense)" strokeWidth={3} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
