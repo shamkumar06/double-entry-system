@@ -477,6 +477,18 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         </div>
 
                     </div>
+                    
+                    {/* Summary Insights */}
+                    <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '120px', background: 'rgba(99, 102, 241, 0.05)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.1)' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Sub-Cashier Holdings</span>
+                            <h4 style={{ margin: '0.25rem 0 0 0', fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 800 }}>{formatCurrency(fundFlowData.studentReceived - fundFlowData.totalSpent)}</h4>
+                        </div>
+                        <div style={{ flex: 1, minWidth: '120px', background: 'rgba(239, 68, 68, 0.05)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Fund Burn Rate</span>
+                            <h4 style={{ margin: '0.25rem 0 0 0', fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 800 }}>{((fundFlowData.totalSpent / (fundFlowData.totalFunding || 1)) * 100).toFixed(1)}%</h4>
+                        </div>
+                    </div>
                 </div>
                     </div>
                     <div style={{ flex: '1 1 30%', minWidth: '320px', display: 'flex' }}>
@@ -510,6 +522,19 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     ) : (
                         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No payment modes</div>
                     )}
+                    
+                    {/* Payment Mode Summary */}
+                    <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {paymentModes.slice(0, 3).map((mode, i) => (
+                            <div key={mode.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS[(i + 4) % CHART_COLORS.length] }}></span>
+                                    <span style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 500 }}>{mode.name}</span>
+                                </div>
+                                <span style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: 700 }}>{formatCurrency(mode.value)}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
                     </div>
                 </div>
