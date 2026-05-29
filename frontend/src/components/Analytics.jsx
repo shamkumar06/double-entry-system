@@ -14,6 +14,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
     const { formatCurrency, formatDate } = useFormatting();
     const { journal, phaseFinances, projectFinances, loading } = useProjectData();
     const [hiddenCategories, setHiddenCategories] = useState({});
+    const [hiddenPhases, setHiddenPhases] = useState({});
 
     // Use exact totals calculated by the context
     const totalIncome = phaseId ? (phaseFinances[phaseId]?.received || 0) : (projectFinances?.received || 0);
@@ -520,18 +521,49 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 Phase Budget vs. Spend
                             </h4>
                             {phaseComparisonData.length > 0 ? (
-                                <div style={{ height: 350, width: '100%' }}>
-                                    <ResponsiveContainer>
-                                        <BarChart data={phaseComparisonData} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                            <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                                            <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
-                                            <RechartsTooltip content={<CustomTooltip />} />
-                                            <Legend />
-                                            <Bar dataKey="received" name="Total Funding" fill="var(--success)" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="spent" name="Total Spent" fill="var(--danger)" radius={[4, 4, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div style={{ display: 'flex', flexDirection: 'row', gap: '1rem', width: '100%', alignItems: 'stretch' }}>
+                                    <div style={{ height: 350, flex: 1, minWidth: 0 }}>
+                                        <ResponsiveContainer>
+                                            <BarChart data={phaseComparisonData.filter(p => !hiddenPhases[p.name])} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                                <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                                                <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                                <RechartsTooltip content={<CustomTooltip />} />
+                                                <Legend />
+                                                <Bar dataKey="received" name="Total Funding" fill="var(--success)" radius={[4, 4, 0, 0]} />
+                                                <Bar dataKey="spent" name="Total Spent" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div style={{ 
+                                        width: '200px', flexShrink: 0,
+                                        display: 'flex', flexDirection: 'column', gap: '0.4rem', 
+                                        padding: '1rem', background: 'rgba(0,0,0,0.02)',
+                                        borderRadius: '12px', border: '1px solid var(--border)',
+                                        maxHeight: '350px', overflowY: 'auto'
+                                    }}>
+                                        {phaseComparisonData.map((ph, index) => {
+                                            const isHidden = hiddenPhases[ph.name];
+                                            return (
+                                                <label key={ph.name} style={{ 
+                                                    display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                                                    cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)',
+                                                    padding: '0.3rem', borderRadius: '6px', transition: 'all 0.2s ease',
+                                                    opacity: isHidden ? 0.5 : 1
+                                                }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'} 
+                                                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                                    <input 
+                                                        type="checkbox" checked={!isHidden} 
+                                                        onChange={() => setHiddenPhases(prev => ({ ...prev, [ph.name]: !isHidden }))} 
+                                                        style={{ accentColor: 'var(--primary)', width: '14px', height: '14px', cursor: 'pointer', margin: 0 }}
+                                                    />
+                                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontWeight: 500 }} title={ph.name}>
+                                                        {ph.name}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ) : (
                                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No phases to compare</div>
@@ -545,10 +577,10 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 Category Breakdown by Phase
                             </h4>
                             {categoryByPhaseData.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-                                    <div style={{ height: 350, width: '100%' }}>
+                                <div style={{ display: 'flex', flexDirection: 'row', gap: '1rem', width: '100%', alignItems: 'stretch' }}>
+                                    <div style={{ height: 350, flex: 1, minWidth: 0 }}>
                                         <ResponsiveContainer>
-                                            <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
+                                            <BarChart data={categoryByPhaseData.filter(p => !hiddenPhases[p.name])} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                                 <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
                                                 <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
@@ -561,13 +593,11 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                         </ResponsiveContainer>
                                     </div>
                                     <div style={{ 
-                                        display: 'grid', 
-                                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
-                                        gap: '0.5rem', 
-                                        padding: '1rem',
-                                        background: 'rgba(0,0,0,0.02)',
-                                        borderRadius: '12px',
-                                        border: '1px solid var(--border)'
+                                        width: '200px', flexShrink: 0,
+                                        display: 'flex', flexDirection: 'column', gap: '0.4rem', 
+                                        padding: '1rem', background: 'rgba(0,0,0,0.02)',
+                                        borderRadius: '12px', border: '1px solid var(--border)',
+                                        maxHeight: '350px', overflowY: 'auto'
                                     }}>
                                         {categoriesSet.map((cat, index) => {
                                             const color = CHART_COLORS[index % CHART_COLORS.length];
@@ -575,9 +605,8 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                             return (
                                                 <label key={cat} style={{ 
                                                     display: 'flex', alignItems: 'center', gap: '0.5rem', 
-                                                    cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)',
-                                                    padding: '0.4rem', borderRadius: '8px',
-                                                    transition: 'all 0.2s ease',
+                                                    cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)',
+                                                    padding: '0.3rem', borderRadius: '6px', transition: 'all 0.2s ease',
                                                     opacity: isHidden ? 0.5 : 1
                                                 }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'} 
                                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
@@ -585,7 +614,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                                         type="checkbox" 
                                                         checked={!isHidden} 
                                                         onChange={() => setHiddenCategories(prev => ({ ...prev, [cat]: !isHidden }))} 
-                                                        style={{ accentColor: color, width: '15px', height: '15px', cursor: 'pointer', margin: 0 }}
+                                                        style={{ accentColor: color, width: '14px', height: '14px', cursor: 'pointer', margin: 0 }}
                                                     />
                                                     <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: color, flexShrink: 0 }}></span>
                                                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontWeight: 500 }} title={cat}>
