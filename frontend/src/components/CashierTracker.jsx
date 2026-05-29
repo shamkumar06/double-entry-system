@@ -232,27 +232,27 @@ export default function CashierTracker({ projectId, projectName, phaseId }) {
                                 borderLeft: `4px solid ${getStatusColor(sd)}`,
                                 transition: 'all 0.3s ease',
                             }}>
-                                <div onClick={() => setExpandedCashier(isExpanded ? null : sd.name)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div onClick={() => setExpandedCashier(isExpanded ? null : sd.name)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            width: '40px', height: '40px', borderRadius: '12px',
+                                            width: '40px', height: '40px', borderRadius: '12px', flexShrink: 0,
                                             background: `linear-gradient(135deg, ${getStatusColor(sd)}22, ${getStatusColor(sd)}11)`,
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             color: getStatusColor(sd), fontWeight: 800, fontSize: '0.9rem',
                                         }}>
                                             {sd.name.charAt(0).toUpperCase()}
                                         </div>
-                                        <div>
-                                            <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>{sd.name}</p>
-                                            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sd.transactions} transaction{sd.transactions !== 1 ? 's' : ''}</p>
+                                        <div style={{ minWidth: 0 }}>
+                                            <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sd.name}</p>
+                                            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sd.transactions} transaction{sd.transactions !== 1 ? 's' : ''}</p>
                                         </div>
                                     </div>
-                                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                                         <div>
                                             <p style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(sd.spent)}</p>
                                             <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>spent</p>
                                         </div>
-                                        {isExpanded ? <ChevronDown size={18} color="var(--text-muted)" /> : <ChevronRight size={18} color="var(--text-muted)" />}
+                                        {isExpanded ? <ChevronDown size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} /> : <ChevronRight size={18} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
                                     </div>
                                 </div>
 
