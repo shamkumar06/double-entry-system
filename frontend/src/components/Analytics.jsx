@@ -15,6 +15,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
     const { journal, phaseFinances, projectFinances, loading } = useProjectData();
     const [hiddenCategories, setHiddenCategories] = useState({});
     const [hiddenPhases, setHiddenPhases] = useState({});
+    const [lastClickedPhase, setLastClickedPhase] = useState(null);
 
     // Use exact totals calculated by the context
     const totalIncome = phaseId ? (phaseFinances[phaseId]?.received || 0) : (projectFinances?.received || 0);
@@ -103,8 +104,10 @@ export default function Analytics({ projectId, projectName, phaseId }) {
     }, [journal, phaseId]);
 
     // Phase-Wise Analytics (Only computed if viewing at Project Level)
-    const { phaseComparisonData, categoryByPhaseData, netCashFlowData, radarData, categoriesSet } = useMemo(() => {
-        if (phaseId) return { phaseComparisonData: [], categoryByPhaseData: [], netCashFlowData: [], radarData: [], categoriesSet: [] };
+    const { phaseComparisonData, categoryByPhaseData, netCashFlowData, radarData, categoriesSet, allPhases } = useMemo(() => {
+        if (phaseId) return { phaseComparisonData: [], categoryByPhaseData: [], netCashFlowData: [], radarData: [], categoriesSet: [], allPhases: [] };
+
+        const allPhases = Object.values(phaseFinances).map(ph => ph.name || 'Unknown Phase');
 
         // 1. Phase Budget vs Spend
         const phaseComparisonData = Object.values(phaseFinances).map(ph => ({
@@ -125,6 +128,8 @@ export default function Analytics({ projectId, projectName, phaseId }) {
 
         journal.forEach(tx => {
             const phName = tx.phase?.name || 'Unassigned';
+            if (hiddenPhases[phName]) return;
+
             const amount = Number(tx.lines?.[0]?.amount) || 0;
             const expenseLine = tx.lines?.find(l => l.account?.type === 'EXPENSE' && l.type === 'DEBIT');
             
@@ -166,8 +171,8 @@ export default function Analytics({ projectId, projectName, phaseId }) {
         
         const radarData = Object.entries(radarMap).map(([subject, A]) => ({ subject, A })).sort((a,b) => b.A - a.A).slice(0, 6); // Top 6 categories
 
-        return { phaseComparisonData, categoryByPhaseData, netCashFlowData, radarData, categoriesSet: categories };
-    }, [journal, phaseFinances, phaseId]);
+        return { phaseComparisonData, categoryByPhaseData, netCashFlowData, radarData, categoriesSet: categories, allPhases };
+    }, [journal, phaseFinances, phaseId, hiddenPhases]);
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
@@ -487,6 +492,83 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         Phase-Wise Analytics & Deep Insights
                     </h3>
                     
+                    {allPhases && allPhases.length > 0 && (
+                        <div className="glass-panel" style={{ padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>Global Phase Filter</span>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button 
+                                        onClick={() => setHiddenPhases({})} 
+                                        style={{ background: 'transparent', border: '1px solid var(--border)', padding: '0.3rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        Select All
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            const all = {};
+                                            allPhases.forEach(p => all[p] = true);
+                                            setHiddenPhases(all);
+                                        }} 
+                                        style={{ background: 'transparent', border: '1px solid var(--border)', padding: '0.3rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 500 }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        Clear All
+                                    </button>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                {allPhases.map((ph, idx) => {
+                                    const isHidden = hiddenPhases[ph];
+                                    return (
+                                        <label key={ph} style={{ 
+                                            display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                                            cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)',
+                                            padding: '0.4rem 0.8rem', borderRadius: '20px', transition: 'all 0.2s ease',
+                                            border: `1px solid ${isHidden ? 'var(--border)' : 'var(--primary)'}`,
+                                            background: isHidden ? 'transparent' : 'rgba(99, 102, 241, 0.1)',
+                                            opacity: isHidden ? 0.6 : 1
+                                        }} onMouseEnter={(e) => e.currentTarget.style.opacity = 1} onMouseLeave={(e) => e.currentTarget.style.opacity = isHidden ? 0.6 : 1}>
+                                            <input 
+                                                type="checkbox" checked={!isHidden} 
+                                                onChange={(e) => {
+                                                    if (e.nativeEvent.shiftKey && lastClickedPhase) {
+                                                        const startIdx = allPhases.indexOf(lastClickedPhase);
+                                                        const endIdx = allPhases.indexOf(ph);
+                                                        if (startIdx !== -1 && endIdx !== -1) {
+                                                            const min = Math.min(startIdx, endIdx);
+                                                            const max = Math.max(startIdx, endIdx);
+                                                            const newHidden = { ...hiddenPhases };
+                                                            const targetState = isHidden; 
+                                                            for (let i = min; i <= max; i++) {
+                                                                if (targetState) delete newHidden[allPhases[i]];
+                                                                else newHidden[allPhases[i]] = true;
+                                                            }
+                                                            setHiddenPhases(newHidden);
+                                                            setLastClickedPhase(ph);
+                                                            return;
+                                                        }
+                                                    }
+                                                    setHiddenPhases(prev => {
+                                                        const next = { ...prev };
+                                                        if (isHidden) delete next[ph];
+                                                        else next[ph] = true;
+                                                        return next;
+                                                    });
+                                                    setLastClickedPhase(ph);
+                                                }} 
+                                                style={{ accentColor: 'var(--primary)', width: '14px', height: '14px', cursor: 'pointer', margin: 0 }}
+                                            />
+                                            <span style={{ fontWeight: 500 }}>{ph}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                    
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
                         
                         {/* Net Cash Flow Timeline (Composed Chart) */}
@@ -521,49 +603,18 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 Phase Budget vs. Spend
                             </h4>
                             {phaseComparisonData.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'row', gap: '1rem', width: '100%', alignItems: 'stretch' }}>
-                                    <div style={{ height: 350, flex: 1, minWidth: 0 }}>
-                                        <ResponsiveContainer>
-                                            <BarChart data={phaseComparisonData.filter(p => !hiddenPhases[p.name])} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
-                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                                <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                                                <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
-                                                <RechartsTooltip content={<CustomTooltip />} />
-                                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                                <Bar dataKey="received" name="Total Funding" fill="var(--success)" radius={[4, 4, 0, 0]} />
-                                                <Bar dataKey="spent" name="Total Spent" fill="var(--danger)" radius={[4, 4, 0, 0]} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                    <div style={{ 
-                                        width: '200px', flexShrink: 0,
-                                        display: 'flex', flexDirection: 'column', gap: '0.4rem', 
-                                        padding: '1rem', background: 'rgba(0,0,0,0.02)',
-                                        borderRadius: '12px', border: '1px solid var(--border)',
-                                        maxHeight: '350px', overflowY: 'auto'
-                                    }}>
-                                        {phaseComparisonData.map((ph, index) => {
-                                            const isHidden = hiddenPhases[ph.name];
-                                            return (
-                                                <label key={ph.name} style={{ 
-                                                    display: 'flex', alignItems: 'center', gap: '0.5rem', 
-                                                    cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-main)',
-                                                    padding: '0.3rem', borderRadius: '6px', transition: 'all 0.2s ease',
-                                                    opacity: isHidden ? 0.5 : 1
-                                                }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'} 
-                                                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                                                    <input 
-                                                        type="checkbox" checked={!isHidden} 
-                                                        onChange={() => setHiddenPhases(prev => ({ ...prev, [ph.name]: !isHidden }))} 
-                                                        style={{ accentColor: 'var(--primary)', width: '14px', height: '14px', cursor: 'pointer', margin: 0 }}
-                                                    />
-                                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontWeight: 500 }} title={ph.name}>
-                                                        {ph.name}
-                                                    </span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
+                                <div style={{ height: 350, width: '100%' }}>
+                                    <ResponsiveContainer>
+                                        <BarChart data={phaseComparisonData.filter(p => !hiddenPhases[p.name])} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                            <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                                            <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                            <RechartsTooltip content={<CustomTooltip />} />
+                                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                                            <Bar dataKey="received" name="Total Funding" fill="var(--success)" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="spent" name="Total Spent" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 </div>
                             ) : (
                                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No phases to compare</div>
