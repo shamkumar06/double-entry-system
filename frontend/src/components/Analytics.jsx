@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useProjectData } from '../context/ProjectDataContext';
 import { useFormatting } from '../context/SettingsContext';
 import { 
@@ -12,6 +12,7 @@ const CHART_COLORS = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#1
 export default function Analytics({ projectId, projectName, phaseId }) {
     const { formatCurrency, formatDate } = useFormatting();
     const { journal, phaseFinances, projectFinances, loading } = useProjectData();
+    const [hiddenCategories, setHiddenCategories] = useState({});
 
     // Use exact totals calculated by the context
     const totalIncome = phaseId ? (phaseFinances[phaseId]?.received || 0) : (projectFinances?.received || 0);
@@ -138,26 +139,65 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         Expense Breakdown
                     </h4>
                     {expenseByCategory.length > 0 ? (
-                        <div style={{ height: 380, width: '100%' }}>
-                            <ResponsiveContainer>
-                                <PieChart>
-                                    <Pie
-                                        data={expenseByCategory}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
-                                        paddingAngle={2}
-                                        dataKey="value"
-                                    >
-                                        {expenseByCategory.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <RechartsTooltip content={<CustomTooltip />} />
-                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ paddingTop: '20px' }} />
-                                </PieChart>
-                            </ResponsiveContainer>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+                            <div style={{ height: 320, width: '100%' }}>
+                                <ResponsiveContainer>
+                                    <PieChart>
+                                        <Pie
+                                            data={expenseByCategory.filter(c => !hiddenCategories[c.name])}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={75}
+                                            outerRadius={110}
+                                            paddingAngle={2}
+                                            dataKey="value"
+                                        >
+                                            {expenseByCategory.filter(c => !hiddenCategories[c.name]).map((entry, index) => {
+                                                const originalIndex = expenseByCategory.findIndex(c => c.name === entry.name);
+                                                return <Cell key={`cell-${index}`} fill={CHART_COLORS[originalIndex % CHART_COLORS.length]} />;
+                                            })}
+                                        </Pie>
+                                        <RechartsTooltip content={<CustomTooltip />} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            
+                            {/* Custom Checkbox Legend */}
+                            <div style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                                gap: '0.5rem', 
+                                padding: '1rem',
+                                background: 'rgba(0,0,0,0.02)',
+                                borderRadius: '12px',
+                                border: '1px solid var(--border)'
+                            }}>
+                                {expenseByCategory.map((entry, index) => {
+                                    const color = CHART_COLORS[index % CHART_COLORS.length];
+                                    const isHidden = hiddenCategories[entry.name];
+                                    return (
+                                        <label key={entry.name} style={{ 
+                                            display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                                            cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)',
+                                            padding: '0.4rem', borderRadius: '8px',
+                                            transition: 'all 0.2s ease',
+                                            opacity: isHidden ? 0.5 : 1
+                                        }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'} 
+                                           onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={!isHidden} 
+                                                onChange={() => setHiddenCategories(prev => ({ ...prev, [entry.name]: !isHidden }))} 
+                                                style={{ accentColor: color, width: '15px', height: '15px', cursor: 'pointer', margin: 0 }}
+                                            />
+                                            <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: color, flexShrink: 0 }}></span>
+                                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontWeight: 500 }} title={entry.name}>
+                                                {entry.name}
+                                            </span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
                         </div>
                     ) : (
                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
