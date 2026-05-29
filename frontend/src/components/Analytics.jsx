@@ -493,7 +493,14 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     </h3>
                     
                     {allPhases && allPhases.length > 0 && (
-                        <div className="glass-panel" style={{ padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem' }}>
+                        <div className="glass-panel" style={{ 
+                            padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '0.5rem',
+                            position: 'sticky', top: '20px', zIndex: 100, 
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.05)',
+                            backdropFilter: 'blur(16px)',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            transition: 'all 0.3s ease'
+                        }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <span style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)' }}>Global Phase Filter</span>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
