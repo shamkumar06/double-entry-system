@@ -6,13 +6,13 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, AreaChart, Area, ReferenceLine,
     ComposedChart, Scatter, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
-import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target, FileText, Percent, Tag, Truck, Wallet, Users, BarChart3, Layers, LayoutGrid } from 'lucide-react';
+import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target, FileText, Percent, Tag, Truck, Wallet, Users, BarChart3, Layers, LayoutGrid, Crown } from 'lucide-react';
 
 const CHART_COLORS = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#10b981', '#f43f5e', '#0ea5e9', '#84cc16', '#eab308'];
 
 export default function Analytics({ projectId, projectName, phaseId }) {
     const { formatCurrency, formatDate } = useFormatting();
-    const { journal, phaseFinances, projectFinances, loading } = useProjectData();
+    const { journal, phaseFinances, projectFinances, members, cashierFinances, loading } = useProjectData();
     const [hiddenCategories, setHiddenCategories] = useState({});
     const [hiddenPhases, setHiddenPhases] = useState({});
     const [lastClickedPhase, setLastClickedPhase] = useState(null);
@@ -21,6 +21,40 @@ export default function Analytics({ projectId, projectName, phaseId }) {
     const totalIncome = phaseId ? (phaseFinances[phaseId]?.received || 0) : (projectFinances?.received || 0);
     const totalExpense = phaseId ? (phaseFinances[phaseId]?.spent || 0) : (projectFinances?.spent || 0);
     const balance = phaseId ? (phaseFinances[phaseId]?.balance || 0) : (projectFinances?.balance || 0);
+
+    // Fund Flow Pipeline Calculation
+    const fundFlowData = useMemo(() => {
+        const totalFunding = totalIncome;
+        const totalSpentAmount = totalExpense;
+
+        let guideReceived = 0;
+        let studentReceived = 0;
+        let guideName = 'Main Cashier (Guide)';
+
+        if (members && cashierFinances) {
+            const guide = members.find(m => m.role === 'GUIDE');
+            if (guide) {
+                guideName = guide.name;
+                if (cashierFinances[guide.name]) {
+                    guideReceived = cashierFinances[guide.name].received;
+                }
+            }
+
+            members.forEach(m => {
+                if (m.role === 'STUDENT' && cashierFinances[m.name]) {
+                    studentReceived += cashierFinances[m.name].received;
+                }
+            });
+        }
+
+        return {
+            totalFunding,
+            guideName,
+            guideReceived,
+            studentReceived,
+            totalSpent: totalSpentAmount
+        };
+    }, [totalIncome, totalExpense, members, cashierFinances]);
 
     const { 
         expenseByCategory,
@@ -343,6 +377,104 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     )}
                 </div>
 
+                {/* Custom Fund Distribution Flow */}
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                        <Layers size={20} color="var(--primary)" />
+                        Fund Distribution Pipeline
+                    </h4>
+                    
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', position: 'relative', padding: '1rem 0', justifyContent: 'center' }}>
+                        
+                        {/* Funding Node */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 2 }}>
+                            <div style={{ 
+                                width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)'
+                            }}>
+                                <Target size={24} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>1. Total Allocation</span>
+                                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#10b981' }}>{formatCurrency(fundFlowData.totalFunding)}</span>
+                                </div>
+                                <div style={{ width: '100%', height: '8px', background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ width: '100%', height: '100%', background: '#10b981' }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Connector */}
+                        <div style={{ marginLeft: '23px', width: '2px', height: '24px', background: 'var(--border)' }}></div>
+
+                        {/* Guide Node */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 2 }}>
+                            <div style={{ 
+                                width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.1)', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1', border: '1px solid rgba(99, 102, 241, 0.3)'
+                            }}>
+                                <Crown size={24} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>2. To {fundFlowData.guideName}</span>
+                                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#6366f1' }}>{formatCurrency(fundFlowData.guideReceived)}</span>
+                                </div>
+                                <div style={{ width: '100%', height: '8px', background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${Math.min(100, (fundFlowData.guideReceived / (fundFlowData.totalFunding || 1)) * 100)}%`, height: '100%', background: '#6366f1' }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Connector */}
+                        <div style={{ marginLeft: '23px', width: '2px', height: '24px', background: 'var(--border)' }}></div>
+
+                        {/* Students Node */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 2 }}>
+                            <div style={{ 
+                                width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(245, 158, 11, 0.1)', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)'
+                            }}>
+                                <Users size={24} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>3. To Sub-Cashiers (Students)</span>
+                                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#f59e0b' }}>{formatCurrency(fundFlowData.studentReceived)}</span>
+                                </div>
+                                <div style={{ width: '100%', height: '8px', background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${Math.min(100, (fundFlowData.studentReceived / (fundFlowData.totalFunding || 1)) * 100)}%`, height: '100%', background: '#f59e0b' }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Connector */}
+                        <div style={{ marginLeft: '23px', width: '2px', height: '24px', background: 'var(--border)' }}></div>
+
+                        {/* Spent Node */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', zIndex: 2 }}>
+                            <div style={{ 
+                                width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', 
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)'
+                            }}>
+                                <TrendingDown size={24} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-main)' }}>4. Finally Spent (Vendors)</span>
+                                    <span style={{ fontWeight: 800, fontSize: '1rem', color: '#ef4444' }}>{formatCurrency(fundFlowData.totalSpent)}</span>
+                                </div>
+                                <div style={{ width: '100%', height: '8px', background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+                                    <div style={{ width: `${Math.min(100, (fundFlowData.totalSpent / (fundFlowData.totalFunding || 1)) * 100)}%`, height: '100%', background: '#ef4444' }}></div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
 
                 {/* Cumulative Burn Down / Up */}
                 <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
