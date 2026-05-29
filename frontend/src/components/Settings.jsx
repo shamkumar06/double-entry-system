@@ -3,8 +3,9 @@ import { useSettings } from '../context/SettingsContext';
 import {
   User, Users, DollarSign, Save, Calendar, Layers,
   CheckCircle, XCircle, ShieldCheck, ShieldOff, Plus, RefreshCw, Loader,
-  Key, Trash2, UserPlus, Fingerprint
+  Key, Trash2, UserPlus, Fingerprint, Crown
 } from 'lucide-react';
+import { useProjectData } from '../context/ProjectDataContext';
 import { accountingApi, authApi } from '../services/api';
 import ConfirmationDialog from './ConfirmationDialog';
 
@@ -22,6 +23,7 @@ function SectionHeader({ icon, color, bg, title }) {
 
 export default function Settings({ activeProject, onUpdate, user }) {
   const { settings, updateSettings, updateProfile } = useSettings();
+  const { members, invalidate } = useProjectData();
   const [profile, setProfile] = useState({ ...settings.profile });
   const [saved, setSaved] = useState(false);
   const isAdmin = user?.role === 'ADMIN';
@@ -30,6 +32,12 @@ export default function Settings({ activeProject, onUpdate, user }) {
   const [phases, setPhases] = useState([]);
   const [phasesLoading, setPhasesLoading] = useState(false);
   const [settlingId, setSettlingId] = useState(null);
+
+  // ── Team members state ───────────────────────────
+  const [memberName, setMemberName] = useState('');
+  const [memberPhone, setMemberPhone] = useState('');
+  const [memberRole, setMemberRole] = useState('STUDENT');
+  const [addingMember, setAddingMember] = useState(false);
 
   // ── User management state ────────────────────────
   const [allUsers, setAllUsers] = useState([]);
@@ -142,6 +150,26 @@ export default function Settings({ activeProject, onUpdate, user }) {
         }
       }
     });
+  };
+
+  const handleAddMember = async () => {
+    if (!memberName.trim()) return;
+    setAddingMember(true);
+    try {
+      await accountingApi.addMember(activeProject.id, { name: memberName.trim(), role: memberRole, phone: memberPhone.trim() || null });
+      setMemberName(''); setMemberPhone(''); setMemberRole('STUDENT');
+      invalidate(activeProject.id);
+    } catch (err) {
+      alert('Failed to add member: ' + (err?.error || err.message));
+    } finally { setAddingMember(false); }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm('Remove this team member?')) return;
+    try {
+      await accountingApi.removeMember(activeProject.id, memberId);
+      invalidate(activeProject.id);
+    } catch (err) { alert('Failed to remove member.'); }
   };
 
   const handleCreateUser = async (e) => {
@@ -306,6 +334,83 @@ export default function Settings({ activeProject, onUpdate, user }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Team Members (Cashiers) ── */}
+      {activeProject && (
+        <div className="glass-panel settings-panel">
+          <SectionHeader
+            icon={<Users size={20} />}
+            color="#6366f1"
+            bg="rgba(99,102,241,0.1)"
+            title="Team Members (Cashiers)"
+          />
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+            Add your Faculty Guide and Student Sub-Cashiers to track who is handling the money.
+          </p>
+
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem', alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 180px' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Name</label>
+              <input type="text" style={inp} value={memberName} onChange={e => setMemberName(e.target.value)} placeholder="e.g. Prof. Kumar" />
+            </div>
+            <div style={{ flex: '0 1 140px' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Phone (Optional)</label>
+              <input type="tel" style={inp} value={memberPhone} onChange={e => setMemberPhone(e.target.value)} placeholder="9876543210" />
+            </div>
+            <div style={{ flex: '0 1 120px' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Role</label>
+              <select style={inp} value={memberRole} onChange={e => setMemberRole(e.target.value)}>
+                <option value="STUDENT">Student</option>
+                <option value="GUIDE">Guide</option>
+              </select>
+            </div>
+            <button type="button" className="btn-primary" onClick={handleAddMember} disabled={addingMember || !memberName.trim()} style={{ padding: '0.65rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+              <Plus size={16} /> {addingMember ? 'Adding...' : 'Add'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {(members || []).slice().sort((a, b) => (a.role === 'GUIDE' ? -1 : 1)).map(m => (
+              <div key={m.id} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '0.75rem 1rem', borderRadius: '12px',
+                background: m.role === 'GUIDE' ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04))' : 'var(--surface-hover)',
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '10px',
+                    background: m.role === 'GUIDE' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : `linear-gradient(135deg, #10b98133, #10b98111)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: m.role === 'GUIDE' ? '#fff' : '#10b981',
+                    fontWeight: 800, fontSize: '0.8rem',
+                  }}>
+                    {m.role === 'GUIDE' ? <Crown size={16} /> : m.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{m.name}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      {m.role === 'GUIDE' ? '👑 Faculty Guide' : '🎓 Student'}
+                      {m.phone ? ` · ${m.phone}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => handleRemoveMember(m.id)} style={{
+                  background: 'none', border: 'none', color: 'var(--text-muted)',
+                  cursor: 'pointer', padding: '0.4rem', borderRadius: '8px',
+                }}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            {(!members || members.length === 0) && (
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1rem', fontSize: '0.85rem' }}>
+                No team members added yet. Start by adding your Faculty Guide.
+              </p>
+            )}
+          </div>
         </div>
       )}
 

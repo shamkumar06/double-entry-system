@@ -1592,3 +1592,25 @@ select option, select optgroup {
   transform: scale(1.08);
 }
 
+/* Cashier Tracker Responsive Styles */
+@media (max-width: 768px) {
+  .cashier-stats-row {
+    grid-template-columns: 1fr !important;
+  }
+  .cashier-flow-branches {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 1rem !important;
+  }
+  .cashier-flow-branches > div[style*="position: absolute"] {
+    display: none !important; /* Hide horizontal connector on mobile */
+  }
+  .cashier-flow-branches > div {
+    width: 100% !important;
+  }
+  .cashier-flow-node.cashier-flow-student {
+    width: 100% !important;
+    max-width: 300px !important;
+  }
+}
+

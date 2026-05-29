@@ -234,7 +234,16 @@ export const accountingApi = {
   },
   saveNotepad: (projectId, phaseId, content) => {
     return api.post(`/projects/${projectId}/notepad`, { phaseId, content });
-  }
+  },
+
+  // --- Project Members (Cashier Team) ---
+  listMembers: (projectId) => api.get(`/projects/${projectId}/members`),
+  addMember: (projectId, data) => api.post(`/projects/${projectId}/members`, data),
+  updateMember: (projectId, memberId, data) => api.put(`/projects/${projectId}/members/${memberId}`, data),
+  removeMember: (projectId, memberId) => api.delete(`/projects/${projectId}/members/${memberId}`),
+
+  // --- Cashier Names (distinct from transactions) ---
+  getCashierNames: (projectId) => api.get(`/accounting/cashiers?projectId=${projectId}`),
 };
 
 export const procurementApi = {

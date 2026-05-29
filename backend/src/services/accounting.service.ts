@@ -11,6 +11,7 @@ interface TransactionLineInput {
 interface CreateTransactionInput {
   projectId: string;
   phaseId?: string;
+  cashierName?: string;
   date: string;
   description: string;
   fromEntity?: string;
@@ -53,6 +54,7 @@ export const createTransaction = async (input: CreateTransactionInput) => {
       data: {
         projectId: input.projectId,
         phaseId: input.phaseId || null,
+        cashierName: input.cashierName,
         date: new Date(input.date),
         description: input.description,
         fromEntity: input.fromEntity,
@@ -110,6 +112,7 @@ export const updateTransaction = async (id: string, input: Partial<CreateTransac
         ...(input.discount !== undefined && { discount: input.discount !== null ? new Prisma.Decimal(input.discount) : null }),
         ...(input.actualAmount !== undefined && { actualAmount: input.actualAmount !== null ? new Prisma.Decimal(input.actualAmount) : null }),
         ...(input.phaseId !== undefined && { phaseId: input.phaseId }),
+        ...(input.cashierName !== undefined && { cashierName: input.cashierName }),
         ...(input.lines && {
           lines: {
             create: input.lines.map((l) => ({
@@ -285,4 +288,14 @@ export const getLedger = async (projectId: string, accountId: string, phaseIds?:
       runningBalance
     };
   });
+};
+
+export const getDistinctCashiers = async (projectId: string) => {
+  const result = await prisma.transaction.findMany({
+    where: { projectId, isDeleted: false, cashierName: { not: null } },
+    select: { cashierName: true },
+    distinct: ['cashierName'],
+    orderBy: { cashierName: 'asc' },
+  });
+  return result.map(r => r.cashierName).filter(Boolean);
 };

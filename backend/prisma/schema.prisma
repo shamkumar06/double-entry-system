@@ -26,6 +26,11 @@ enum EntryType {
   CREDIT
 }
 
+enum CashierRole {
+  GUIDE
+  STUDENT
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -58,6 +63,7 @@ model Project {
   description String?
   totalFunds  Decimal  @default(0) @db.Decimal(15, 2)
   logoUrl     String?
+  mainCashierName String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -65,6 +71,7 @@ model Project {
   phases       Phase[]
   transactions Transaction[]
   procurements ProcurementItem[]
+  members      ProjectMember[]
 
   @@index([name])
   @@map("projects")
@@ -118,6 +125,7 @@ model Transaction {
   id            String    @id @default(uuid())
   projectId     String
   phaseId       String?
+  cashierName   String?
   date          DateTime
   description   String
   fromEntity    String?
@@ -210,4 +218,21 @@ model Notepad {
 
   @@unique([projectId, phaseId])
   @@map("notepads")
+}
+
+model ProjectMember {
+  id        String      @id @default(uuid())
+  projectId String
+  name      String
+  role      CashierRole @default(STUDENT)
+  phone     String?
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("project_members")
 }

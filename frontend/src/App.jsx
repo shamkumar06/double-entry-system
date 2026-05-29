@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Home, ChevronLeft, ChevronRight, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Menu, X, Package, PieChart as PieChartIcon } from 'lucide-react';
+import { Download, Home, ChevronLeft, ChevronRight, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Users, Menu, X, Package, PieChart as PieChartIcon } from 'lucide-react';
 import Journal from './components/Journal';
 import Ledger from './components/Ledger';
 import TrialBalance from './components/TrialBalance';
@@ -12,6 +12,7 @@ import PhaseSelector from './components/PhaseSelector';
 import EditOverviewModal from './components/EditOverviewModal';
 import Reports from './components/Reports';
 import Analytics from './components/Analytics';
+import CashierTracker from './components/CashierTracker';
 import LoginScreen from './components/LoginScreen';
 import ReceiptsGallery from './components/ReceiptsGallery';
 import ProcurementManager from './components/ProcurementManager';
@@ -157,6 +158,7 @@ function AppInner() {
           case 't': e.preventDefault(); setActiveTab('Trial Balance'); break;
           case 'r': e.preventDefault(); setActiveTab('Reports'); break;
           case 'a': e.preventDefault(); setActiveTab('Analytics'); break;
+          case 'k': e.preventDefault(); setActiveTab('Cashier Tracker'); break;
           case 'n': 
             e.preventDefault(); 
             const settled = activePhase?.name && activeProject?.phases ? Object.values(activeProject.phases).find(p => p.id === activePhase.id)?.isSettled : false;
@@ -725,6 +727,7 @@ function AppInner() {
             <button className="sidebar-nav-btn" style={navActive('Trial Balance')} onClick={() => { setActiveTab('Trial Balance'); setIsSidebarOpen(false); }}><Scale size={18} /> <span className="nav-label">Trial Balance</span></button>
             <button className="sidebar-nav-btn" style={navActive('Reports')} onClick={() => { setActiveTab('Reports'); setIsSidebarOpen(false); }}><FileText size={18} /> <span className="nav-label">Reports</span></button>
             <button className="sidebar-nav-btn" style={navActive('Analytics')} onClick={() => { setActiveTab('Analytics'); setIsSidebarOpen(false); }}><PieChartIcon size={18} /> <span className="nav-label">Analytics</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Cashier Tracker')} onClick={() => { setActiveTab('Cashier Tracker'); setIsSidebarOpen(false); }}><Users size={18} /> <span className="nav-label">Cashier Tracker</span></button>
             <button className="sidebar-nav-btn" style={navActive('Attachments')} onClick={() => { setActiveTab('Attachments'); setIsSidebarOpen(false); }}><Image size={18} /> <span className="nav-label">Attachments</span></button>
             <button className="sidebar-nav-btn" style={navActive('Procurement')} onClick={() => { setActiveTab('Procurement'); setIsSidebarOpen(false); }}><Package size={18} /> <span className="nav-label">Procurement</span></button>
             
@@ -952,6 +955,14 @@ function AppInner() {
                 projectName={activeProject?.name} 
                 phaseId={activePhase?.id}
                 key={`analytics-${refreshKey}`} 
+            />
+        )}
+        {activeTab === 'Cashier Tracker' && (
+            <CashierTracker
+                projectId={activeProject?.id}
+                projectName={activeProject?.name}
+                phaseId={activePhase?.id}
+                key={`cashier-${refreshKey}`}
             />
         )}
         {activeTab === 'Attachments' && (
@@ -1251,6 +1262,10 @@ function AppInner() {
         <button className={`mobile-nav-item ${activeTab === 'Analytics' ? 'active' : ''}`} onClick={() => setActiveTab('Analytics')}>
           <PieChartIcon size={22} />
           <span>Analytics</span>
+        </button>
+        <button className={`mobile-nav-item ${activeTab === 'Cashier Tracker' ? 'active' : ''}`} onClick={() => setActiveTab('Cashier Tracker')}>
+          <Users size={22} />
+          <span>Cashiers</span>
         </button>
       </div>
 

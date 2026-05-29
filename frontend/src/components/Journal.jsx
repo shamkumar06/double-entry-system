@@ -129,6 +129,7 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                     <th style={{ padding: '1.25rem 1rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Origin</th>
                                     <th style={{ padding: '1.25rem 1rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Destination</th>
                                     <th style={{ padding: '1.25rem 1rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Account</th>
+                                    <th style={{ padding: '1.25rem 1rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center' }}>Cashier</th>
                                     <th style={{ padding: '1.25rem 1rem', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Memo</th>
                                     <th style={{ padding: '1.25rem 1rem', textAlign: 'right', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount</th>
                                     <th style={{ padding: '1.25rem 1rem', textAlign: 'center', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Control</th>
@@ -176,6 +177,14 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                             <div style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>{paymentMode !== '-' ? paymentMode : ''} {refId && refId !== '-' ? `(${refId})` : ''}</div>
                                         </td>
                                         <td style={{ padding: '1rem', color: 'var(--text-main)' }}>{primaryAccount}</td>
+                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                            {tx.cashierName ? (
+                                                <span style={{
+                                                    display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '8px',
+                                                    background: '#6366f122', color: '#6366f1', fontSize: '0.72rem', fontWeight: 700,
+                                                }}>{tx.cashierName}</span>
+                                            ) : <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>}
+                                        </td>
                                         <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
                                             <div style={{ marginBottom: '0.4rem' }}>{pureDesc}</div>
                                             {(tx.actualAmount || tx.cgst || tx.sgst || tx.igst || tx.discount) && (
@@ -294,6 +303,13 @@ export default function Journal({ projectId, projectName, phaseId, phaseName, on
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                                 <div style={{ fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.description || 'No Description'}</div>
                                                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatDate(tx.date)} • {primaryAccount}</div>
+                                                {tx.cashierName && (
+                                                    <span style={{
+                                                        display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: '6px',
+                                                        background: '#6366f122', color: '#6366f1', fontSize: '0.68rem', fontWeight: 700,
+                                                        marginTop: '0.25rem',
+                                                    }}>{tx.cashierName}</span>
+                                                )}
                                                 <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
                                                     {tx.attachmentUrl && (
                                                         <button 

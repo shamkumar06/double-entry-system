@@ -9,6 +9,9 @@ const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 
+// Cashiers
+router.get('/cashiers', authenticate, accounting.getDistinctCashiers);
+
 // Journal - read
 router.get('/journal', authenticate, accounting.getJournal);
 router.get('/journal/deleted', authenticate, accounting.getDeletedTransactions);

@@ -6,8 +6,10 @@ const initialState = {
     project: null,
     journal: [],           // All active transactions (isDeleted: false)
     categories: [],        // AccountCategory list
+    members: [],           // ProjectMember list (Guide + Students)
     phaseFinances: {},     // Map<phaseId, { received, spent, balance, budget }>
     projectFinances: null, // { received, spent, balance }
+    cashierFinances: {},   // Map<cashierName, { received, spent, holding }>
     loading: false,
     error: null,
     version: 0,            // Increment to trigger re-fetch
@@ -26,8 +28,10 @@ function reducer(state, action) {
                 project: action.payload.project,
                 journal: action.payload.journal,
                 categories: action.payload.categories,
+                members: action.payload.members || [],
                 phaseFinances: action.payload.phaseFinances,
                 projectFinances: action.payload.projectFinances,
+                cashierFinances: action.payload.cashierFinances || {},
             };
 
         case 'LOAD_ERROR':
@@ -85,10 +89,13 @@ export function ProjectDataProvider({ children }) {
                     return cats;
                 });
 
-            const [project, journal, categories] = await Promise.all([
+            const membersPromise = accountingApi.listMembers(projectId).catch(() => []);
+
+            const [project, journal, categories, members] = await Promise.all([
                 accountingApi.getProject(projectId),
                 accountingApi.getJournal(projectId, phaseId),
                 categoriesPromise,
+                membersPromise,
             ]);
 
             // Dynamically calculate finances directly from the journal to guarantee 100% sync
@@ -224,9 +231,33 @@ export function ProjectDataProvider({ children }) {
                 balance: (recomputedProjectReceived + recomputedProjectReallocated) - (totalProjectSpent + recomputedProjectReturned),
             };
 
+            // Compute per-cashier finances from journal
+            const cashierFinances = {};
+            (journal || []).forEach(tx => {
+                const name = tx.cashierName;
+                if (!name) return;
+                if (!cashierFinances[name]) {
+                    cashierFinances[name] = { name, received: 0, spent: 0, holding: 0, transactions: 0 };
+                }
+                cashierFinances[name].transactions += 1;
+                (tx.lines || []).forEach(line => {
+                    const amt = Number(line.amount) || 0;
+                    const acctType = line.account?.type;
+                    if (acctType === 'EXPENSE' && line.type === 'DEBIT') {
+                        cashierFinances[name].spent += amt;
+                    } else if ((acctType === 'ASSET') && line.type === 'DEBIT') {
+                        cashierFinances[name].received += amt;
+                    }
+                });
+            });
+            // Compute holding = received - spent for each cashier
+            Object.values(cashierFinances).forEach(cf => {
+                cf.holding = cf.received - cf.spent;
+            });
+
             dispatch({
                 type: 'LOAD_SUCCESS',
-                payload: { project, journal, categories, phaseFinances, projectFinances },
+                payload: { project, journal, categories, members, phaseFinances, projectFinances, cashierFinances },
             });
         } catch (e) {
             console.error('ProjectDataContext load error:', e);

@@ -17,6 +17,12 @@ router.get('/:projectId/phase-financials', authenticate, project.getPhaseFinanci
 router.get('/:projectId/notepad', authenticate, project.getNotepad);
 router.post('/:projectId/notepad', authenticate, project.saveNotepad);
 
+// Members
+router.get('/:projectId/members', authenticate, project.listMembers);
+router.post('/:projectId/members', authenticate, requireAdmin, project.addMember);
+router.put('/:projectId/members/:memberId', authenticate, requireAdmin, project.updateMember);
+router.delete('/:projectId/members/:memberId', authenticate, requireAdmin, project.removeMember);
+
 // Admin only
 router.post('/', authenticate, requireAdmin, project.createProject);
 router.put('/:id', authenticate, requireAdmin, project.updateProject);

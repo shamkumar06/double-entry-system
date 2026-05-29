@@ -163,3 +163,11 @@ export const generateReport = async (req: Request, res: Response, next: NextFunc
     res.send(buffer);
   } catch (err) { next(err); }
 };
+
+export const getDistinctCashiers = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = req.query.projectId as string;
+    const data = await accountingService.getDistinctCashiers(projectId);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+};

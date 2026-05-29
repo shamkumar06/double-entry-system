@@ -6,7 +6,7 @@ import { useProjectData } from '../context/ProjectDataContext';
 
 export default function TransactionForm({ projectId, phaseId, projectName, phaseName, initialData, onComplete, onCancel }) {
     const { currency } = useCurrency();
-    const { categories: contextCategories } = useProjectData();
+    const { categories: contextCategories, members } = useProjectData();
     const [categories, setCategories] = useState(contextCategories && contextCategories.length > 0 ? contextCategories : []);
     const [phases, setPhases] = useState([]);
     
@@ -66,6 +66,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         initialData ? {
             project_id: initialData.projectId || initialData.project_id,
             phaseId: initialData.phaseId || initialData.phase?.id || '',
+            cashier_name: initialData.cashierName || '',
             category_id: initialCategoryUuid,
             project_name: initialData.project?.name || initialData.project_name,
             phase_name: initialData.phase?.name || initialData.phase_name || '',
@@ -88,6 +89,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         } : {
             project_id: projectId,
             phaseId: phaseId || '',
+            cashier_name: '',
             category_id: initialCategoryUuid,
             category_name: initialCategoryName,
             project_name: projectName,
@@ -281,6 +283,7 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
 
             const payload = {
                 projectId: formData.project_id,
+                cashierName: formData.cashier_name || undefined,
                 date: formData.date.split('T')[0], // YYYY-MM-DD
                 description: formData.description,
                 fromEntity: formData.from_name,
@@ -602,6 +605,16 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                         placeholder="Optional" />
                                 </div>
                             )}
+                            <div>
+                                <label style={labelStyle}>Handled By (Cashier)</label>
+                                <select value={formData.cashier_name}
+                                    onChange={e => setFormData({...formData, cashier_name: e.target.value})}>
+                                    <option value="">— Select Cashier —</option>
+                                    {(members || []).filter(m => m.isActive !== false).map(m => (
+                                        <option key={m.id} value={m.name}>{m.role === 'GUIDE' ? '👑 ' : '🎓 '}{m.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 

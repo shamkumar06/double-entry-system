@@ -156,3 +156,49 @@ export const saveNotepad = async (req: Request, res: Response, next: NextFunctio
     res.json({ success: true, data: notepad.content });
   } catch (err) { next(err); }
 };
+
+export const listMembers = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const members = await prisma.projectMember.findMany({
+      where: { projectId: req.params.projectId as string },
+      orderBy: [{ role: 'asc' }, { name: 'asc' }],
+    });
+    res.json({ success: true, data: members });
+  } catch (err) { next(err); }
+};
+
+export const addMember = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const member = await prisma.projectMember.create({
+      data: {
+        projectId: req.params.projectId as string,
+        name: req.body.name,
+        role: req.body.role || 'STUDENT',
+        phone: req.body.phone || null,
+      },
+    });
+    res.status(201).json({ success: true, data: member });
+  } catch (err) { next(err); }
+};
+
+export const updateMember = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const member = await prisma.projectMember.update({
+      where: { id: req.params.memberId as string },
+      data: {
+        ...(req.body.name !== undefined && { name: req.body.name }),
+        ...(req.body.role !== undefined && { role: req.body.role }),
+        ...(req.body.phone !== undefined && { phone: req.body.phone }),
+        ...(req.body.isActive !== undefined && { isActive: req.body.isActive }),
+      },
+    });
+    res.json({ success: true, data: member });
+  } catch (err) { next(err); }
+};
+
+export const removeMember = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await prisma.projectMember.delete({ where: { id: req.params.memberId as string } });
+    res.json({ success: true, message: 'Member removed.' });
+  } catch (err) { next(err); }
+};
