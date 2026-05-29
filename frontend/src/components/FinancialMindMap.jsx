@@ -139,56 +139,65 @@ export default function FinancialMindMap() {
         let pendingCount = 0;
 
         journal.forEach(tx => {
-            const amount = Number(tx.lines?.[0]?.amount) || 0;
-            const debit = tx.lines?.find(l => l.type === 'DEBIT');
-            const credit = tx.lines?.find(l => l.type === 'CREDIT');
-
-            if (!debit || !credit) return;
-
-            // Funding
-            if (credit.account?.type === 'INCOME' || credit.account?.name === 'Funding Source') {
-                if (debit.account?.name === 'Main Cash Account') {
-                    addNode('ROOT', 'Main Cash Account', 'root', amount);
-                }
-            }
-
-            // Transfer to Guide
-            if (credit.account?.name === 'Main Cash Account') {
-                const member = members.find(m => m.name === debit.account?.name);
-                if (member) {
-                    addNode(member.name, member.name, 'guide', amount);
-                    addEdge('ROOT', member.name, amount);
-                    totalDistributed += amount;
-                }
-            }
-
-            // Internal Transfer (Student to Student/Guide)
-            if (credit.account?.type === 'ASSET' && debit.account?.type === 'ASSET') {
-                const fromMember = members.find(m => m.name === credit.account?.name);
-                const toMember = members.find(m => m.name === debit.account?.name);
+            const senders = [];
+            const receivers = [];
+            const expenses = [];
+            
+            (tx.lines || []).forEach(line => {
+                const amt = Number(line.amount) || 0;
+                const acctName = line.account?.name;
+                const acctType = line.account?.type;
                 
-                if (fromMember && toMember && fromMember.name !== 'Main Cash Account' && toMember.name !== 'Main Cash Account') {
-                    // Default to student, refine later
-                    addNode(toMember.name, toMember.name, 'student', amount);
-                    addNode(fromMember.name, fromMember.name, 'student', 0);
-                    addEdge(fromMember.name, toMember.name, amount);
+                const isMember = members.some(m => m.name === acctName);
+                
+                if (acctType === 'ASSET' && isMember) {
+                    if (line.type === 'CREDIT') senders.push({ name: acctName, amount: amt });
+                    if (line.type === 'DEBIT') receivers.push({ name: acctName, amount: amt });
+                } else if (acctType === 'EXPENSE' && line.type === 'DEBIT') {
+                    expenses.push({ amount: amt });
                 }
+            });
+
+            // Funding (from ROOT to Receiver)
+            if (senders.length === 0 && receivers.length > 0) {
+                receivers.forEach(r => {
+                    const member = members.find(m => m.name === r.name);
+                    const role = member?.role === 'GUIDE' ? 'guide' : 'student';
+                    addNode('ROOT', 'Main Cash Account', 'root', r.amount);
+                    addNode(r.name, r.name, role, r.amount);
+                    addEdge('ROOT', r.name, r.amount);
+                    totalDistributed += r.amount;
+                });
+            }
+
+            // Internal Transfer
+            if (senders.length > 0 && receivers.length > 0) {
+                senders.forEach(s => {
+                    receivers.forEach(r => {
+                        const amount = Math.min(s.amount, r.amount);
+                        const senderRole = members.find(m => m.name === s.name)?.role === 'GUIDE' ? 'guide' : 'student';
+                        const receiverRole = members.find(m => m.name === r.name)?.role === 'GUIDE' ? 'guide' : 'student';
+                        addNode(s.name, s.name, senderRole, 0);
+                        addNode(r.name, r.name, receiverRole, amount);
+                        addEdge(s.name, r.name, amount);
+                    });
+                });
             }
 
             // Vendor Payment
-            if (debit.account?.type === 'EXPENSE' && credit.account?.type === 'ASSET') {
-                const fromMember = members.find(m => m.name === credit.account?.name);
-                if (fromMember) {
+            if (senders.length > 0 && expenses.length > 0) {
+                senders.forEach(s => {
                     const vendorName = tx.party || 'Unknown Vendor';
                     const vendorId = `VENDOR_${vendorName}`;
+                    const amount = s.amount; // Use the sender's credit amount for this specific vendor link
                     addNode(vendorId, vendorName, 'vendor', amount);
-                    addNode(fromMember.name, fromMember.name, 'student', 0);
-                    addEdge(fromMember.name, vendorId, amount);
+                    const senderRole = members.find(m => m.name === s.name)?.role === 'GUIDE' ? 'guide' : 'student';
+                    addNode(s.name, s.name, senderRole, 0);
+                    addEdge(s.name, vendorId, amount);
                     totalVendors.add(vendorName);
-                }
+                });
             }
 
-            // Check if pending settlement (e.g. advances vs expenses)
             if (tx.status === 'PENDING') pendingCount++;
         });
 
