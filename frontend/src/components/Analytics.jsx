@@ -540,19 +540,56 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                                 Category Breakdown by Phase
                             </h4>
                             {categoryByPhaseData.length > 0 ? (
-                                <div style={{ height: 350, width: '100%' }}>
-                                    <ResponsiveContainer>
-                                        <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                                            <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                                            <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
-                                            <RechartsTooltip content={<CustomTooltip />} />
-                                            <Legend />
-                                            {categoriesSet.map((cat, index) => (
-                                                <Bar key={cat} dataKey={cat} name={cat} stackId="a" fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                                            ))}
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+                                    <div style={{ height: 350, width: '100%' }}>
+                                        <ResponsiveContainer>
+                                            <BarChart data={categoryByPhaseData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                                <XAxis dataKey="name" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
+                                                <YAxis width={100} stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                                <RechartsTooltip content={<CustomTooltip />} />
+                                                {categoriesSet.map((cat, index) => {
+                                                    if (hiddenCategories[cat]) return null;
+                                                    return <Bar key={cat} dataKey={cat} name={cat} stackId="a" fill={CHART_COLORS[index % CHART_COLORS.length]} />;
+                                                })}
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div style={{ 
+                                        display: 'grid', 
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', 
+                                        gap: '0.5rem', 
+                                        padding: '1rem',
+                                        background: 'rgba(0,0,0,0.02)',
+                                        borderRadius: '12px',
+                                        border: '1px solid var(--border)'
+                                    }}>
+                                        {categoriesSet.map((cat, index) => {
+                                            const color = CHART_COLORS[index % CHART_COLORS.length];
+                                            const isHidden = hiddenCategories[cat];
+                                            return (
+                                                <label key={cat} style={{ 
+                                                    display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                                                    cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-main)',
+                                                    padding: '0.4rem', borderRadius: '8px',
+                                                    transition: 'all 0.2s ease',
+                                                    opacity: isHidden ? 0.5 : 1
+                                                }} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'} 
+                                                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={!isHidden} 
+                                                        onChange={() => setHiddenCategories(prev => ({ ...prev, [cat]: !isHidden }))} 
+                                                        style={{ accentColor: color, width: '15px', height: '15px', cursor: 'pointer', margin: 0 }}
+                                                    />
+                                                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: color, flexShrink: 0 }}></span>
+                                                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontWeight: 500 }} title={cat}>
+                                                        {cat}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             ) : (
                                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No categories to compare</div>
