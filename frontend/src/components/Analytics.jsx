@@ -3,9 +3,10 @@ import { useProjectData } from '../context/ProjectDataContext';
 import { useFormatting } from '../context/SettingsContext';
 import { 
     PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, AreaChart, Area, ReferenceLine
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, AreaChart, Area, ReferenceLine,
+    ComposedChart, Scatter
 } from 'recharts';
-import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target } from 'lucide-react';
+import { Activity, DollarSign, PieChart as PieChartIcon, TrendingUp, TrendingDown, Target, FileText, Percent, Tag, Truck, Wallet, Users, BarChart3 } from 'lucide-react';
 
 const CHART_COLORS = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#10b981', '#f43f5e', '#0ea5e9', '#84cc16', '#eab308'];
 
@@ -21,38 +22,65 @@ export default function Analytics({ projectId, projectName, phaseId }) {
 
     const { 
         expenseByCategory,
-        dailyData
+        dailyData,
+        topVendors,
+        paymentModes,
+        cashierLeaderboard,
+        totalTxns,
+        totalTaxes,
+        totalDiscounts
     } = useMemo(() => {
         const activeJournal = phaseId ? journal.filter(tx => tx.phaseId === phaseId || tx.phase?.id === phaseId) : journal;
         let tExpense = 0;
+        let tTaxes = 0;
+        let tDiscounts = 0;
+        
         const expMap = {};
         const dateMap = {};
+        const vendorMap = {};
+        const modeMap = {};
+        const cashierMap = {};
 
         activeJournal.forEach(tx => {
             const amount = Number(tx.lines?.[0]?.amount) || 0;
             const primaryAccount = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || 'Unknown';
             const expenseLine = tx.lines?.find(l => l.account?.type === 'EXPENSE' && l.type === 'DEBIT');
+            
+            // KPIs
+            tTaxes += (Number(tx.cgst) || 0) + (Number(tx.sgst) || 0) + (Number(tx.igst) || 0);
+            tDiscounts += (Number(tx.discount) || 0);
 
             const dateStr = new Date(tx.date).toLocaleDateString();
             if (!dateMap[dateStr]) {
-                dateMap[dateStr] = { date: dateStr, timestamp: new Date(tx.date).getTime(), expense: 0 };
+                dateMap[dateStr] = { date: dateStr, timestamp: new Date(tx.date).getTime(), expense: 0, count: 0 };
             }
+            dateMap[dateStr].count += 1;
 
-            if (expenseLine) {
+            if (expenseLine || tx.lines?.find(l => l.account?.type === 'ASSET' && l.type === 'CREDIT')) {
+                const categoryName = expenseLine ? expenseLine.account.name : primaryAccount;
                 tExpense += amount;
-                expMap[expenseLine.account.name] = (expMap[expenseLine.account.name] || 0) + amount;
+                expMap[categoryName] = (expMap[categoryName] || 0) + amount;
                 dateMap[dateStr].expense += amount;
-            } else {
-                 const creditAsset = tx.lines?.find(l => l.account?.type === 'ASSET' && l.type === 'CREDIT');
-                 if (creditAsset) {
-                     tExpense += amount;
-                     expMap[primaryAccount] = (expMap[primaryAccount] || 0) + amount;
-                     dateMap[dateStr].expense += amount;
-                 }
+                
+                // Top Vendors
+                if (tx.toEntity) {
+                    vendorMap[tx.toEntity] = (vendorMap[tx.toEntity] || 0) + amount;
+                }
+                
+                // Payment Modes
+                const mode = tx.paymentMode || 'Cash';
+                modeMap[mode] = (modeMap[mode] || 0) + amount;
+                
+                // Cashier
+                const cashier = tx.cashierName || 'Unassigned';
+                cashierMap[cashier] = (cashierMap[cashier] || 0) + amount;
             }
         });
 
         const expCategoryData = Object.entries(expMap).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
+        const vendorsData = Object.entries(vendorMap).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value).slice(0, 5);
+        const modesData = Object.entries(modeMap).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
+        const cashiersData = Object.entries(cashierMap).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value);
         
         const dailyArr = Object.values(dateMap).sort((a,b) => a.timestamp - b.timestamp);
         let cumExpense = 0;
@@ -63,7 +91,13 @@ export default function Analytics({ projectId, projectName, phaseId }) {
 
         return {
             expenseByCategory: expCategoryData,
-            dailyData: dailyArr
+            dailyData: dailyArr,
+            topVendors: vendorsData,
+            paymentModes: modesData,
+            cashierLeaderboard: cashiersData,
+            totalTxns: activeJournal.length,
+            totalTaxes: tTaxes,
+            totalDiscounts: tDiscounts
         };
     }, [journal, phaseId]);
 
@@ -126,6 +160,36 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: balance >= 0 ? 'var(--text-main)' : 'var(--danger)', margin: '0.25rem 0 0 0' }}>
                             {formatCurrency(balance)}
                         </h3>
+                    </div>
+                </div>
+                
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--accent)' }}>
+                    <div style={{ padding: '1rem', background: 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', color: 'var(--accent)' }}>
+                        <FileText size={24} />
+                    </div>
+                    <div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Transactions</p>
+                        <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', margin: '0.25rem 0 0 0' }}>{totalTxns}</h3>
+                    </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #f59e0b' }}>
+                    <div style={{ padding: '1rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', color: '#f59e0b' }}>
+                        <Percent size={24} />
+                    </div>
+                    <div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Taxes & GST</p>
+                        <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', margin: '0.25rem 0 0 0' }}>{formatCurrency(totalTaxes)}</h3>
+                    </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #14b8a6' }}>
+                    <div style={{ padding: '1rem', background: 'rgba(20, 184, 166, 0.1)', borderRadius: '12px', color: '#14b8a6' }}>
+                        <Tag size={24} />
+                    </div>
+                    <div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Discounts</p>
+                        <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', margin: '0.25rem 0 0 0' }}>{formatCurrency(totalDiscounts)}</h3>
                     </div>
                 </div>
             </div>
@@ -237,6 +301,111 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                         <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                             Not enough data to display timeline.
                         </div>
+                    )}
+                </div>
+
+                {/* Daily Spending Velocity */}
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                        <BarChart3 size={20} color="var(--accent)" />
+                        Daily Spending Velocity
+                    </h4>
+                    {dailyData.length > 0 ? (
+                        <div style={{ height: 350, width: '100%' }}>
+                            <ResponsiveContainer>
+                                <BarChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                    <XAxis dataKey="date" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
+                                    <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                    <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'var(--surface-hover)'}} />
+                                    <Bar dataKey="expense" name="Daily Expense" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No data available</div>
+                    )}
+                </div>
+
+                {/* Top Vendors & Payees */}
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                        <Truck size={20} color="#f59e0b" />
+                        Top Payees / Vendors
+                    </h4>
+                    {topVendors.length > 0 ? (
+                        <div style={{ height: 320, width: '100%' }}>
+                            <ResponsiveContainer>
+                                <BarChart data={topVendors} layout="vertical" margin={{ top: 10, right: 30, left: 50, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                                    <XAxis type="number" stroke="var(--text-muted)" tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                    <YAxis type="category" dataKey="name" stroke="var(--text-muted)" width={80} />
+                                    <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'var(--surface-hover)'}} />
+                                    <Bar dataKey="value" name="Amount Paid" fill="#f59e0b" radius={[0, 4, 4, 0]}>
+                                        {topVendors.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No vendors recorded</div>
+                    )}
+                </div>
+
+                {/* Cashier Leaderboard */}
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                        <Users size={20} color="#14b8a6" />
+                        Cashier Activity Volume
+                    </h4>
+                    {cashierLeaderboard.length > 0 ? (
+                        <div style={{ height: 320, width: '100%' }}>
+                            <ResponsiveContainer>
+                                <BarChart data={cashierLeaderboard} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                                    <XAxis dataKey="name" stroke="var(--text-muted)" />
+                                    <YAxis stroke="var(--text-muted)" tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
+                                    <RechartsTooltip content={<CustomTooltip />} cursor={{fill: 'var(--surface-hover)'}} />
+                                    <Bar dataKey="value" name="Total Handled" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No cashier data</div>
+                    )}
+                </div>
+
+                {/* Payment Modes */}
+                <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.5rem 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                        <Wallet size={20} color="#ec4899" />
+                        Payment Mode Distribution
+                    </h4>
+                    {paymentModes.length > 0 ? (
+                        <div style={{ height: 320, width: '100%' }}>
+                            <ResponsiveContainer>
+                                <PieChart>
+                                    <Pie
+                                        data={paymentModes}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={0}
+                                        outerRadius={100}
+                                        dataKey="value"
+                                    >
+                                        {paymentModes.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={CHART_COLORS[(index + 4) % CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip content={<CustomTooltip />} />
+                                    <Legend layout="horizontal" verticalAlign="bottom" align="center" />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No payment modes</div>
                     )}
                 </div>
 
