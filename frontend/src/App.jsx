@@ -21,7 +21,7 @@ import { useSettings, useCurrency } from './context/SettingsContext';
 import { ProjectDataProvider, useProjectData } from './context/ProjectDataContext';
 
 function AppInner() {
-  const { project: contextProject, journal, phaseFinances, loadProject, invalidate } = useProjectData();
+  const { project: contextProject, journal, phaseFinances, categories: contextCategories, loadProject, invalidate } = useProjectData();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
@@ -118,6 +118,9 @@ function AppInner() {
   const handleGraphTransfer = useCallback((transferData) => {
     const { sourceName, sourceType, targetName, targetType, amount, description } = transferData;
 
+    // Look up the target's ASSET account to pre-fill the Category dropdown
+    const targetAccount = contextCategories?.find(c => c.name === targetName && c.type === 'ASSET');
+
     // Build a pre-filled transaction object for TransactionForm
     const prefilled = {
       projectId: activeProject?.id,
@@ -132,11 +135,13 @@ function AppInner() {
       // If source is ROOT (Main Cash Account), leave cashierName blank so it debits the global cash
       // Otherwise the source person is the "cashier" spending the money
       cashierName: (sourceType === 'root') ? '' : sourceName,
+      // Pre-fill the category to the target's ASSET account
+      category_id: targetAccount?.id || '',
     };
 
     setEditingTransaction(prefilled);
     setShowTransactionForm(true);
-  }, [activeProject]);
+  }, [activeProject, contextCategories]);
 
   const phasesList = Array.isArray(contextProject?.phases) ? contextProject.phases : Object.values(contextProject?.phases || activeProject?.phases || {});
 
