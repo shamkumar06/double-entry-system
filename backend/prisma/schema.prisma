@@ -29,6 +29,7 @@ enum EntryType {
 enum CashierRole {
   GUIDE
   STUDENT
+  PROCURING_STUDENT
 }
 
 model User {
@@ -221,16 +222,19 @@ model Notepad {
 }
 
 model ProjectMember {
-  id        String      @id @default(uuid())
-  projectId String
-  name      String
-  role      CashierRole @default(STUDENT)
-  phone     String?
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id              String          @id @default(uuid())
+  projectId       String
+  name            String
+  role            CashierRole     @default(STUDENT)
+  phone           String?
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  parentMemberId  String?
 
-  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parentMember    ProjectMember?  @relation("MemberToMember", fields: [parentMemberId], references: [id], onDelete: SetNull)
+  childrenMembers ProjectMember[] @relation("MemberToMember")
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, name])
   @@index([projectId])

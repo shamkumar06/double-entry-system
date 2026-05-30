@@ -176,6 +176,7 @@ export const addMember = async (req: Request, res: Response, next: NextFunction)
           name: req.body.name,
           role: req.body.role || 'STUDENT',
           phone: req.body.phone || null,
+          parentMemberId: req.body.parentMemberId || null,
         },
       });
 
@@ -216,6 +217,7 @@ export const updateMember = async (req: Request, res: Response, next: NextFuncti
           ...(req.body.role !== undefined && { role: req.body.role }),
           ...(req.body.phone !== undefined && { phone: req.body.phone }),
           ...(req.body.isActive !== undefined && { isActive: req.body.isActive }),
+          ...(req.body.parentMemberId !== undefined && { parentMemberId: req.body.parentMemberId }),
         },
       });
 

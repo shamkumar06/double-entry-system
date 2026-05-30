@@ -37,6 +37,7 @@ export default function Settings({ activeProject, onUpdate, user }) {
   const [memberName, setMemberName] = useState('');
   const [memberPhone, setMemberPhone] = useState('');
   const [memberRole, setMemberRole] = useState('STUDENT');
+  const [parentMemberId, setParentMemberId] = useState('');
   const [addingMember, setAddingMember] = useState(false);
 
   // ── User management state ────────────────────────
@@ -156,8 +157,13 @@ export default function Settings({ activeProject, onUpdate, user }) {
     if (!memberName.trim()) return;
     setAddingMember(true);
     try {
-      await accountingApi.addMember(activeProject.id, { name: memberName.trim(), role: memberRole, phone: memberPhone.trim() || null });
-      setMemberName(''); setMemberPhone(''); setMemberRole('STUDENT');
+      await accountingApi.addMember(activeProject.id, { 
+        name: memberName.trim(), 
+        role: memberRole, 
+        phone: memberPhone.trim() || null,
+        parentMemberId: memberRole === 'PROCURING_STUDENT' && parentMemberId ? parentMemberId : null
+      });
+      setMemberName(''); setMemberPhone(''); setMemberRole('STUDENT'); setParentMemberId('');
       invalidate(activeProject.id);
     } catch (err) {
       alert('Failed to add member: ' + (err?.error || err.message));
@@ -359,32 +365,52 @@ export default function Settings({ activeProject, onUpdate, user }) {
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Phone (Optional)</label>
               <input type="tel" style={inp} value={memberPhone} onChange={e => setMemberPhone(e.target.value)} placeholder="9876543210" />
             </div>
-            <div style={{ flex: '0 1 120px' }}>
+            <div style={{ flex: '0 1 150px' }}>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Role</label>
-              <select style={inp} value={memberRole} onChange={e => setMemberRole(e.target.value)}>
-                <option value="STUDENT">Student</option>
-                <option value="GUIDE">Guide</option>
+              <select style={inp} value={memberRole} onChange={e => { setMemberRole(e.target.value); if (e.target.value !== 'PROCURING_STUDENT') setParentMemberId(''); }}>
+                <option value="STUDENT">Student Sub-Cashier</option>
+                <option value="GUIDE">Faculty Guide / Main Cashier</option>
+                <option value="PROCURING_STUDENT">Procuring Student</option>
               </select>
             </div>
-            <button type="button" className="btn-primary" onClick={handleAddMember} disabled={addingMember || !memberName.trim()} style={{ padding: '0.65rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+            {memberRole === 'PROCURING_STUDENT' && (
+              <div style={{ flex: '1 1 180px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Assigned Cashier</label>
+                <select style={inp} value={parentMemberId} onChange={e => setParentMemberId(e.target.value)}>
+                  <option value="">— Select Cashier —</option>
+                  {(members || []).filter(m => m.role !== 'PROCURING_STUDENT' && m.isActive !== false).map(m => (
+                    <option key={m.id} value={m.id}>{m.role === 'GUIDE' ? '👑 ' : '🎓 '}{m.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <button type="button" className="btn-primary" onClick={handleAddMember} disabled={addingMember || !memberName.trim() || (memberRole === 'PROCURING_STUDENT' && !parentMemberId)} style={{ padding: '0.65rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
               <Plus size={16} /> {addingMember ? 'Adding...' : 'Add'}
             </button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {(members || []).slice().sort((a, b) => (a.role === 'GUIDE' ? -1 : 1)).map(m => (
+            {(members || []).slice().sort((a, b) => (a.role === 'GUIDE' ? -1 : a.role === 'STUDENT' ? 0 : 1)).map(m => (
               <div key={m.id} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '0.75rem 1rem', borderRadius: '12px',
-                background: m.role === 'GUIDE' ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04))' : 'var(--surface-hover)',
+                background: m.role === 'GUIDE' 
+                  ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04))' 
+                  : m.role === 'PROCURING_STUDENT'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.04))'
+                    : 'var(--surface-hover)',
                 border: '1px solid var(--border)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{
                     width: '36px', height: '36px', borderRadius: '10px',
-                    background: m.role === 'GUIDE' ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : `linear-gradient(135deg, #10b98133, #10b98111)`,
+                    background: m.role === 'GUIDE' 
+                      ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' 
+                      : m.role === 'PROCURING_STUDENT'
+                        ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                        : `linear-gradient(135deg, #10b98133, #10b98111)`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: m.role === 'GUIDE' ? '#fff' : '#10b981',
+                    color: m.role === 'GUIDE' || m.role === 'PROCURING_STUDENT' ? '#fff' : '#10b981',
                     fontWeight: 800, fontSize: '0.8rem',
                   }}>
                     {m.role === 'GUIDE' ? <Crown size={16} /> : m.name.charAt(0).toUpperCase()}
@@ -392,7 +418,12 @@ export default function Settings({ activeProject, onUpdate, user }) {
                   <div>
                     <p style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{m.name}</p>
                     <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {m.role === 'GUIDE' ? '👑 Faculty Guide' : '🎓 Student'}
+                      {m.role === 'GUIDE' ? '👑 Faculty Guide' : (m.role === 'PROCURING_STUDENT' ? '🎓 Procuring Student' : '🎓 Student Sub-Cashier')}
+                      {m.role === 'PROCURING_STUDENT' && m.parentMemberId && (
+                        <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+                          {' · assigned to ' + ((members || []).find(p => p.id === m.parentMemberId)?.name || 'unknown')}
+                        </span>
+                      )}
                       {m.phone ? ` · ${m.phone}` : ''}
                     </p>
                   </div>

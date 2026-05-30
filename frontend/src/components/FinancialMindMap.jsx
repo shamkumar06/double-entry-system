@@ -280,17 +280,53 @@ export default function FinancialMindMap({ onTransferRequest }) {
                     markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--border)' }
                 });
             }
-            edgesMap.get(edgeId).data.amount += amount;
-            edgesMap.get(edgeId).data.count += 1;
+            const edge = edgesMap.get(edgeId);
+            if (edge.data.isStructural) {
+                edge.animated = true;
+                edge.style = { stroke: 'var(--border)', strokeWidth: 2 };
+                edge.data.isStructural = false;
+            }
+            edge.data.amount += amount;
+            edge.data.count += 1;
         };
 
-        // Seed all cashiers reliably from Context
+        // Seed all active members reliably from Context
         addNode('ROOT', 'Main Cash Account', 'root', projectFinances?.received || 0);
+        (members || []).forEach(m => {
+            if (m.isActive === false) return;
+            const cf = cashierFinances[m.name] || { received: 0 };
+            let role = 'sub_cashier';
+            if (m.role === 'GUIDE') role = 'guide';
+            else if (m.role === 'PROCURING_STUDENT') role = 'procuring_student';
+            
+            addNode(m.name, m.name, role, cf.received);
+        });
+
+        // Add fallback for cashiers with transactions who are not active members
         Object.values(cashierFinances).forEach(cf => {
-            if (cf.received > 0 || cf.spent > 0) {
-                const member = members.find(m => m.name === cf.name);
-                const role = member?.role === 'GUIDE' ? 'guide' : 'student';
-                addNode(cf.name, cf.name, role, cf.received);
+            if (!nodesMap.has(cf.name)) {
+                addNode(cf.name, cf.name, 'sub_cashier', cf.received);
+            }
+        });
+
+        // Seed structural edges for assigned procuring students (if they don't have transaction edges yet)
+        (members || []).forEach(m => {
+            if (m.isActive === false || !m.parentMemberId) return;
+            const parent = members.find(p => p.id === m.parentMemberId);
+            if (parent) {
+                const edgeId = `${parent.name}->${m.name}`;
+                if (!edgesMap.has(edgeId)) {
+                    edgesMap.set(edgeId, {
+                        id: edgeId,
+                        source: parent.name,
+                        target: m.name,
+                        type: 'smoothstep',
+                        animated: false,
+                        data: { amount: 0, count: 0, isStructural: true },
+                        style: { stroke: 'var(--border)', strokeWidth: 1.5, strokeDasharray: '5,5', opacity: 0.6 },
+                        markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--border)' }
+                    });
+                }
             }
         });
 
@@ -365,8 +401,12 @@ export default function FinancialMindMap({ onTransferRequest }) {
             const sourceNode = nodesMap.get(edge.source);
             const targetNode = nodesMap.get(edge.target);
             
+            // Prioritize database roles for active members
+            const sourceMember = (members || []).find(m => m.name === sourceNode?.id);
+            if (sourceMember) return;
+            
             if (sourceNode?.type === 'student' || sourceNode?.type === 'sub_cashier' || sourceNode?.type === 'procuring_student') {
-                if (targetNode?.type === 'student' || targetNode?.type === 'guide') {
+                if (targetNode?.type === 'student' || targetNode?.type === 'guide' || targetNode?.type === 'sub_cashier') {
                     sourceNode.type = 'sub_cashier';
                 }
                 if (targetNode?.type === 'vendor') {
@@ -377,9 +417,15 @@ export default function FinancialMindMap({ onTransferRequest }) {
 
         // Add edge labels
         Array.from(edgesMap.values()).forEach(edge => {
-            edge.label = formatCurrency(edge.data.amount);
-            edge.labelStyle = { fill: 'var(--text-main)', fontWeight: 700, fontSize: 12 };
-            edge.labelBgStyle = { fill: 'var(--surface)', fillOpacity: 0.8 };
+            if (edge.data.isStructural) {
+                edge.label = 'Assigned';
+                edge.labelStyle = { fill: 'var(--text-muted)', fontWeight: 600, fontSize: 10 };
+                edge.labelBgStyle = { fill: 'var(--surface)', fillOpacity: 0.8 };
+            } else {
+                edge.label = formatCurrency(edge.data.amount);
+                edge.labelStyle = { fill: 'var(--text-main)', fontWeight: 700, fontSize: 12 };
+                edge.labelBgStyle = { fill: 'var(--surface)', fillOpacity: 0.8 };
+            }
         });
 
         const initialNodes = Array.from(nodesMap.values());

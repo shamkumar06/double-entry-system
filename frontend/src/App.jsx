@@ -981,7 +981,6 @@ function AppInner() {
                 projectId={activeProject?.id} 
                 projectName={activeProject?.name} 
                 phaseId={activePhase?.id}
-                onTransferRequest={handleGraphTransfer}
                 key={`analytics-${refreshKey}`} 
             />
         )}
@@ -990,6 +989,7 @@ function AppInner() {
                 projectId={activeProject?.id}
                 projectName={activeProject?.name}
                 phaseId={activePhase?.id}
+                onTransferRequest={handleGraphTransfer}
                 key={`cashier-${refreshKey}`}
             />
         )}

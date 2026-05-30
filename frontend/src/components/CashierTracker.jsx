@@ -2,8 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { useProjectData } from '../context/ProjectDataContext';
 import { useFormatting } from '../context/SettingsContext';
 import { Users, Crown, User, ArrowDownRight, ChevronDown, ChevronRight, Activity, Clock, Wallet } from 'lucide-react';
+import FinancialMindMap from './FinancialMindMap';
 
-export default function CashierTracker({ projectId, projectName, phaseId }) {
+export default function CashierTracker({ projectId, projectName, phaseId, onTransferRequest }) {
     const { formatCurrency, formatDate } = useFormatting();
     const { journal, members, cashierFinances, projectFinances, loading } = useProjectData();
     const [expandedCashier, setExpandedCashier] = useState(null);
@@ -109,6 +110,9 @@ export default function CashierTracker({ projectId, projectName, phaseId }) {
 
     return (
         <div className="cashier-tracker" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Section 0: Interactive Financial Flow Map */}
+            <FinancialMindMap onTransferRequest={onTransferRequest} />
+
             {/* Section 1: Guide Hero */}
             {guideData && (
                 <div className="cashier-guide-hero glass-panel" style={{
@@ -142,85 +146,6 @@ export default function CashierTracker({ projectId, projectName, phaseId }) {
                         <div className="cashier-stat-card" style={{ background: 'var(--surface)', borderRadius: '14px', padding: '1rem', textAlign: 'center', border: '1px solid var(--border)' }}>
                             <p style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Remaining</p>
                             <p style={{ fontSize: '1.3rem', fontWeight: 800, color: (projectFinances?.balance || 0) >= 0 ? 'var(--text-main)' : '#ef4444' }}>{formatCurrency(projectFinances?.balance || 0)}</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Section 2: Money Flow Tree */}
-            {guideData && studentData.length > 0 && (
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 1.25rem 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        <Activity size={18} color="#6366f1" />
-                        Money Flow
-                    </h4>
-                    <div className="cashier-flow-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0' }}>
-                        {/* Guide Node */}
-                        <div className="cashier-flow-node cashier-flow-guide" style={{
-                            padding: '0.75rem 1.5rem', borderRadius: '14px',
-                            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                            color: '#fff', fontWeight: 700, fontSize: '0.95rem',
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)',
-                            zIndex: 2, position: 'relative',
-                        }}>
-                            <Crown size={16} />
-                            {guideData.name}
-                        </div>
-
-                        {/* Connector Line */}
-                        <div style={{ width: '2px', height: '24px', background: 'var(--border)' }}></div>
-
-                        {/* Branch Lines + Student Nodes */}
-                        <div className="cashier-flow-branches" style={{
-                            display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center',
-                            position: 'relative', paddingTop: '8px',
-                        }}>
-                            {/* Horizontal connector */}
-                            {studentData.length > 1 && (
-                                <div style={{
-                                    position: 'absolute', top: 0, left: '15%', right: '15%',
-                                    height: '2px', background: 'var(--border)',
-                                }}></div>
-                            )}
-                            {studentData.map((sd, i) => (
-                                <div key={sd.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '120px' }}>
-                                    {/* Vertical connector */}
-                                    <div style={{ width: '2px', height: '16px', background: 'var(--border)' }}></div>
-                                    <div style={{ position: 'relative', marginBottom: '2px' }}>
-                                        <ArrowDownRight size={14} style={{ color: 'var(--text-muted)' }} />
-                                    </div>
-                                    {/* Student Card */}
-                                    <div
-                                        className="cashier-flow-node cashier-flow-student"
-                                        onClick={() => setExpandedCashier(expandedCashier === sd.name ? null : sd.name)}
-                                        style={{
-                                            padding: '0.75rem 1rem', borderRadius: '14px',
-                                            background: 'var(--surface)', border: '2px solid var(--border)',
-                                            cursor: 'pointer', textAlign: 'center',
-                                            transition: 'all 0.2s ease',
-                                            minWidth: '130px',
-                                            boxShadow: expandedCashier === sd.name ? '0 4px 20px rgba(0,0,0,0.1)' : 'var(--shadow-sm)',
-                                            borderColor: expandedCashier === sd.name ? getStatusColor(sd) : 'var(--border)',
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center', marginBottom: '0.35rem' }}>
-                                            <span className="cashier-status-dot" style={{
-                                                width: '8px', height: '8px', borderRadius: '50%',
-                                                background: getStatusColor(sd),
-                                                boxShadow: sd.holding > 0 ? `0 0 8px ${getStatusColor(sd)}` : 'none',
-                                                animation: sd.holding > 0 ? 'gentlePulse 2s ease-in-out infinite' : 'none',
-                                            }}></span>
-                                            <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{sd.name}</span>
-                                        </div>
-                                        <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '0.25rem' }}>{getStatusLabel(sd)}</p>
-                                        <p style={{ fontSize: '1rem', fontWeight: 800, color: sd.holding > 0 ? '#10b981' : 'var(--text-main)' }}>
-                                            {formatCurrency(Math.abs(sd.spent))}
-                                        </p>
-                                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>spent</p>
-                                    </div>
-                                </div>
-                            ))}
                         </div>
                     </div>
                 </div>
