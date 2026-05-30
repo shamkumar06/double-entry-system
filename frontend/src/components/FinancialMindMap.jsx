@@ -1,9 +1,9 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, MarkerType, Handle, Position, Panel } from '@xyflow/react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState, MarkerType, Handle, Position, Panel, addEdge as rfAddEdge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
 import { useProjectData } from '../context/ProjectDataContext';
-import { Activity, Target, Truck, Users, Crown, Banknote, AlertCircle, Info, ChevronRight, PieChart } from 'lucide-react';
+import { Activity, Target, Truck, Users, Crown, Banknote, AlertCircle, Info, ChevronRight, PieChart, ArrowRight, X, Zap } from 'lucide-react';
 
 // === HELPER FUNCTIONS ===
 const formatCurrency = (amount) => {
@@ -27,7 +27,7 @@ const NodeWrapper = ({ children, color, title, icon: Icon, amount, role, selecte
         transition: 'all 0.2s ease',
         opacity: 0.95
     }}>
-        <Handle type="target" position={Position.Top} style={{ background: color, border: 'none', width: '8px', height: '8px' }} />
+        <Handle type="target" position={Position.Top} style={{ background: color, border: '2px solid var(--surface)', width: '10px', height: '10px', cursor: 'crosshair' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${color}20`, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Icon size={18} />
@@ -41,7 +41,7 @@ const NodeWrapper = ({ children, color, title, icon: Icon, amount, role, selecte
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Handled:</span>
             <span style={{ fontSize: '1rem', fontWeight: 800, color: color }}>{formatCurrency(amount)}</span>
         </div>
-        <Handle type="source" position={Position.Bottom} style={{ background: color, border: 'none', width: '8px', height: '8px' }} />
+        <Handle type="source" position={Position.Bottom} style={{ background: color, border: '2px solid var(--surface)', width: '10px', height: '10px', cursor: 'crosshair' }} />
     </div>
 );
 
@@ -90,14 +90,166 @@ const getLayoutedElements = (nodes, edges) => {
     return { nodes: layoutedNodes, edges };
 };
 
+// === TRANSFER MODAL ===
+const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
+    const [amount, setAmount] = useState('');
+    const [description, setDescription] = useState('');
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        setTimeout(() => inputRef.current?.focus(), 100);
+    }, []);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!amount || Number(amount) <= 0) return;
+        onConfirm({ amount: Number(amount), description: description || `Transfer from ${sourceNode.data.title} to ${targetNode.data.title}` });
+    };
+
+    return (
+        <div style={{
+            position: 'fixed', inset: 0, zIndex: 10000,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn 0.2s ease-out'
+        }} onClick={onCancel}>
+            <div onClick={e => e.stopPropagation()} style={{
+                background: 'var(--surface)', borderRadius: '20px',
+                padding: '2rem', width: '420px', maxWidth: '90vw',
+                border: '1px solid var(--border)',
+                boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
+                animation: 'slideUp 0.3s ease-out'
+            }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Zap size={18} color="#10b981" />
+                        </div>
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>Quick Transfer</h3>
+                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>Drag-to-connect transfer</p>
+                        </div>
+                    </div>
+                    <button onClick={onCancel} style={{
+                        background: 'var(--surface-hover)', border: 'none', borderRadius: '8px',
+                        width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', color: 'var(--text-muted)'
+                    }}><X size={16} /></button>
+                </div>
+
+                {/* Flow Visualization */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
+                    padding: '1rem', borderRadius: '12px',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.08))',
+                    border: '1px solid rgba(16, 185, 129, 0.15)',
+                    marginBottom: '1.5rem'
+                }}>
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{
+                            width: '40px', height: '40px', borderRadius: '50%',
+                            background: 'rgba(16, 185, 129, 0.2)', color: '#10b981',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 0.4rem', fontWeight: 800, fontSize: '0.85rem'
+                        }}>{sourceNode.data.title.charAt(0)}</div>
+                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>{sourceNode.data.title}</p>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{sourceNode.type.replace('_', ' ')}</p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                        <ArrowRight size={20} color="#10b981" />
+                        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Transfer</span>
+                    </div>
+
+                    <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{
+                            width: '40px', height: '40px', borderRadius: '50%',
+                            background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            margin: '0 auto 0.4rem', fontWeight: 800, fontSize: '0.85rem'
+                        }}>{targetNode.data.title.charAt(0)}</div>
+                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>{targetNode.data.title}</p>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{targetNode.type.replace('_', ' ')}</p>
+                    </div>
+                </div>
+
+                {/* Form */}
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem', display: 'block' }}>
+                            Amount (₹)
+                        </label>
+                        <input
+                            ref={inputRef}
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                            placeholder="Enter transfer amount"
+                            required
+                            style={{
+                                width: '100%', padding: '0.9rem 1rem',
+                                borderRadius: '12px', border: '1px solid var(--border)',
+                                background: 'var(--background)', color: 'var(--primary)',
+                                fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em',
+                                outline: 'none', fontFamily: 'inherit',
+                                transition: 'border-color 0.2s'
+                            }}
+                            onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                            onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                        />
+                    </div>
+
+                    <div>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem', display: 'block' }}>
+                            Description (optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder={`Fund transfer to ${targetNode.data.title}`}
+                            style={{
+                                width: '100%', padding: '0.7rem 1rem',
+                                borderRadius: '12px', border: '1px solid var(--border)',
+                                background: 'var(--background)', color: 'var(--text-main)',
+                                fontSize: '0.9rem', outline: 'none', fontFamily: 'inherit',
+                                transition: 'border-color 0.2s'
+                            }}
+                            onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                            onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                        />
+                    </div>
+
+                    <button type="submit" disabled={!amount || Number(amount) <= 0} style={{
+                        padding: '0.9rem', borderRadius: '12px', border: 'none',
+                        background: (!amount || Number(amount) <= 0) ? 'var(--surface-hover)' : 'linear-gradient(135deg, #10b981, #059669)',
+                        color: (!amount || Number(amount) <= 0) ? 'var(--text-muted)' : '#fff',
+                        fontSize: '0.95rem', fontWeight: 700, cursor: (!amount || Number(amount) <= 0) ? 'not-allowed' : 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                        transition: 'all 0.2s',
+                        boxShadow: (amount && Number(amount) > 0) ? '0 4px 15px rgba(16, 185, 129, 0.3)' : 'none'
+                    }}>
+                        <Zap size={16} />
+                        Transfer {amount ? formatCurrency(Number(amount)) : '₹0'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 // === MAIN COMPONENT ===
 
-export default function FinancialMindMap() {
+export default function FinancialMindMap({ onTransferRequest }) {
     const { journal, members, projectFinances, cashierFinances } = useProjectData();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState(null);
     const [dashboardStats, setDashboardStats] = useState({});
+    const [transferModal, setTransferModal] = useState(null); // { sourceNode, targetNode }
 
     // Graph Generation Logic
     useEffect(() => {
@@ -246,6 +398,35 @@ export default function FinancialMindMap() {
 
     }, [journal, members]);
 
+    // Handle drag-to-connect between nodes
+    const onConnect = useCallback((params) => {
+        const sourceNode = nodes.find(n => n.id === params.source);
+        const targetNode = nodes.find(n => n.id === params.target);
+        
+        if (sourceNode && targetNode) {
+            setTransferModal({ sourceNode, targetNode });
+        }
+    }, [nodes]);
+
+    const handleTransferConfirm = useCallback(({ amount, description }) => {
+        if (!transferModal || !onTransferRequest) return;
+        
+        const { sourceNode, targetNode } = transferModal;
+        
+        onTransferRequest({
+            sourceId: sourceNode.id,
+            sourceName: sourceNode.data.title,
+            sourceType: sourceNode.type,
+            targetId: targetNode.id,
+            targetName: targetNode.data.title,
+            targetType: targetNode.type,
+            amount,
+            description
+        });
+        
+        setTransferModal(null);
+    }, [transferModal, onTransferRequest]);
+
     const onNodeClick = (event, node) => {
         setSelectedNode(node);
         
@@ -290,6 +471,7 @@ export default function FinancialMindMap() {
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
                 onPaneClick={onPaneClick}
+                onConnect={onConnect}
                 nodeTypes={nodeTypes}
                 fitView
                 attributionPosition="bottom-left"
@@ -317,6 +499,18 @@ export default function FinancialMindMap() {
                                 <span style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>Unique Vendors</span>
                                 <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ef4444' }}>{dashboardStats.vendorCount}</span>
                             </div>
+                        </div>
+
+                        {/* Drag hint */}
+                        <div style={{
+                            padding: '0.6rem 0.75rem', borderRadius: '8px',
+                            background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.15)',
+                            display: 'flex', alignItems: 'center', gap: '0.5rem'
+                        }}>
+                            <Zap size={14} color="#10b981" />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                <b style={{ color: '#10b981' }}>Drag</b> between node handles to transfer funds
+                            </span>
                         </div>
                         
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
@@ -357,6 +551,16 @@ export default function FinancialMindMap() {
                     </Panel>
                 )}
             </ReactFlow>
+
+            {/* Transfer Modal */}
+            {transferModal && (
+                <TransferModal
+                    sourceNode={transferModal.sourceNode}
+                    targetNode={transferModal.targetNode}
+                    onConfirm={handleTransferConfirm}
+                    onCancel={() => setTransferModal(null)}
+                />
+            )}
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Download, Home, ChevronLeft, ChevronRight, FolderOpen, Edit3, Settings as SettingsIcon, CheckCircle, Plus, Lock, LogOut, Activity, Book, Scale, FileText, Image, Layers, User, Users, Menu, X, Package, PieChart as PieChartIcon } from 'lucide-react';
 import Journal from './components/Journal';
 import Ledger from './components/Ledger';
@@ -114,7 +114,29 @@ function AppInner() {
     setShowEditModal(false);
   }, [activeTab]);
 
+  // Handle drag-to-connect transfers from the Financial Mind Map
+  const handleGraphTransfer = useCallback((transferData) => {
+    const { sourceName, sourceType, targetName, targetType, amount, description } = transferData;
 
+    // Build a pre-filled transaction object for TransactionForm
+    const prefilled = {
+      projectId: activeProject?.id,
+      project_id: activeProject?.id,
+      project_name: activeProject?.name,
+      amount: amount,
+      description: description || `Transfer: ${sourceName} → ${targetName}`,
+      fromEntity: sourceName,
+      toEntity: targetName,
+      paymentMode: 'Cash',
+      date: new Date().toISOString(),
+      // If source is ROOT (Main Cash Account), leave cashierName blank so it debits the global cash
+      // Otherwise the source person is the "cashier" spending the money
+      cashierName: (sourceType === 'root') ? '' : sourceName,
+    };
+
+    setEditingTransaction(prefilled);
+    setShowTransactionForm(true);
+  }, [activeProject]);
 
   const phasesList = Array.isArray(contextProject?.phases) ? contextProject.phases : Object.values(contextProject?.phases || activeProject?.phases || {});
 
@@ -954,6 +976,7 @@ function AppInner() {
                 projectId={activeProject?.id} 
                 projectName={activeProject?.name} 
                 phaseId={activePhase?.id}
+                onTransferRequest={handleGraphTransfer}
                 key={`analytics-${refreshKey}`} 
             />
         )}

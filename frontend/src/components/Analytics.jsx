@@ -11,7 +11,7 @@ import FinancialMindMap from './FinancialMindMap';
 
 const CHART_COLORS = ['#6366f1', '#ec4899', '#14b8a6', '#f59e0b', '#8b5cf6', '#10b981', '#f43f5e', '#0ea5e9', '#84cc16', '#eab308'];
 
-export default function Analytics({ projectId, projectName, phaseId }) {
+export default function Analytics({ projectId, projectName, phaseId, onTransferRequest }) {
     const { formatCurrency, formatDate } = useFormatting();
     const { journal, phaseFinances, projectFinances, members, cashierFinances, loading } = useProjectData();
     const [hiddenCategories, setHiddenCategories] = useState({});
@@ -911,7 +911,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     <Activity color="var(--primary)" />
                     Interactive Financial Flow Map
                 </h3>
-                <FinancialMindMap />
+                <FinancialMindMap onTransferRequest={onTransferRequest} />
             </div>
             
         </div>
