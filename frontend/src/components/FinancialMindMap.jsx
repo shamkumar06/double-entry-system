@@ -189,7 +189,7 @@ export default function FinancialMindMap() {
             // Vendor Payment
             if (senders.length > 0 && expenses.length > 0) {
                 senders.forEach(s => {
-                    const vendorName = tx.party || 'Unknown Vendor';
+                    const vendorName = tx.toEntity || 'Unknown Vendor';
                     const vendorId = `VENDOR_${vendorName}`;
                     const amount = expenses.reduce((sum, e) => sum + e.amount, 0); 
                     
