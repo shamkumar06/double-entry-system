@@ -201,6 +201,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
     }, [projectId, selectedPhaseIds, startDate, endDate, config.ledgerAccounts, allAccounts]);
 
     const CONTENT_H_PER_PAGE_MM = 257;
+    const PAGE_SIDE_MARGIN_MM = 18;    // left/right margin in mm
+    const PAGE_TOP_MARGIN_MM  = 20;    // top margin per page in mm
     
     const getDrCr = (amt, type) => {
         const v = parseFloat(amt);
