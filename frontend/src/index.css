@@ -1582,7 +1582,11 @@ select option, select optgroup {
 .sidebar-toggle-btn:hover {
   background: var(--border) !important;
   color: var(--text-main) !important;
-  transform: scale(1.08);
+  transform: translate(-50%, -50%) scale(1.08) !important;
+}
+
+.sidebar:hover .sidebar-toggle-btn {
+  opacity: 1 !important;
 }
 
 /* Cashier Tracker Responsive Styles */

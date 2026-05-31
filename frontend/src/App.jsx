@@ -66,6 +66,7 @@ function AppInner() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('sidebarCollapsed') === 'true';
   });
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', isSidebarCollapsed);
@@ -554,41 +555,83 @@ function AppInner() {
       </div>
 
       <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0, position: 'relative' }}>
-        {/* Desktop Sidebar Toggle (Floating on the right boundary edge) */}
+        {/* Desktop Sidebar Toggle (Morphs: centers & grows behind the logo when collapsed, floats on edge when expanded) */}
         <button 
           onClick={() => setIsSidebarCollapsed(prev => !prev)}
           className="sidebar-toggle-btn desktop-only"
           title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           style={{
             position: 'absolute',
-            right: '-11px',
-            top: '20px',
-            zIndex: 1000,
+            zIndex: 5,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '22px',
-            height: '22px',
             borderRadius: '50%',
             background: 'var(--surface)',
-            border: '1px solid var(--border)',
+            border: (isSidebarCollapsed && isLogoHovered) ? '1px solid var(--primary)' : '1px solid var(--border)',
             color: 'var(--text-muted)',
             cursor: 'pointer',
             padding: 0,
-            transition: 'all 0.2s ease',
-            boxShadow: 'var(--shadow-sm)'
+            boxShadow: (isSidebarCollapsed && isLogoHovered) ? '0 0 12px rgba(99, 102, 241, 0.3)' : 'var(--shadow-sm)',
+            transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+            
+            // Dynamic morphing geometries
+            width: isSidebarCollapsed ? '46px' : '22px',
+            height: isSidebarCollapsed ? '46px' : '22px',
+            top: isSidebarCollapsed ? '43px' : '72px',
+            left: isSidebarCollapsed ? '50%' : '100%',
+            transform: 'translate(-50%, -50%)',
+            opacity: (isSidebarCollapsed && isLogoHovered) ? 1 : (isSidebarCollapsed ? 0.3 : 0.4),
           }}
         >
-          {isSidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+          <div style={{ 
+            opacity: isSidebarCollapsed ? 0 : 1, 
+            transition: 'opacity 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {isSidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+          </div>
         </button>
 
         <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'none' }} className="mobile-close-btn">
            <button onClick={() => setIsSidebarOpen(false)}><X size={24} /></button>
         </div>
         <div className="sidebar-nav-content">
-            <div className="brand-header" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem', position: 'relative' }}>
+            {/* Brand Header: Centered on collapse, expands navigation on click if collapsed, behaves as a layered interaction box */}
+            <div 
+              className="brand-header" 
+              onClick={isSidebarCollapsed ? () => setIsSidebarCollapsed(false) : undefined}
+              onMouseEnter={() => isSidebarCollapsed && setIsLogoHovered(true)}
+              onMouseLeave={() => setIsLogoHovered(false)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+                gap: isSidebarCollapsed ? '0' : '0.6rem', 
+                marginBottom: isSidebarCollapsed ? '1.8rem' : '1.25rem', 
+                position: 'relative',
+                width: '100%',
+                cursor: isSidebarCollapsed ? 'pointer' : 'default',
+                zIndex: 10, // Higher z-index to receive hover/click on top of toggle ring
+              }}
+            >
                 {activeProject.logoUrl ? (
-                    <img src={getImageUrl(activeProject.logoUrl)} alt="Logo" style={{ width: '28px', height: '28px', objectFit: 'contain', borderRadius: '4px' }} />
+                    <img 
+                      src={getImageUrl(activeProject.logoUrl)} 
+                      alt="Logo" 
+                      style={{ 
+                        width: '32px', 
+                        height: '32px', 
+                        objectFit: 'contain', 
+                        borderRadius: '6px',
+                        background: '#ffffff',
+                        border: '1px solid var(--border)',
+                        padding: '2px',
+                        boxShadow: 'var(--shadow-sm)'
+                      }} 
+                    />
                 ) : (
                     <FolderOpen color="var(--primary)" size={24} />
                 )}
