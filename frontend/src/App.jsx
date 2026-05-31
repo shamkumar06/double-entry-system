@@ -553,7 +553,35 @@ function AppInner() {
         </div>
       </div>
 
-      <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0 }}>
+      <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0, position: 'relative' }}>
+        {/* Desktop Sidebar Toggle (Floating on the right boundary edge) */}
+        <button 
+          onClick={() => setIsSidebarCollapsed(prev => !prev)}
+          className="sidebar-toggle-btn desktop-only"
+          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          style={{
+            position: 'absolute',
+            right: '-11px',
+            top: '20px',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '22px',
+            height: '22px',
+            borderRadius: '50%',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            padding: 0,
+            transition: 'all 0.2s ease',
+            boxShadow: 'var(--shadow-sm)'
+          }}
+        >
+          {isSidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        </button>
+
         <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'none' }} className="mobile-close-btn">
            <button onClick={() => setIsSidebarOpen(false)}><X size={24} /></button>
         </div>
@@ -568,28 +596,6 @@ function AppInner() {
                     <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.3, wordBreak: 'break-word' }}>{activeProject.name}</h2>
                     <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '1px' }}>{activeProject.description || 'Accounting'}</p>
                 </div>
-                <button 
-                  onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                  className="sidebar-toggle-btn desktop-only"
-                  title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '6px',
-                    background: 'var(--surface-hover)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: 0,
-                    transition: 'all 0.2s ease',
-                    boxShadow: 'var(--shadow-sm)'
-                  }}
-                >
-                  {isSidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-                </button>
             </div>
           {/* Phase Switcher (Interactive Dropdown Badge) */}
           <div style={{ position: 'relative', display: 'inline-block' }} id="phase-selector-dropdown-trigger">

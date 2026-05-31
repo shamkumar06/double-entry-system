@@ -1539,13 +1539,6 @@ select option, select optgroup {
     width: 100%;
   }
 
-  .sidebar.collapsed .sidebar-toggle-btn {
-    position: absolute;
-    bottom: -32px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
   .sidebar.collapsed .phase-badge {
     padding: 0.25rem 0 !important;
     width: 36px;
