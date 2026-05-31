@@ -377,14 +377,14 @@ export default function Settings({ activeProject, onUpdate, user }) {
               <div style={{ flex: '1 1 180px' }}>
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>Assigned Cashier</label>
                 <select style={inp} value={parentMemberId} onChange={e => setParentMemberId(e.target.value)}>
-                  <option value="">— Select Cashier —</option>
+                  <option value="">— None (Optional) —</option>
                   {(members || []).filter(m => m.role !== 'PROCURING_STUDENT' && m.isActive !== false).map(m => (
                     <option key={m.id} value={m.id}>{m.role === 'GUIDE' ? '👑 ' : '🎓 '}{m.name}</option>
                   ))}
                 </select>
               </div>
             )}
-            <button type="button" className="btn-primary" onClick={handleAddMember} disabled={addingMember || !memberName.trim() || (memberRole === 'PROCURING_STUDENT' && !parentMemberId)} style={{ padding: '0.65rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
+            <button type="button" className="btn-primary" onClick={handleAddMember} disabled={addingMember || !memberName.trim()} style={{ padding: '0.65rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}>
               <Plus size={16} /> {addingMember ? 'Adding...' : 'Add'}
             </button>
           </div>
