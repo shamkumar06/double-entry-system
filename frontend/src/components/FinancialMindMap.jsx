@@ -3,7 +3,7 @@ import { ReactFlow, Background, Controls, MiniMap, useNodesState, useEdgesState,
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
 import { useProjectData } from '../context/ProjectDataContext';
-import { Activity, Target, Truck, Users, Crown, Banknote, AlertCircle, Info, ChevronRight, ChevronLeft, ChevronDown, PieChart, ArrowRight, X, Zap } from 'lucide-react';
+import { Activity, Target, Truck, Users, Crown, Banknote, AlertCircle, Info, ChevronRight, ChevronLeft, ChevronDown, PieChart, ArrowRight, X, Zap, Repeat } from 'lucide-react';
 
 // === HELPER FUNCTIONS ===
 const formatCurrency = (amount) => {
@@ -99,19 +99,28 @@ const getLayoutedElements = (nodes, edges) => {
 };
 
 // === TRANSFER MODAL ===
+// === TRANSFER MODAL ===
 const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
+    const [isReversed, setIsReversed] = useState(false);
     const inputRef = useRef(null);
 
     useEffect(() => {
         setTimeout(() => inputRef.current?.focus(), 100);
     }, []);
 
+    const sender = isReversed ? targetNode : sourceNode;
+    const receiver = isReversed ? sourceNode : targetNode;
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!amount || Number(amount) <= 0) return;
-        onConfirm({ amount: Number(amount), description: description || `Transfer from ${sourceNode.data.title} to ${targetNode.data.title}` });
+        onConfirm({ 
+            amount: Number(amount), 
+            description: description || `Transfer from ${sender.data.title} to ${receiver.data.title}`,
+            isReversed
+        });
     };
 
     return (
@@ -149,36 +158,68 @@ const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
                 {/* Flow Visualization */}
                 <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
-                    padding: '1rem', borderRadius: '12px',
+                    padding: '1.25rem 1rem', borderRadius: '12px',
                     background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.08))',
                     border: '1px solid rgba(16, 185, 129, 0.15)',
                     marginBottom: '1.5rem'
                 }}>
-                    <div style={{ textAlign: 'center', flex: 1 }}>
+                    <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
                         <div style={{
                             width: '40px', height: '40px', borderRadius: '50%',
-                            background: 'rgba(16, 185, 129, 0.2)', color: '#10b981',
+                            background: sender.type === 'root' ? 'rgba(99, 102, 241, 0.2)' : (sender.role === 'GUIDE' ? 'rgba(99, 102, 241, 0.2)' : (sender.role === 'STUDENT' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)')),
+                            color: sender.type === 'root' ? '#6366f1' : (sender.role === 'GUIDE' ? '#6366f1' : (sender.role === 'STUDENT' ? '#10b981' : '#f59e0b')),
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             margin: '0 auto 0.4rem', fontWeight: 800, fontSize: '0.85rem'
-                        }}>{sourceNode.data.title.charAt(0)}</div>
-                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>{sourceNode.data.title}</p>
-                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{sourceNode.type.replace('_', ' ')}</p>
+                        }}>{sender.data.title.charAt(0)}</div>
+                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={sender.data.title}>{sender.data.title}</p>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{sender.type.replace('_', ' ')}</p>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-                        <ArrowRight size={20} color="#10b981" />
-                        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Transfer</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                        <button 
+                            type="button"
+                            onClick={() => setIsReversed(prev => !prev)}
+                            title="Swap Transfer Direction"
+                            style={{
+                                background: 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '50%',
+                                width: '32px',
+                                height: '32px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--primary)',
+                                transition: 'all 0.25s ease',
+                                boxShadow: 'var(--shadow-sm)'
+                            }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'scale(1.1) rotate(180deg)';
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                e.currentTarget.style.background = 'var(--surface-hover)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'none';
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                                e.currentTarget.style.background = 'var(--surface)';
+                            }}
+                        >
+                            <Repeat size={14} />
+                        </button>
+                        <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Swap</span>
                     </div>
 
-                    <div style={{ textAlign: 'center', flex: 1 }}>
+                    <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
                         <div style={{
                             width: '40px', height: '40px', borderRadius: '50%',
-                            background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6',
+                            background: receiver.type === 'root' ? 'rgba(99, 102, 241, 0.2)' : (receiver.role === 'GUIDE' ? 'rgba(99, 102, 241, 0.2)' : (receiver.role === 'STUDENT' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)')),
+                            color: receiver.type === 'root' ? '#6366f1' : (receiver.role === 'GUIDE' ? '#6366f1' : (receiver.role === 'STUDENT' ? '#10b981' : '#f59e0b')),
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             margin: '0 auto 0.4rem', fontWeight: 800, fontSize: '0.85rem'
-                        }}>{targetNode.data.title.charAt(0)}</div>
-                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>{targetNode.data.title}</p>
-                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{targetNode.type.replace('_', ' ')}</p>
+                        }}>{receiver.data.title.charAt(0)}</div>
+                        <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={receiver.data.title}>{receiver.data.title}</p>
+                        <p style={{ margin: 0, fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{receiver.type.replace('_', ' ')}</p>
                     </div>
                 </div>
 
@@ -218,7 +259,7 @@ const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
                             type="text"
                             value={description}
                             onChange={e => setDescription(e.target.value)}
-                            placeholder={`Fund transfer to ${targetNode.data.title}`}
+                            placeholder={`Fund transfer to ${receiver.data.title}`}
                             style={{
                                 width: '100%', padding: '0.7rem 1rem',
                                 borderRadius: '12px', border: '1px solid var(--border)',
@@ -464,18 +505,20 @@ export default function FinancialMindMap({ onTransferRequest }) {
         }
     }, [nodes]);
 
-    const handleTransferConfirm = useCallback(({ amount, description }) => {
+    const handleTransferConfirm = useCallback(({ amount, description, isReversed }) => {
         if (!transferModal || !onTransferRequest) return;
         
         const { sourceNode, targetNode } = transferModal;
+        const actualSource = isReversed ? targetNode : sourceNode;
+        const actualTarget = isReversed ? sourceNode : targetNode;
         
         onTransferRequest({
-            sourceId: sourceNode.id,
-            sourceName: sourceNode.data.title,
-            sourceType: sourceNode.type,
-            targetId: targetNode.id,
-            targetName: targetNode.data.title,
-            targetType: targetNode.type,
+            sourceId: actualSource.id,
+            sourceName: actualSource.data.title,
+            sourceType: actualSource.type,
+            targetId: actualTarget.id,
+            targetName: actualTarget.data.title,
+            targetType: actualTarget.type,
             amount,
             description
         });

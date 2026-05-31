@@ -222,7 +222,7 @@ input:focus, select:focus, textarea:focus {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow: hidden;
+  overflow: visible;
   background: var(--glass-bg);
   backdrop-filter: blur(30px) saturate(150%);
   z-index: 100;
