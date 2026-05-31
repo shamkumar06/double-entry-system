@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Download, Plus, Trash2, Check, Settings as SettingsIcon, Calendar, Type, Layout, Activity, Layers, ChevronDown, Edit3 } from 'lucide-react';
 import { useSettings, useFormatting } from '../context/SettingsContext';
 import { accountingApi } from '../services/api';
@@ -26,11 +26,13 @@ const STUDIO_STYLES = `
     .report-preview-pane {
         flex: 1;
         overflow-y: auto;
-        padding: 2rem;
+        padding: 2rem 2rem 4rem;
         display: flex;
-        justify-content: center;
-        background: var(--background);
+        flex-direction: column;
+        align-items: center;
+        background: #e5e9f0;
         height: 100%;
+        gap: 0;
     }
     .studio-section {
         background: var(--surface);
@@ -38,31 +40,48 @@ const STUDIO_STYLES = `
         padding: 0.5rem 0;
         transition: all 0.2s;
     }
-    .report-sheet {
+    .report-page-a4 {
         width: 210mm;
-        min-height: 297mm;
-        height: auto;
-        display: flex;
-        flex-direction: column;
-        background: white;
-        margin-bottom: 50px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        border: 1px solid #d1d5db;
-        border-radius: 4px;
-        padding: 25mm 20mm;
-        font-family: "'Inter', 'Segoe UI', sans-serif";
-        color: #000;
+        height: 297mm;
         position: relative;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.10);
+        border: 1px solid #c8c8c8;
         flex-shrink: 0;
+        margin-bottom: 16px;
     }
-    .sheet-label {
+    .report-page-a4:first-of-type {
+        margin-top: 0;
+    }
+    .report-page-num {
         position: absolute;
-        bottom: 10px;
-        right: 20px;
-        font-size: 0.6rem;
-        font-weight: 700;
-        color: #cbd5e1;
-        text-transform: uppercase;
+        bottom: 7mm;
+        right: 18mm;
+        font-size: 7pt;
+        font-weight: 600;
+        color: #94a3b8;
+        font-family: 'Calibri', Arial, sans-serif;
+        letter-spacing: 0.3px;
+        z-index: 10;
+    }
+    .page-top-rule {
+        position: absolute;
+        top: 17mm;
+        left: 18mm;
+        right: 18mm;
+        height: 1px;
+        background: rgba(148,163,184,0.25);
+        z-index: 5;
+    }
+    .page-bottom-rule {
+        position: absolute;
+        bottom: 15mm;
+        left: 18mm;
+        right: 18mm;
+        height: 1px;
+        background: rgba(148,163,184,0.25);
+        z-index: 5;
     }
     .studio-card {
         background: var(--background);
@@ -117,6 +136,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
     const [allAccounts, setAllAccounts] = useState([]);
     const [localPhases, setLocalPhases] = useState([]);
     const [expandedSections, setExpandedSections] = useState({ journal: true, ledger: false, tb: false });
+    const [previewPages, setPreviewPages] = useState(1);
+    const measureRef = useRef(null);
 
     const formatDate = (date) => {
         if (!date) return '-';
@@ -178,6 +199,27 @@ export default function Reports({ projectId, projectName, phasesList }) {
         fetchPreviewData();
     }, [projectId, selectedPhaseIds, startDate, endDate, config.ledgerAccounts, allAccounts]);
 
+    // Pagination: measure hidden content div and compute page count
+    const CONTENT_H_PER_PAGE_MM = 257; // 297mm A4 - 20mm top - 20mm bottom margin
+    const PAGE_SIDE_MARGIN_MM = 18;    // left/right margin in mm
+    const PAGE_TOP_MARGIN_MM  = 20;    // top margin per page in mm
+
+    useEffect(() => {
+        if (!measureRef.current) return;
+        const recalc = () => {
+            if (!measureRef.current) return;
+            const totalPx = measureRef.current.scrollHeight;
+            // 1mm = 96/25.4 px at standard screen DPI
+            const perPagePx = CONTENT_H_PER_PAGE_MM * (96 / 25.4);
+            setPreviewPages(Math.max(1, Math.ceil(totalPx / perPagePx)));
+        };
+        const obs = new ResizeObserver(recalc);
+        obs.observe(measureRef.current);
+        recalc();
+        return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [journalData, ledgerData, trialBalanceData, settings.reportSections, config]);
+
     const updateConfig = (partial) => {
         updateSettings({ reportConfig: { ...config, ...partial } });
     };
@@ -220,6 +262,203 @@ export default function Reports({ projectId, projectName, phasesList }) {
         } finally {
             setDownloading(false);
         }
+    };
+
+    // ── renderPreviewContent: returns full report JSX used in both hidden measure div and A4 pages ──
+    const renderPreviewContent = () => {
+        let sec = 1;
+        const romans = ['I','II','III','IV','V','VI','VII'];
+        const headingNum = () => {
+            const n = config.useRomanNumerals !== false ? (romans[sec - 1] || sec) : sec;
+            sec++;
+            return `${n}. `;
+        };
+        const getDrCr = (amt, type) => {
+            const v = parseFloat(amt);
+            const isNormalDebit = ['ASSET','EXPENSE'].includes(type);
+            if (isNormalDebit) return v >= 0 ? 'Dr' : 'Cr';
+            return v >= 0 ? 'Cr' : 'Dr';
+        };
+
+        return (
+            <>
+                {/* ── Date corner ── */}
+                {config.showDateCorner && (
+                    <div style={{ textAlign: 'right', fontSize: '8pt', color: '#64748b', marginBottom: '4mm' }}>
+                        {config.reportDate
+                            ? new Date(config.reportDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </div>
+                )}
+
+                {/* ── Title block ── */}
+                <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
+                    <div style={{ fontSize: `${config.headerFontSize || 26}pt`, fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.4px', lineHeight: 1.1 }}>
+                        {config.customHeader || projectName}
+                    </div>
+                    {config.showTitleLine && (
+                        <div style={{ height: '2px', background: '#1e293b', margin: '3mm 0 2mm' }} />
+                    )}
+                    {(config.subHeaders || []).map((sh, idx) => (
+                        <div key={idx} style={{ fontSize: `${sh.fontSize || 12}pt`, fontStyle: 'italic', color: '#475569', marginTop: '1mm' }}>
+                            {sh.text}
+                        </div>
+                    ))}
+                </div>
+
+                {/* ── Section divider ── */}
+                <div style={{ height: '1px', background: '#334155', marginBottom: '6mm' }} />
+
+                {/* ── JOURNAL ENTRIES ── */}
+                {settings.reportSections.journal && (
+                    <div style={{ marginBottom: '7mm' }}>
+                        <div style={{ fontSize: '11pt', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', borderBottom: '1.5pt solid #1e293b', paddingBottom: '1.5mm', marginBottom: '3mm' }}>
+                            {headingNum()}Journal Entries
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5pt' }}>
+                            <thead>
+                                <tr style={{ background: '#f1f5f9' }}>
+                                    {(config.selectedColumns.journal || []).map(c => (
+                                        <th key={c} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: c === 'Amount' ? 'right' : 'left', fontWeight: 700, color: '#000' }}>{c}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {journalData.length > 0 ? journalData.map((tx, idx) => {
+                                    const primaryAccount = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '-';
+                                    const txAmount = tx.lines?.[0]?.amount || 0;
+                                    let pureDesc = tx.description || '-';
+                                    let fromName = tx.fromEntity || '-';
+                                    let toName = tx.toEntity || '-';
+                                    if (tx.description?.includes('| From:')) {
+                                        const parts = tx.description.split('|');
+                                        pureDesc = parts[0]?.trim() || '-';
+                                        const m = parts[1]?.match(/From: (.*?) To: (.*)/);
+                                        if (m) { fromName = m[1]?.trim() || fromName; toName = m[2]?.trim() || toName; }
+                                    }
+                                    return (
+                                        <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                            {config.selectedColumns.journal.map(col => {
+                                                let val = '-';
+                                                if (col === 'Date') val = tx.date ? formatDate(tx.date) : '-';
+                                                if (col === 'Amount') val = formatCurrency(txAmount);
+                                                if (col === 'Phase') val = tx.phase?.name || 'Project';
+                                                if (col === 'Category') val = primaryAccount;
+                                                if (col === 'Description') val = pureDesc;
+                                                if (col === 'From') val = fromName;
+                                                if (col === 'To') val = toName;
+                                                return <td key={col} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: col === 'Amount' ? 'right' : 'left', color: '#000' }}>{val}</td>;
+                                            })}
+                                        </tr>
+                                    );
+                                }) : (
+                                    <tr><td colSpan={(config.selectedColumns.journal || []).length} style={{ border: '0.5pt solid #000', padding: '10pt', textAlign: 'center', fontStyle: 'italic', color: '#64748b' }}>
+                                        No data — select a phase or date range.
+                                    </td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {/* ── GENERAL LEDGER ── */}
+                {settings.reportSections.ledger && (
+                    <div style={{ marginBottom: '7mm' }}>
+                        <div style={{ fontSize: '11pt', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', borderBottom: '1.5pt solid #1e293b', paddingBottom: '1.5mm', marginBottom: '3mm' }}>
+                            {headingNum()}General Ledger
+                        </div>
+                        {config.combineLedgerAccounts ? (() => {
+                            const all = [];
+                            Object.entries(ledgerData).forEach(([acc, entries]) => entries.forEach(e => all.push({ ...e, accountName: acc })));
+                            all.sort((a, b) => new Date(a.date) - new Date(b.date));
+                            const cols = ['Date','Phase','Account Name','Debit','Credit','Running Balance'].filter(c => config.selectedColumns.ledger.includes(c) || c === 'Account Name');
+                            return (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5pt' }}>
+                                    <thead><tr style={{ background: '#f1f5f9' }}>{cols.map(c => <th key={c} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: ['Debit','Credit','Running Balance'].includes(c) ? 'right' : 'left', fontWeight: 700, color: '#000' }}>{c}</th>)}</tr></thead>
+                                    <tbody>{all.map((e, i) => (
+                                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                            {cols.map(col => {
+                                                const isR = ['Debit','Credit','Running Balance'].includes(col);
+                                                let val = '-';
+                                                if (col === 'Date') val = e.date ? formatDate(e.date) : '-';
+                                                if (col === 'Phase') val = e.phaseName || 'Project';
+                                                if (col === 'Account Name') val = e.accountName;
+                                                if (col === 'Debit') val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
+                                                if (col === 'Credit') val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
+                                                if (col === 'Running Balance') val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+                                                return <td key={col} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: isR ? 'right' : 'left', color: '#000' }}>{val}</td>;
+                                            })}
+                                        </tr>
+                                    ))}</tbody>
+                                </table>
+                            );
+                        })() : Object.entries(ledgerData).map(([acc, entries]) => (
+                            <div key={acc} style={{ marginBottom: '5mm' }}>
+                                <div style={{ fontSize: '9.5pt', fontWeight: 800, color: '#0f172a', marginBottom: '2mm' }}>ACCOUNT: {acc}</div>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5pt' }}>
+                                    <thead><tr style={{ background: '#f1f5f9' }}>{(config.selectedColumns.ledger || []).map(c => <th key={c} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: ['Debit','Credit','Running Balance'].includes(c) ? 'right' : 'left', fontWeight: 700, color: '#000' }}>{c}</th>)}</tr></thead>
+                                    <tbody>{entries.map((e, i) => (
+                                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                            {config.selectedColumns.ledger.map(col => {
+                                                const isR = ['Debit','Credit','Running Balance'].includes(col);
+                                                let val = '-';
+                                                if (col === 'Date') val = e.date ? formatDate(e.date) : '-';
+                                                if (col === 'Phase') val = e.phaseName || 'Project';
+                                                if (col === 'Debit') val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
+                                                if (col === 'Credit') val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
+                                                if (col === 'Running Balance') val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+                                                return <td key={col} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: isR ? 'right' : 'left', color: '#000' }}>{val}</td>;
+                                            })}
+                                        </tr>
+                                    ))}</tbody>
+                                </table>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* ── TRIAL BALANCE ── */}
+                {settings.reportSections.trialBalance && trialBalanceData && (
+                    <div style={{ marginBottom: '7mm' }}>
+                        <div style={{ fontSize: '11pt', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', borderBottom: '1.5pt solid #1e293b', paddingBottom: '1.5mm', marginBottom: '3mm' }}>
+                            {headingNum()}Trial Balance
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '7.5pt' }}>
+                            <thead>
+                                <tr style={{ background: '#f1f5f9' }}>
+                                    {(config.selectedColumns.trialBalance || []).map(c => (
+                                        <th key={c} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: c === 'Account Name' ? 'left' : 'right', fontWeight: 700, color: '#000' }}>{c}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {Object.values(trialBalanceData.accounts || {}).map((acc, i) => (
+                                    <tr key={acc.name || i} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                        {config.selectedColumns.trialBalance.map(col => {
+                                            const bal = parseFloat(acc.balance || 0);
+                                            let val = '-';
+                                            if (col === 'Account Name') val = acc.name || 'Unknown';
+                                            if (col === 'Debit Balance') val = bal > 0 ? formatCurrency(bal) : '0.00';
+                                            if (col === 'Credit Balance') val = bal < 0 ? formatCurrency(Math.abs(bal)) : '0.00';
+                                            return <td key={col} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: col === 'Account Name' ? 'left' : 'right', color: '#000' }}>{val}</td>;
+                                        })}
+                                    </tr>
+                                ))}
+                                <tr style={{ background: '#e2e8f0' }}>
+                                    {config.selectedColumns.trialBalance.map(col => {
+                                        let val = '';
+                                        if (col === 'Account Name') val = 'TOTAL';
+                                        if (col === 'Debit Balance') val = formatCurrency(trialBalanceData.totals?.totalDebits || 0);
+                                        if (col === 'Credit Balance') val = formatCurrency(trialBalanceData.totals?.totalCredits || 0);
+                                        return <td key={col} style={{ border: '0.5pt solid #000', padding: '3pt 4pt', textAlign: col === 'Account Name' ? 'left' : 'right', fontWeight: 800, color: '#000' }}>{val}</td>;
+                                    })}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </>
+        );
     };
 
     return (
@@ -706,189 +945,53 @@ export default function Reports({ projectId, projectName, phasesList }) {
 
                 </div>
             </div>
-            {/* RIGHT SIDE: LIVE PREVIEW */}
+            {/* RIGHT SIDE: LIVE PREVIEW — paginated A4 */}
             <div className="report-preview-pane">
 
-                <div className="report-sheet">
-                    <span className="sheet-label">LIVE PREVIEW</span>
-                    {config.showDateCorner && <div style={{ textAlign: 'right', fontSize: '10pt', color: 'var(--text-muted)', marginBottom: '0.5cm' }}>{config.reportDate ? new Date(config.reportDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}</div>}
-                    <div style={{ textAlign: 'center', marginBottom: '1.2cm' }}>
-                        <h1 style={{ fontSize: `${config.headerFontSize || 26}pt`, fontWeight: 800, marginBottom: '0.4cm', color: '#000', textTransform: 'uppercase' }}>{config.customHeader || projectName}</h1>
-                        {config.showTitleLine && <div style={{ height: '3px', width: '80%', background: '#000', margin: '0 auto 0.5cm' }}></div>}
-                        {(config.subHeaders || []).map((sh, idx) => <p key={idx} style={{ fontSize: `${sh.fontSize || 12}pt`, fontWeight: 600, color: 'var(--text-main)', margin: '0.1cm 0' }}>{sh.text}</p>)}
+                {/* ── Hidden measurement div: same width as content area ── */}
+                <div style={{
+                    position: 'fixed', left: '-9999px', top: 0,
+                    width: `${210 - 2 * PAGE_SIDE_MARGIN_MM}mm`,
+                    overflow: 'visible', visibility: 'hidden',
+                    pointerEvents: 'none', zIndex: -1,
+                    fontFamily: 'Calibri, Arial, sans-serif',
+                    fontSize: '9.5pt', lineHeight: 1.4, color: '#000',
+                }}>
+                    <div ref={measureRef}>
+                        {renderPreviewContent()}
                     </div>
-
-                    {(() => {
-                        let sectionNumber = 1;
-                        const getHeadingParams = () => {
-                            const romans = ["I", "II", "III", "IV", "V", "VI", "VII"];
-                            const num = config.useRomanNumerals !== false ? (romans[sectionNumber - 1] || sectionNumber) : sectionNumber;
-                            sectionNumber++;
-                            return `${num}. `;
-                        };
-
-                        return (
-                            <>
-                                {settings.reportSections.journal && (
-                                    <div style={{ marginBottom: '1cm' }}>
-                                         <h2 style={{ fontSize: '18pt', fontWeight: 800, borderBottom: '2.5pt solid #000', paddingBottom: '0.1cm', marginBottom: '0.6cm' }}>{getHeadingParams()}JOURNAL ENTRIES</h2>
-                                         <div className="table-container" style={{ overflowX: 'auto', marginBottom: '0.5cm' }}>
-                                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
-                                <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.journal || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
-                                <tbody>
-                                    {journalData.length > 0 ? journalData.map((tx, idx) => {
-                                        let primaryAccount = tx.lines?.find(l => l.type === 'DEBIT')?.account?.name || '-';
-                                        let txAmount = tx.lines?.[0]?.amount || 0;
-                                        let pureDesc = tx.description;
-                                        let fromName = '-';
-                                        let toName = '-';
-                                        
-                                        if (tx.description?.includes('| From:')) {
-                                            const parts = tx.description.split('|');
-                                            pureDesc = parts[0]?.trim();
-                                            const fromToMatch = parts[1]?.match(/From: (.*?) To: (.*)/);
-                                            if (fromToMatch) {
-                                                fromName = fromToMatch[1]?.trim();
-                                                toName = fromToMatch[2]?.trim();
-                                            }
-                                        }
-
-                                        return (
-                                        <tr key={idx}>
-                                            {config.selectedColumns.journal.map(col => {
-                                                let val = "-";
-                                                if (col === "Date") val = tx.date ? formatDate(tx.date) : '-';
-                                                if (col === "Amount") val = formatCurrency(txAmount);
-                                                if (col === "Phase") val = tx.phase?.name || 'Project';
-                                                if (col === "Category") val = primaryAccount;
-                                                if (col === "Description") val = pureDesc;
-                                                if (col === "From") val = fromName;
-                                                if (col === "To") val = toName;
-                                                return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
-                                            })}
-                                        </tr>
-                                        );
-                                    }) : <tr><td colSpan={config.selectedColumns.journal.length} style={{ border: '1px solid #000', padding: '20pt', textAlign: 'center', fontStyle: 'italic', color: 'var(--text-muted)' }}>Select dates or phases to see data.</td></tr>}
-                                </tbody>
-                             </table>
-                         </div>
-                    </div>
-                                )}
-
-                                {settings.reportSections.ledger && (
-                                    <div style={{ marginBottom: '1cm' }}>
-                                        <h2 style={{ fontSize: '18pt', fontWeight: 800, borderBottom: '2.5pt solid #000', paddingBottom: '0.1cm', marginBottom: '0.8cm' }}>{getHeadingParams()}GENERAL LEDGER</h2>
-                                        
-                                        {(() => {
-                                            const getDrCr = (amt, type) => {
-                                                const val = parseFloat(amt);
-                                                const isNormalDebit = ['ASSET', 'EXPENSE'].includes(type);
-                                                if (isNormalDebit) return val >= 0 ? 'Dr' : 'Cr';
-                                                return val >= 0 ? 'Cr' : 'Dr';
-                                            };
-                                            
-                                            if (config.combineLedgerAccounts) {
-                                                const allEntries = [];
-                                                Object.entries(ledgerData).forEach(([acc, entries]) => {
-                                                    entries.forEach(e => allEntries.push({ ...e, accountName: acc }));
-                                                });
-                                                allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                                                const combinedColumns = ["Date", "Phase", "Account Name", "Debit", "Credit", "Running Balance"].filter(c => config.selectedColumns.ledger.includes(c) || c === "Account Name");
-
-                                                return (
-                                                    <div style={{ marginBottom: '1cm' }}>
-                                                        <div className="table-container" style={{ overflowX: 'auto' }}>
-                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
-                                                            <thead><tr style={{ background: '#f8fafc' }}>{combinedColumns.map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
-                                                            <tbody>
-                                                                {allEntries.map((e, eidx) => (
-                                                                    <tr key={eidx}>
-                                                                        {combinedColumns.map(col => {
-                                                                            let val = "-";
-                                                                            if (col === "Date") val = e.date ? formatDate(e.date) : '-';
-                                                                            if (col === "Phase") val = e.phaseName || 'Project';
-                                                                            if (col === "Account Name") val = e.accountName;
-                                                                            if (col === "Debit") val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
-                                                                            if (col === "Credit") val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
-                                                                            if (col === "Running Balance") val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
-                                                                            return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
-                                                                        })}
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            } else {
-                                                return Object.entries(ledgerData).map(([acc, entries], idx) => (
-                                                    <div key={acc} style={{ marginBottom: '1cm' }}>
-                                                        <h3 style={{ fontSize: '14pt', fontWeight: 800, marginBottom: '0.4cm', color: 'var(--text-main)' }}>ACCOUNT: {acc}</h3>
-                                                        <div className="table-container" style={{ overflowX: 'auto' }}>
-                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
-                                                            <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.ledger || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
-                                                            <tbody>
-                                                                {entries.map((e, eidx) => (
-                                                                    <tr key={eidx}>
-                                                                        {config.selectedColumns.ledger.map(col => {
-                                                                            let val = "-";
-                                                                            if (col === "Date") val = e.date ? formatDate(e.date) : '-';
-                                                                            if (col === "Phase") val = e.phaseName || 'Project';
-                                                                            if (col === "Debit") val = e.type === 'DEBIT' ? formatCurrency(e.amount) : '-';
-                                                                            if (col === "Credit") val = e.type === 'CREDIT' ? formatCurrency(e.amount) : '-';
-                                                                            if (col === "Running Balance") val = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
-                                                                            return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
-                                                                        })}
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
-                                                        </div>
-                                                    </div>
-                                                ));
-                                            }
-                                        })()}
-                                    </div>
-                                )}
-
-                                {settings.reportSections.trialBalance && trialBalanceData && (
-                                    <div style={{ marginBottom: '1cm' }}>
-                                        <h2 style={{ fontSize: '18pt', fontWeight: 800, borderBottom: '2.5pt solid #000', paddingBottom: '0.1cm', marginBottom: '0.6cm' }}>{getHeadingParams()}TRIAL BALANCE</h2>
-                                        <div className="table-container" style={{ overflowX: 'auto' }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt' }}>
-                                            <thead><tr style={{ background: '#f8fafc' }}>{(config.selectedColumns.trialBalance || []).map(c => <th key={c} style={{ border: '1px solid #000', padding: '8pt', textAlign: 'left' }}>{c}</th>)}</tr></thead>
-                                            <tbody>
-                                                {Object.values(trialBalanceData.accounts || {}).map(acc => (
-                                                    <tr key={acc.name || Math.random()}>
-                                                        {config.selectedColumns.trialBalance.map(col => {
-                                                            let val = "-";
-                                                            const balanceVal = parseFloat(acc.balance || 0);
-                                                            if (col === "Account Name") val = acc.name || 'Unknown';
-                                                            if (col === "Debit Balance") val = balanceVal > 0 ? formatCurrency(balanceVal) : '0.00';
-                                                            if (col === "Credit Balance") val = balanceVal < 0 ? formatCurrency(Math.abs(balanceVal)) : '0.00';
-                                                            return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
-                                                        })}
-                                                    </tr>
-                                                ))}
-                                                <tr style={{ fontWeight: 800, background: '#f8fafc' }}>
-                                                    {config.selectedColumns.trialBalance.map(col => {
-                                                        let val = "";
-                                                        if (col === "Account Name") val = "TOTAL";
-                                                        if (col === "Debit Balance") val = formatCurrency(trialBalanceData.totals?.totalDebits || 0);
-                                                        if (col === "Credit Balance") val = formatCurrency(trialBalanceData.totals?.totalCredits || 0);
-                                                        return <td key={col} style={{ border: '1px solid #000', padding: '8pt' }}>{val}</td>;
-                                                    })}
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                        </div>
-                                    </div>
-                                )}
-                            </>
-                        );
-                    })()}
                 </div>
+
+                {/* ── A4 page cards ── */}
+                {Array.from({ length: previewPages }, (_, pageIdx) => (
+                    <div key={pageIdx} className="report-page-a4">
+                        {/* subtle margin guide lines */}
+                        <div className="page-top-rule" />
+                        <div className="page-bottom-rule" />
+
+                        {/* page number */}
+                        <span className="report-page-num">
+                            {previewPages > 1
+                                ? `Page ${pageIdx + 1} / ${previewPages}`
+                                : 'LIVE PREVIEW'}
+                        </span>
+
+                        {/* content window — shifted per page */}
+                        <div style={{
+                            position: 'absolute',
+                            top: `${PAGE_TOP_MARGIN_MM - pageIdx * CONTENT_H_PER_PAGE_MM}mm`,
+                            left: `${PAGE_SIDE_MARGIN_MM}mm`,
+                            width: `${210 - 2 * PAGE_SIDE_MARGIN_MM}mm`,
+                            fontFamily: 'Calibri, Arial, sans-serif',
+                            fontSize: '9.5pt',
+                            lineHeight: 1.4,
+                            color: '#000',
+                        }}>
+                            {renderPreviewContent()}
+                        </div>
+                    </div>
+                ))}
+
             </div>
         </div>
     );
