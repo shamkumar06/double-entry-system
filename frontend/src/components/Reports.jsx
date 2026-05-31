@@ -83,38 +83,7 @@ const STUDIO_STYLES = `
         background: rgba(148,163,184,0.25);
         z-index: 5;
     }
-    .page-fade-bottom {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 22mm;
-        background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,1) 100%);
-        z-index: 8;
-        pointer-events: none;
-    }
-    .page-fade-top {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 22mm;
-        background: linear-gradient(to top, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,1) 100%);
-        z-index: 8;
-        pointer-events: none;
-    }
-    .page-continued-label {
-        width: 210mm;
-        text-align: center;
-        font-size: 7pt;
-        font-weight: 600;
-        color: #94a3b8;
-        font-family: 'Calibri', Arial, sans-serif;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        padding: 4px 0;
-        flex-shrink: 0;
-    }
+
     .studio-card {
         background: var(--background);
         border: 1px solid var(--border);
@@ -996,44 +965,28 @@ export default function Reports({ projectId, projectName, phasesList }) {
 
                 {/* ── A4 page cards ── */}
                 {Array.from({ length: previewPages }, (_, pageIdx) => (
-                    <React.Fragment key={pageIdx}>
-                        {/* continued label between pages */}
-                        {pageIdx > 0 && (
-                            <div className="page-continued-label">
-                                ─── continued from previous page ───
-                            </div>
-                        )}
-                        <div className="report-page-a4">
-                            {/* subtle margin guide lines */}
-                            <div className="page-top-rule" />
-                            <div className="page-bottom-rule" />
+                    <div key={pageIdx} className="report-page-a4">
+                        {/* page number */}
+                        <span className="report-page-num">
+                            {previewPages > 1
+                                ? `Page ${pageIdx + 1} / ${previewPages}`
+                                : 'LIVE PREVIEW'}
+                        </span>
 
-                            {/* fade overlays for smooth page transitions */}
-                            {pageIdx < previewPages - 1 && <div className="page-fade-bottom" />}
-                            {pageIdx > 0 && <div className="page-fade-top" />}
-
-                            {/* page number */}
-                            <span className="report-page-num">
-                                {previewPages > 1
-                                    ? `Page ${pageIdx + 1} / ${previewPages}`
-                                    : 'LIVE PREVIEW'}
-                            </span>
-
-                            {/* content window — shifted per page */}
-                            <div style={{
-                                position: 'absolute',
-                                top: `${PAGE_TOP_MARGIN_MM - pageIdx * CONTENT_H_PER_PAGE_MM}mm`,
-                                left: `${PAGE_SIDE_MARGIN_MM}mm`,
-                                width: `${210 - 2 * PAGE_SIDE_MARGIN_MM}mm`,
-                                fontFamily: 'Calibri, Arial, sans-serif',
-                                fontSize: '9.5pt',
-                                lineHeight: 1.4,
-                                color: '#000',
-                            }}>
-                                {renderPreviewContent()}
-                            </div>
+                        {/* content window — shifted per page */}
+                        <div style={{
+                            position: 'absolute',
+                            top: `${PAGE_TOP_MARGIN_MM - pageIdx * CONTENT_H_PER_PAGE_MM}mm`,
+                            left: `${PAGE_SIDE_MARGIN_MM}mm`,
+                            width: `${210 - 2 * PAGE_SIDE_MARGIN_MM}mm`,
+                            fontFamily: 'Calibri, Arial, sans-serif',
+                            fontSize: '9.5pt',
+                            lineHeight: 1.4,
+                            color: '#000',
+                        }}>
+                            {renderPreviewContent()}
                         </div>
-                    </React.Fragment>
+                    </div>
                 ))}
 
             </div>
