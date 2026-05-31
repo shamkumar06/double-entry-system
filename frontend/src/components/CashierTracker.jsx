@@ -110,8 +110,6 @@ export default function CashierTracker({ projectId, projectName, phaseId, onTran
 
     return (
         <div className="cashier-tracker" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* Section 0: Interactive Financial Flow Map */}
-            <FinancialMindMap onTransferRequest={onTransferRequest} />
 
             {/* Section 1: Guide Hero */}
             {guideData && (
@@ -229,6 +227,9 @@ export default function CashierTracker({ projectId, projectName, phaseId, onTran
                     })}
                 </div>
             )}
+
+            {/* Section 0: Interactive Financial Flow Map */}
+            <FinancialMindMap onTransferRequest={onTransferRequest} />
 
             {/* Section 4: Recent Activity Timeline */}
             {timeline.length > 0 && (

@@ -559,12 +559,9 @@ function AppInner() {
            <button onClick={() => setIsSidebarOpen(false)}><X size={24} /></button>
         </div>
         <div className="sidebar-nav-content">
-            {/* Brand Header: Centered on collapse, expands navigation on click if collapsed, behaves as a layered interaction box */}
+            {/* Brand Header: Logo itself acts as the collapse/expand trigger in both states */}
             <div 
               className="brand-header" 
-              onClick={isSidebarCollapsed ? () => setIsSidebarCollapsed(false) : undefined}
-              onMouseEnter={() => isSidebarCollapsed && setIsLogoHovered(true)}
-              onMouseLeave={() => setIsLogoHovered(false)}
               style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -573,77 +570,72 @@ function AppInner() {
                 marginBottom: isSidebarCollapsed ? '1.8rem' : '1.25rem', 
                 position: 'relative',
                 width: '100%',
-                cursor: isSidebarCollapsed ? 'pointer' : 'default',
-                zIndex: 10, // Higher z-index to receive hover/click on top of toggle ring
               }}
             >
-                {/* Desktop Sidebar Toggle (Morphs: centers & grows behind the logo when collapsed, floats on edge when expanded) */}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsSidebarCollapsed(prev => !prev);
-                  }}
-                  className="sidebar-toggle-btn desktop-only"
+                {/* Logo Wrapper acting as the collapse/expand button */}
+                <div 
+                  role="button"
+                  onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                  onMouseEnter={() => setIsLogoHovered(true)}
+                  onMouseLeave={() => setIsLogoHovered(false)}
+                  aria-label={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                   title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                   style={{
-                    position: 'absolute',
-                    zIndex: 5,
+                    position: 'relative',
+                    width: '32px',
+                    height: '32px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'var(--surface)',
-                    border: (isSidebarCollapsed && isLogoHovered) ? '1px solid var(--primary)' : '1px solid var(--border)',
-                    color: 'var(--text-muted)',
                     cursor: 'pointer',
-                    padding: 0,
-                    boxShadow: (isSidebarCollapsed && isLogoHovered) ? '0 0 12px rgba(99, 102, 241, 0.3)' : 'var(--shadow-sm)',
-                    transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                    
-                    // Concentric design when collapsed: rounded square matching the logo border radius
-                    borderRadius: isSidebarCollapsed ? '8px' : '50%',
-                    width: isSidebarCollapsed ? '44px' : '22px',
-                    height: isSidebarCollapsed ? '44px' : '22px',
-                    
-                    // Positioning relative to brand-header
-                    top: isSidebarCollapsed ? '50%' : 'calc(50% + 29px)',
-                    left: isSidebarCollapsed ? '50%' : 'calc(100% + 20px)',
-                    transform: 'translate(-50%, -50%)',
-                    opacity: (isSidebarCollapsed && isLogoHovered) ? 1 : (isSidebarCollapsed ? 0.3 : 0.4),
+                    zIndex: 10,
                   }}
                 >
-                  <div style={{ 
-                    opacity: isSidebarCollapsed ? 0 : 1, 
-                    transition: 'opacity 0.2s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {isSidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
-                  </div>
-                </button>
-
-                {activeProject.logoUrl ? (
-                    <img 
-                      src={getImageUrl(activeProject.logoUrl)} 
-                      alt="Logo" 
-                      style={{ 
-                        width: '32px', 
-                        height: '32px', 
-                        objectFit: 'contain', 
-                        borderRadius: '6px',
-                        background: '#ffffff',
-                        border: '1px solid var(--border)',
-                        padding: '2px',
-                        boxShadow: 'var(--shadow-sm)',
-                        position: 'relative',
-                        zIndex: 6, // Layered on top of the button frame
-                      }} 
+                    {/* Concentric Frame Ring / Glow Ring */}
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 5,
+                        background: 'var(--surface)',
+                        border: isLogoHovered ? '1px solid var(--primary)' : '1px solid var(--border)',
+                        boxShadow: isLogoHovered ? '0 0 12px rgba(99, 102, 241, 0.3)' : 'var(--shadow-sm)',
+                        borderRadius: '8px',
+                        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                        // Dynamic morphing sizes on hover to indicate tactile button clickability:
+                        width: isLogoHovered ? '44px' : '38px',
+                        height: isLogoHovered ? '44px' : '38px',
+                        opacity: isLogoHovered ? 1 : 0.4,
+                      }}
                     />
-                ) : (
-                    <div style={{ position: 'relative', zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FolderOpen color="var(--primary)" size={24} />
-                    </div>
-                )}
+
+                    {/* Logo Image or Fallback */}
+                    {activeProject.logoUrl ? (
+                        <img 
+                          src={getImageUrl(activeProject.logoUrl)} 
+                          alt="Logo" 
+                          style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            objectFit: 'contain', 
+                            borderRadius: '6px',
+                            background: '#ffffff',
+                            border: '1px solid var(--border)',
+                            padding: '2px',
+                            boxShadow: 'var(--shadow-sm)',
+                            position: 'relative',
+                            zIndex: 6, // Layered on top of the button frame
+                          }} 
+                        />
+                    ) : (
+                        <div style={{ position: 'relative', zIndex: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <FolderOpen color="var(--primary)" size={24} />
+                        </div>
+                    )}
+                </div>
+
                 <div className="nav-label" style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 6 }}>
                     <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1.3, wordBreak: 'break-word' }}>{activeProject.name}</h2>
                     <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '1px' }}>{activeProject.description || 'Accounting'}</p>
