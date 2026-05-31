@@ -319,7 +319,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     {expenseByCategory.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
                             <div style={{ height: 320, width: '100%' }}>
-                                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 400, height: 320 }}>
                                     <PieChart>
                                         <Pie
                                             data={expenseByCategory.filter(c => !hiddenCategories[c.name])}
@@ -514,7 +514,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     </h4>
                     {paymentModes.length > 0 ? (
                         <div style={{ height: 320, width: '100%' }}>
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 400, height: 320 }}>
                                 <PieChart>
                                     <Pie
                                         data={paymentModes}
@@ -563,7 +563,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     </h4>
                     {dailyData.length > 0 ? (
                         <div style={{ height: 350, width: '100%' }}>
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 800, height: 350 }}>
                                 <AreaChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
@@ -600,7 +600,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     </h4>
                     {dailyData.length > 0 ? (
                         <div style={{ height: 350, width: '100%' }}>
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 800, height: 350 }}>
                                 <BarChart data={dailyData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                     <XAxis dataKey="date" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
@@ -624,7 +624,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     </h4>
                     {topVendors.length > 0 ? (
                         <div style={{ height: 320, width: '100%' }}>
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 400, height: 320 }}>
                                 <BarChart data={topVendors} layout="vertical" margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                                     <XAxis type="number" stroke="var(--text-muted)" tickFormatter={(val) => `₹${val.toLocaleString('en-IN')}`} />
@@ -655,7 +655,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                     </h4>
                     {cashierLeaderboard.length > 0 ? (
                         <div style={{ height: 320, width: '100%' }}>
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 800, height: 320 }}>
                                 <BarChart data={cashierLeaderboard} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                     <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
@@ -775,7 +775,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                             </h4>
                             {netCashFlowData.length > 0 ? (
                                 <div style={{ height: 350, width: '100%' }}>
-                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 800, height: 350 }}>
                                         <ComposedChart data={netCashFlowData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                             <XAxis dataKey="date" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
@@ -800,7 +800,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                             </h4>
                             {phaseComparisonData.length > 0 ? (
                                 <div style={{ height: 350, width: '100%' }}>
-                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 800, height: 350 }}>
                                         <BarChart data={phaseComparisonData.filter(p => !hiddenPhases[p.name])} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                             <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
@@ -826,7 +826,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                             {categoryByPhaseData.length > 0 ? (
                                 <div style={{ display: 'flex', flexDirection: 'row', gap: '1rem', width: '100%', alignItems: 'stretch' }}>
                                     <div style={{ height: 350, flex: 1, minWidth: 0 }}>
-                                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 600, height: 350 }}>
                                             <BarChart data={categoryByPhaseData.filter(p => !hiddenPhases[p.name])} margin={{ top: 10, right: 30, left: 0, bottom: 45 }}>
                                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                                                 <XAxis dataKey="name" stroke="var(--text-muted)" interval={0} angle={-35} textAnchor="end" height={60} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
@@ -885,7 +885,7 @@ export default function Analytics({ projectId, projectName, phaseId }) {
                             </h4>
                             {radarData.length > 0 ? (
                                 <div style={{ height: 400, width: '100%' }}>
-                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} initialDimension={{ width: 400, height: 400 }}>
                                         <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
                                             <PolarGrid stroke="var(--border)" />
                                             <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--text-main)', fontSize: 12 }} />
