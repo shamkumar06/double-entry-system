@@ -554,11 +554,13 @@ function AppInner() {
         </div>
       </div>
 
-      <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0, position: 'relative', overflow: 'visible' }}>
+      <nav className={`sidebar glass-panel ${isSidebarOpen ? 'open' : ''} ${isSidebarCollapsed ? 'collapsed' : ''}`} style={{ borderBottomLeftRadius: 0, borderTopLeftRadius: 0, borderBottomRightRadius: 0, overflow: 'visible' }}>
         <div style={{ position: 'absolute', top: '1rem', right: '1rem', display: 'none' }} className="mobile-close-btn">
            <button onClick={() => setIsSidebarOpen(false)}><X size={24} /></button>
         </div>
-        <div className="sidebar-nav-content">
+
+        {/* Sticky Sidebar Header: Brand Info & Phase Switcher */}
+        <div className="sidebar-header">
             {/* Brand Header: Logo itself acts as the collapse/expand trigger in both states */}
             <div 
               className="brand-header" 
@@ -641,163 +643,166 @@ function AppInner() {
                     <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginTop: '1px' }}>{activeProject.description || 'Accounting'}</p>
                 </div>
             </div>
-          {/* Phase Switcher (Interactive Dropdown Badge) */}
-          <div style={{ position: 'relative', display: 'inline-block' }} id="phase-selector-dropdown-trigger">
-            <div 
-              onClick={() => setShowPhaseDropdown(prev => !prev)}
-              className="phase-badge"
-              style={{ 
-                display: 'inline-flex', alignItems: 'center', gap: '0.4rem', 
-                padding: '0.25rem 0.65rem', borderRadius: '8px', 
-                background: isPhaseSettled ? 'rgba(16, 185, 129, 0.08)' : 'rgba(2, 132, 199, 0.08)', 
-                fontSize: '0.72rem', fontWeight: 700, 
-                color: isPhaseSettled ? 'var(--success)' : 'var(--primary)',
-                cursor: 'pointer',
-                border: '1px solid transparent',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = isPhaseSettled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 132, 199, 0.15)';
-                e.currentTarget.style.borderColor = isPhaseSettled ? 'var(--success)' : 'var(--primary)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = isPhaseSettled ? 'rgba(16, 185, 129, 0.08)' : 'rgba(2, 132, 199, 0.08)';
-                e.currentTarget.style.borderColor = 'transparent';
-              }}
-              title="Click to Switch Phase inline"
-            >
-              🔖 <span className="nav-label">{activePhase?.name || 'All Phases'}</span>
-              {isPhaseSettled ? <Lock size={10} /> : <div className="nav-label" style={{ fontSize: '9px', opacity: 0.6 }}>▼</div>}
-            </div>
-
-            {showPhaseDropdown && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                left: 0,
-                zIndex: 9999,
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '12px',
-                padding: '0.4rem',
-                minWidth: '200px',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.2rem',
-                animation: 'fadeIn 0.15s ease-out'
-              }}>
-                <div style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', padding: '0.3rem 0.5rem', letterSpacing: '0.05em' }}>
-                  Switch Phase
-                </div>
-                
-                {/* Option 1: All Phases */}
-                <button
-                  onClick={() => {
-                    setActivePhase(null);
-                    setShowPhaseDropdown(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.45rem 0.6rem',
-                    borderRadius: '8px',
-                    background: activePhase === null ? 'rgba(2, 132, 199, 0.08)' : 'transparent',
-                    border: 'none',
-                    color: activePhase === null ? 'var(--primary)' : 'var(--text-main)',
-                    fontSize: '0.75rem',
-                    fontWeight: activePhase === null ? 700 : 500,
-                    cursor: 'pointer',
-                    width: '100%',
-                    textAlign: 'left',
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                  onMouseLeave={e => e.currentTarget.style.background = activePhase === null ? 'rgba(2, 132, 199, 0.08)' : 'transparent'}
-                >
-                  <span>📁 All Phases</span>
-                  {activePhase === null && <CheckCircle size={12} color="var(--primary)" />}
-                </button>
-
-                {/* Option 2: Full Phase Selection Screen */}
-                <button
-                  onClick={() => {
-                    setActivePhase(undefined);
-                    setShowPhaseDropdown(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.45rem 0.6rem',
-                    borderRadius: '8px',
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    width: '100%',
-                    textAlign: 'left',
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                    e.currentTarget.style.color = 'var(--text-main)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'var(--text-muted)';
-                  }}
-                >
-                  <span>🎛️ Full Phase Screen</span>
-                </button>
-
-                <div style={{ height: '1px', background: 'var(--border)', margin: '0.2rem 0' }} />
-
-                {/* Option List: Individual Phases */}
-                {phasesList.map(p => {
-                  const isCurrent = activePhase?.id === p.id;
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        setActivePhase({ id: p.id, name: p.name });
-                        setShowPhaseDropdown(false);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '0.45rem 0.6rem',
-                        borderRadius: '8px',
-                        background: isCurrent ? 'rgba(2, 132, 199, 0.08)' : 'transparent',
-                        border: 'none',
-                        color: isCurrent ? 'var(--primary)' : 'var(--text-main)',
-                        fontSize: '0.75rem',
-                        fontWeight: isCurrent ? 700 : 500,
-                        cursor: 'pointer',
-                        width: '100%',
-                        textAlign: 'left',
-                        transition: 'all 0.15s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                      onMouseLeave={e => e.currentTarget.style.background = isCurrent ? 'rgba(2, 132, 199, 0.08)' : 'transparent'}
-                    >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
-                        {p.isSettled ? '🔒 ' : '📂 '} {p.name}
-                      </span>
-                      {isCurrent && <CheckCircle size={12} color="var(--primary)" />}
-                    </button>
-                  );
-                })}
+            
+            {/* Phase Switcher (Interactive Dropdown Badge) */}
+            <div style={{ position: 'relative', display: 'inline-block' }} id="phase-selector-dropdown-trigger">
+              <div 
+                onClick={() => setShowPhaseDropdown(prev => !prev)}
+                className="phase-badge"
+                style={{ 
+                  display: 'inline-flex', alignItems: 'center', gap: '0.4rem', 
+                  padding: '0.25rem 0.65rem', borderRadius: '8px', 
+                  background: isPhaseSettled ? 'rgba(16, 185, 129, 0.08)' : 'rgba(2, 132, 199, 0.08)', 
+                  fontSize: '0.72rem', fontWeight: 700, 
+                  color: isPhaseSettled ? 'var(--success)' : 'var(--primary)',
+                  cursor: 'pointer',
+                  border: '1px solid transparent',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = isPhaseSettled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(2, 132, 199, 0.15)';
+                  e.currentTarget.style.borderColor = isPhaseSettled ? 'var(--success)' : 'var(--primary)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = isPhaseSettled ? 'rgba(16, 185, 129, 0.08)' : 'rgba(2, 132, 199, 0.08)';
+                  e.currentTarget.style.borderColor = 'transparent';
+                }}
+                title="Click to Switch Phase inline"
+              >
+                🔖 <span className="nav-label">{activePhase?.name || 'All Phases'}</span>
+                {isPhaseSettled ? <Lock size={10} /> : <div className="nav-label" style={{ fontSize: '9px', opacity: 0.6 }}>▼</div>}
               </div>
-            )}
-          </div>
 
+              {showPhaseDropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  zIndex: 9999,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '0.4rem',
+                  minWidth: '200px',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.2rem',
+                  animation: 'fadeIn 0.15s ease-out'
+                }}>
+                  <div style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', padding: '0.3rem 0.5rem', letterSpacing: '0.05em' }}>
+                    Switch Phase
+                  </div>
+                  
+                  {/* Option 1: All Phases */}
+                  <button
+                    onClick={() => {
+                      setActivePhase(null);
+                      setShowPhaseDropdown(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.45rem 0.6rem',
+                      borderRadius: '8px',
+                      background: activePhase === null ? 'rgba(2, 132, 199, 0.08)' : 'transparent',
+                      border: 'none',
+                      color: activePhase === null ? 'var(--primary)' : 'var(--text-main)',
+                      fontSize: '0.75rem',
+                      fontWeight: activePhase === null ? 700 : 500,
+                      cursor: 'pointer',
+                      width: '100%',
+                      textAlign: 'left',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={e => e.currentTarget.style.background = activePhase === null ? 'rgba(2, 132, 199, 0.08)' : 'transparent'}
+                  >
+                    <span>📁 All Phases</span>
+                    {activePhase === null && <CheckCircle size={12} color="var(--primary)" />}
+                  </button>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '1.25rem' }}>
+                  {/* Option 2: Full Phase Selection Screen */}
+                  <button
+                    onClick={() => {
+                      setActivePhase(undefined);
+                      setShowPhaseDropdown(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.45rem 0.6rem',
+                      borderRadius: '8px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      width: '100%',
+                      textAlign: 'left',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                      e.currentTarget.style.color = 'var(--text-main)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = 'var(--text-muted)';
+                    }}
+                  >
+                    <span>🎛️ Full Phase Screen</span>
+                  </button>
+
+                  <div style={{ height: '1px', background: 'var(--border)', margin: '0.2rem 0' }} />
+
+                  {/* Option List: Individual Phases */}
+                  {phasesList.map(p => {
+                    const isCurrent = activePhase?.id === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => {
+                          setActivePhase({ id: p.id, name: p.name });
+                          setShowPhaseDropdown(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.45rem 0.6rem',
+                          borderRadius: '8px',
+                          background: isCurrent ? 'rgba(2, 132, 199, 0.08)' : 'transparent',
+                          border: 'none',
+                          color: isCurrent ? 'var(--primary)' : 'var(--text-main)',
+                          fontSize: '0.75rem',
+                          fontWeight: isCurrent ? 700 : 500,
+                          cursor: 'pointer',
+                          width: '100%',
+                          textAlign: 'left',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                        onMouseLeave={e => e.currentTarget.style.background = isCurrent ? 'rgba(2, 132, 199, 0.08)' : 'transparent'}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                          {p.isSettled ? '🔒 ' : '📂 '} {p.name}
+                        </span>
+                        {isCurrent && <CheckCircle size={12} color="var(--primary)" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+        </div>
+
+        {/* Scrollable Navigation Content */}
+        <div className="sidebar-nav-content">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <button className="sidebar-nav-btn" style={navActive('Overview')} onClick={() => { setActiveTab('Overview'); setActivePhase(null); setIsSidebarOpen(false); }}><Activity size={18} /> <span className="nav-label">Overview</span></button>
             <button className="sidebar-nav-btn" style={navActive('Journal')} onClick={() => { setActiveTab('Journal'); setIsSidebarOpen(false); }}><Book size={18} /> <span className="nav-label">Journal</span></button>
             <button className="sidebar-nav-btn" style={navActive('Ledger')} onClick={() => { setActiveTab('Ledger'); setIsSidebarOpen(false); }}><Layers size={18} /> <span className="nav-label">Ledger</span></button>
