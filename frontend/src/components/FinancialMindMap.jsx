@@ -258,7 +258,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
     const [selectedNode, setSelectedNode] = useState(null);
     const [dashboardStats, setDashboardStats] = useState({});
     const [transferModal, setTransferModal] = useState(null); // { sourceNode, targetNode }
-    const [isPanelMinimized, setIsPanelMinimized] = useState(false);
+    const [isPanelMinimized, setIsPanelMinimized] = useState(true);
 
     // Graph Generation Logic
     useEffect(() => {
