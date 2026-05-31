@@ -137,12 +137,14 @@ export default function Reports({ projectId, projectName, phasesList }) {
     const [allAccounts, setAllAccounts] = useState([]);
     const [localPhases, setLocalPhases] = useState([]);
     const [expandedSections, setExpandedSections] = useState({ journal: true, ledger: false, tb: false });
-    const [previewPages, setPreviewPages] = useState(1);
+    const [computedPages, setComputedPages] = useState([]);
     const measureRef = useRef(null);
 
     const formatDate = (date) => {
         if (!date) return '-';
-        return new Date(date).toLocaleDateString('en-GB', {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
@@ -335,8 +337,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
                 </thead>
                 <tbody>
                     {rows.map(item => {
-                        const e = item.entry, i = item.idx;
-                        const balStr = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+                        const e = item.entry || {}, i = item.idx;
+                        const balStr = e.runningBalance !== undefined ? `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}` : '-';
                         return (
                             <tr key={i} id={isDraft ? `ledger-combined-row-${i}` : undefined} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
                                 {cols.map(col => {
@@ -368,8 +370,8 @@ export default function Reports({ projectId, projectName, phasesList }) {
                 </thead>
                 <tbody>
                     {rows.map(item => {
-                        const e = item.entry, i = item.idx;
-                        const balStr = `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}`;
+                        const e = item.entry || {}, i = item.idx;
+                        const balStr = e.runningBalance !== undefined ? `${formatCurrency(Math.abs(e.runningBalance))} ${getDrCr(e.runningBalance, e.accountType)}` : '-';
                         return (
                             <tr key={i} id={isDraft ? `ledger-sep-row-${accName}-${i}` : undefined} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
                                 {config.selectedColumns.ledger.map(col => {
@@ -415,7 +417,7 @@ export default function Reports({ projectId, projectName, phasesList }) {
                                 </tr>
                             );
                         }
-                        const acc = item.acc, i = item.idx;
+                        const acc = item.acc || {}, i = item.idx;
                         const bal = parseFloat(acc.balance || 0);
                         return (
                             <tr key={acc.name || i} id={isDraft ? `tb-row-${i}` : undefined} style={{ background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
@@ -443,7 +445,10 @@ export default function Reports({ projectId, projectName, phasesList }) {
                             <div key="title-block" id={isDraft ? "title-block" : undefined} style={{ paddingBottom: '6mm' }}>
                                 {config.showDateCorner && (
                                     <div style={{ textAlign: 'right', fontSize: '8pt', color: '#64748b', marginBottom: '4mm' }}>
-                                        {config.reportDate ? new Date(config.reportDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                         {(() => {
+                                             const d = config.reportDate ? new Date(config.reportDate) : new Date();
+                                             return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                         })()}
                                     </div>
                                 )}
                                 <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
@@ -531,6 +536,18 @@ export default function Reports({ projectId, projectName, phasesList }) {
     }, [journalData, ledgerData, trialBalanceData, settings.reportSections, config, allAccounts]);
 
     const updateConfig = (partial) => { updateSettings({ reportConfig: { ...config, ...partial } }); };
+    const toggleColumn = (section, column) => {
+        const currentCols = config.selectedColumns[section] || [];
+        const newCols = currentCols.includes(column)
+            ? currentCols.filter(c => c !== column)
+            : [...currentCols, column];
+        updateConfig({
+            selectedColumns: {
+                ...config.selectedColumns,
+                [section]: newCols
+            }
+        });
+    };
     const handleUpdateSubHeader = (i, field, val) => { const newSubs = [...(config.subHeaders || [])]; newSubs[i] = { ...newSubs[i], [field]: val }; updateConfig({ subHeaders: newSubs }); };
     const handleDownload = async () => {
         setDownloading(true);
