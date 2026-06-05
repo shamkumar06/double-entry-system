@@ -307,13 +307,14 @@ const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
 // === MAIN COMPONENT ===
 
 export default function FinancialMindMap({ onTransferRequest }) {
-    const { journal, members, projectFinances, cashierFinances } = useProjectData();
+    const { project, journal, members, projectFinances, cashierFinances } = useProjectData();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState(null);
     const [dashboardStats, setDashboardStats] = useState({});
     const [transferModal, setTransferModal] = useState(null); // { sourceNode, targetNode }
     const [isPanelMinimized, setIsPanelMinimized] = useState(true);
+    const [layoutTrigger, setLayoutTrigger] = useState(0);
 
     // Graph Generation Logic
     useEffect(() => {
@@ -588,7 +589,27 @@ export default function FinancialMindMap({ onTransferRequest }) {
 
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(initialNodes, initialEdges);
 
-        setNodes(layoutedNodes);
+        // Retrieve and apply saved positions
+        const savedPositionsKey = `mindmap-node-positions-${project?.id || 'default'}`;
+        let savedPositions = {};
+        try {
+            const saved = localStorage.getItem(savedPositionsKey);
+            if (saved) savedPositions = JSON.parse(saved);
+        } catch (e) {
+            console.error("Failed to load saved mindmap positions", e);
+        }
+
+        const nodesWithSavedPositions = layoutedNodes.map(node => {
+            if (savedPositions[node.id]) {
+                return {
+                    ...node,
+                    position: savedPositions[node.id]
+                };
+            }
+            return node;
+        });
+
+        setNodes(nodesWithSavedPositions);
         setEdges(layoutedEdges);
         
         setDashboardStats({
@@ -597,7 +618,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
             pendingCount
         });
 
-    }, [journal, members]);
+    }, [journal, members, project, layoutTrigger]);
 
     // Handle drag-to-connect between nodes
     const onConnect = useCallback((params) => {
@@ -629,6 +650,22 @@ export default function FinancialMindMap({ onTransferRequest }) {
         
         setTransferModal(null);
     }, [transferModal, onTransferRequest]);
+
+    const onNodeDragStop = useCallback(() => {
+        const savedPositionsKey = `mindmap-node-positions-${project?.id || 'default'}`;
+        const positions = {};
+        nodes.forEach(n => {
+            positions[n.id] = n.position;
+        });
+        localStorage.setItem(savedPositionsKey, JSON.stringify(positions));
+    }, [project, nodes]);
+
+    const handleResetLayout = useCallback(() => {
+        const savedPositionsKey = `mindmap-node-positions-${project?.id || 'default'}`;
+        localStorage.removeItem(savedPositionsKey);
+        setSelectedNode(null);
+        setLayoutTrigger(prev => prev + 1);
+    }, [project]);
 
     const onNodeClick = (event, node) => {
         setSelectedNode(node);
@@ -701,6 +738,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
                 onNodeClick={onNodeClick}
                 onPaneClick={onPaneClick}
                 onConnect={onConnect}
+                onNodeDragStop={onNodeDragStop}
                 nodeTypes={nodeTypes}
                 fitView
                 attributionPosition="bottom-left"
@@ -751,12 +789,36 @@ export default function FinancialMindMap({ onTransferRequest }) {
                             }} title="Minimize Panel">
                                 <ChevronLeft size={14} />
                             </button>
-                            <div>
-                                <h3 style={{ margin: '0 0 0.25rem 0', color: 'var(--text-main)', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Activity color="var(--primary)" size={20} />
-                                    Financial Intelligence
-                                </h3>
-                                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Interactive Graph Topology</p>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                    <h3 style={{ margin: '0 0 0.25rem 0', color: 'var(--text-main)', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Activity color="var(--primary)" size={20} />
+                                        Financial Intelligence
+                                    </h3>
+                                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Interactive Graph Topology</p>
+                                </div>
+                                <button 
+                                    onClick={handleResetLayout}
+                                    style={{
+                                        padding: '0.4rem 0.8rem',
+                                        borderRadius: '8px',
+                                        background: 'var(--surface-hover)',
+                                        border: '1px solid var(--border)',
+                                        cursor: 'pointer',
+                                        color: 'var(--text-muted)',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.3rem',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--primary)'}
+                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                                >
+                                    <Repeat size={12} />
+                                    Reset
+                                </button>
                             </div>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
