@@ -46,7 +46,15 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     
     // Find initial default category synchronously on mount using pre-fetched context categories
     const defaultCategory = contextCategories?.find(c => c.type === 'EXPENSE') || contextCategories?.[0];
-    const initialCategoryUuid = initialData?.lines?.find(l => !l.account?.name?.toLowerCase().includes('cash') && !l.account?.name?.toLowerCase().includes('bank'))?.accountId || initialData?.category_id || defaultCategory?.id || '';
+    // Find the offset account line first (which is Cash/Bank or matches the cashier name)
+    const offsetLine = initialData?.lines?.find(l => 
+        (initialData.cashierName && l.account?.name === initialData.cashierName && l.account?.type === 'ASSET') ||
+        (!initialData.cashierName && (l.account?.name?.toLowerCase().includes('cash') || l.account?.name?.toLowerCase().includes('bank')))
+    );
+    // The primary category line is the other line
+    const primaryLine = initialData?.lines?.find(l => l.id !== offsetLine?.id) || 
+                       initialData?.lines?.find(l => !l.account?.name?.toLowerCase().includes('cash') && !l.account?.name?.toLowerCase().includes('bank'));
+    const initialCategoryUuid = primaryLine?.accountId || initialData?.category_id || defaultCategory?.id || '';
     const initialCategoryName = defaultCategory?.name || '';
     const initialAmount = initialData?.lines?.[0]?.amount || initialData?.amount || '';
     const initialCgst = initialData?.cgst || '';
@@ -61,6 +69,10 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
     const defaultUPIApp = defaultPaymentMode === 'UPI' && initialMode.includes('(') 
         ? initialMode.match(/\((.*?)\)/)?.[1] || 'GPay'
         : 'GPay';
+
+    const initialDirection = initialData ? (
+        initialData.lines?.find(l => l.accountId === initialCategoryUuid)?.type === 'DEBIT' ? 'OUTFLOW' : 'INFLOW'
+    ) : 'OUTFLOW';
 
     const [formData, setFormData] = useState(
         initialData ? {
@@ -85,7 +97,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             sgst: initialData.sgst || '',
             igst: initialData.igst || '',
             discount: initialData.discount || '',
-            actual_amount: initialActualAmount
+            actual_amount: initialActualAmount,
+            direction: initialDirection
         } : {
             project_id: projectId,
             phaseId: phaseId || '',
@@ -109,7 +122,8 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             sgst: '',
             igst: '',
             discount: '',
-            actual_amount: ''
+            actual_amount: '',
+            direction: 'OUTFLOW'
         }
     );
     const [loading, setLoading] = useState(false);
@@ -208,6 +222,28 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
         }
     }, [formData.actual_amount, formData.cgst, formData.sgst, formData.igst, formData.discount]);
 
+    // Set default direction when category changes
+    useEffect(() => {
+        if (!categories || categories.length === 0 || !formData.category_id) return;
+        const selectedCat = categories.find(c => c.id === formData.category_id);
+        if (!selectedCat) return;
+
+        let defaultDir = 'OUTFLOW';
+        if (selectedCat.type === 'REVENUE' || selectedCat.type === 'EQUITY') {
+            defaultDir = 'INFLOW';
+        } else if (selectedCat.type === 'LIABILITY') {
+            if (selectedCat.name.toLowerCase().includes('loan')) {
+                defaultDir = 'INFLOW';
+            } else {
+                defaultDir = 'OUTFLOW';
+            }
+        }
+
+        if (!initialData || formData.category_id !== initialCategoryUuid) {
+            setFormData(prev => ({ ...prev, direction: defaultDir }));
+        }
+    }, [formData.category_id, categories]);
+
     const handleReceiptChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -273,7 +309,16 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             
             // Fallback to Main Cash/Bank if no cashier is selected or cashier account not found
             if (!offsetAccount) {
-                offsetAccount = categories.find(c => c.name.toLowerCase().includes('cash') || c.name.toLowerCase().includes('bank')) || categories[0];
+                const isBank = ['Bank Transfer', 'UPI'].includes(formData.payment_mode);
+                if (isBank) {
+                    offsetAccount = categories.find(c => c.name.toLowerCase().includes('bank')) || 
+                                    categories.find(c => c.name.toLowerCase().includes('cash')) || 
+                                    categories[0];
+                } else {
+                    offsetAccount = categories.find(c => c.name.toLowerCase().includes('cash')) || 
+                                    categories.find(c => c.name.toLowerCase().includes('bank')) || 
+                                    categories[0];
+                }
             }
 
             const primaryAccountId = formData.category_id;
@@ -282,12 +327,13 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
             let lines = [];
             const amt = parseFloat(formData.amount);
             
-            if (primaryCategory?.type === 'REVENUE' || primaryCategory?.type === 'LIABILITY') {
-                lines.push({ accountId: offsetAccount.id, type: 'DEBIT', amount: amt });
-                lines.push({ accountId: primaryAccountId, type: 'CREDIT', amount: amt });
-            } else {
+            const isOutflow = formData.direction === 'OUTFLOW';
+            if (isOutflow) {
                 lines.push({ accountId: primaryAccountId, type: 'DEBIT', amount: amt });
                 lines.push({ accountId: offsetAccount.id, type: 'CREDIT', amount: amt });
+            } else {
+                lines.push({ accountId: offsetAccount.id, type: 'DEBIT', amount: amt });
+                lines.push({ accountId: primaryAccountId, type: 'CREDIT', amount: amt });
             }
 
             const payload = {
@@ -547,6 +593,37 @@ export default function TransactionForm({ projectId, phaseId, projectName, phase
                                 )}
                             </div>
                     </div>
+
+                    {/* Transaction Direction (Inflow/Outflow) Select Segment */}
+                    {selectedCatType && (
+                        <div>
+                            <label style={labelStyle}>Transaction Type (Cash Direction)</label>
+                            {['EXPENSE', 'REVENUE'].includes(selectedCatType) ? (
+                                <div style={{ 
+                                    padding: '0.8rem 1.2rem', 
+                                    borderRadius: '12px', 
+                                    background: 'var(--surface-hover)', 
+                                    border: '1px solid var(--border)',
+                                    color: 'var(--text-muted)',
+                                    fontSize: '0.95rem',
+                                    fontWeight: 600
+                                }}>
+                                    {selectedCatType === 'EXPENSE' ? '💸 Payment / Outflow (Cash goes OUT)' : '💰 Receipt / Inflow (Cash comes IN)'}
+                                </div>
+                            ) : (
+                                <select
+                                    value={formData.direction}
+                                    onChange={e => setFormData({ ...formData, direction: e.target.value })}
+                                >
+                                    <option value="OUTFLOW">💸 Payment / Outflow (Cash goes OUT)</option>
+                                    <option value="INFLOW">💰 Receipt / Inflow (Cash comes IN)</option>
+                                </select>
+                            )}
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.35rem' }}>
+                                Specifies the debit/credit mapping for {selectedCategory?.name || 'this category'}.
+                            </span>
+                        </div>
+                    )}
 
                     {/* Phase */}
                     <div>
