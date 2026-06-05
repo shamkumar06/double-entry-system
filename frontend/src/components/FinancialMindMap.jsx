@@ -307,7 +307,7 @@ const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
 // === MAIN COMPONENT ===
 
 export default function FinancialMindMap({ onTransferRequest }) {
-    const { project, journal, members, projectFinances, cashierFinances } = useProjectData();
+    const { project, journal, members, projectFinances, cashierFinances, phaseFinances } = useProjectData();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const [selectedNode, setSelectedNode] = useState(null);
@@ -315,10 +315,50 @@ export default function FinancialMindMap({ onTransferRequest }) {
     const [transferModal, setTransferModal] = useState(null); // { sourceNode, targetNode }
     const [isPanelMinimized, setIsPanelMinimized] = useState(true);
     const [layoutTrigger, setLayoutTrigger] = useState(0);
+    const [selectedPhaseId, setSelectedPhaseId] = useState('');
+
+    const activeCashierFinances = useMemo(() => {
+        const filteredJournal = selectedPhaseId 
+            ? journal.filter(tx => tx.phaseId === selectedPhaseId || tx.phase?.id === selectedPhaseId)
+            : journal;
+            
+        const finances = {};
+        (members || []).forEach(m => {
+            finances[m.name] = { name: m.name, received: 0, spent: 0, holding: 0 };
+        });
+
+        filteredJournal.forEach(tx => {
+            (tx.lines || []).forEach(line => {
+                const acctName = line.account?.name;
+                const acctType = line.account?.type;
+                const amt = Number(line.amount) || 0;
+                const isMember = members.some(m => m.name === acctName);
+                
+                if (acctType === 'ASSET' && isMember) {
+                    if (!finances[acctName]) {
+                        finances[acctName] = { name: acctName, received: 0, spent: 0, holding: 0 };
+                    }
+                    if (line.type === 'DEBIT') {
+                        finances[acctName].received += amt;
+                        finances[acctName].holding += amt;
+                    } else if (line.type === 'CREDIT') {
+                        finances[acctName].spent += amt;
+                        finances[acctName].holding -= amt;
+                    }
+                }
+            });
+        });
+        return finances;
+    }, [journal, members, selectedPhaseId]);
 
     // Graph Generation Logic
+    // Graph Generation Logic
     useEffect(() => {
-        if (!journal || !members || !cashierFinances) return;
+        if (!journal || !members || !activeCashierFinances) return;
+
+        const filteredJournal = selectedPhaseId 
+            ? journal.filter(tx => tx.phaseId === selectedPhaseId || tx.phase?.id === selectedPhaseId)
+            : journal;
 
         const nodesMap = new Map();
         const edgesMap = new Map();
@@ -357,10 +397,22 @@ export default function FinancialMindMap({ onTransferRequest }) {
         };
 
         // Seed all active members reliably from Context
-        addNode('ROOT', 'Main Cash Account', 'root', projectFinances?.received || 0, projectFinances?.balance || 0);
+        let rootReceived = 0;
+        let rootBalance = 0;
+        if (selectedPhaseId) {
+            const pf = phaseFinances[selectedPhaseId] || { received: 0, balance: 0 };
+            rootReceived = pf.received;
+            rootBalance = pf.balance;
+        } else {
+            rootReceived = projectFinances?.received || 0;
+            rootBalance = projectFinances?.balance || 0;
+        }
+
+        addNode('ROOT', 'Main Cash Account', 'root', rootReceived, rootBalance);
+        
         (members || []).forEach(m => {
             if (m.isActive === false) return;
-            const cf = cashierFinances[m.name] || { received: 0, holding: 0 };
+            const cf = activeCashierFinances[m.name] || { received: 0, holding: 0 };
             let role = 'sub_cashier';
             if (m.role === 'GUIDE') role = 'guide';
             else if (m.role === 'PROCURING_STUDENT') role = 'procuring_student';
@@ -369,9 +421,13 @@ export default function FinancialMindMap({ onTransferRequest }) {
         });
 
         // Add fallback for cashiers with transactions who are not active members
-        Object.values(cashierFinances).forEach(cf => {
+        Object.values(activeCashierFinances).forEach(cf => {
             if (!nodesMap.has(cf.name)) {
-                addNode(cf.name, cf.name, 'sub_cashier', cf.received, cf.holding);
+                const m = members.find(mem => mem.name === cf.name);
+                let role = 'sub_cashier';
+                if (m?.role === 'GUIDE') role = 'guide';
+                else if (m?.role === 'PROCURING_STUDENT') role = 'procuring_student';
+                addNode(cf.name, cf.name, role, cf.received, cf.holding);
             }
         });
 
@@ -400,7 +456,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
         let totalVendors = new Set();
         let pendingCount = 0;
 
-        journal.forEach(tx => {
+        filteredJournal.forEach(tx => {
             const cashierCredits = [];
             const cashierDebits = [];
             let mainCashCredit = 0;
@@ -618,7 +674,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
             pendingCount
         });
 
-    }, [journal, members, project, layoutTrigger]);
+    }, [journal, members, project, layoutTrigger, selectedPhaseId, activeCashierFinances, phaseFinances, projectFinances]);
 
     // Handle drag-to-connect between nodes
     const onConnect = useCallback((params) => {
@@ -706,27 +762,33 @@ export default function FinancialMindMap({ onTransferRequest }) {
     const selectedNodeTransactions = useMemo(() => {
         if (!selectedNode) return [];
         const name = selectedNode.id;
+        
+        let txs = journal || [];
+        if (selectedPhaseId) {
+            txs = txs.filter(tx => tx.phaseId === selectedPhaseId || tx.phase?.id === selectedPhaseId);
+        }
+
         if (name === 'ROOT') {
-            return (journal || []).filter(tx => 
+            return txs.filter(tx => 
                 tx.lines?.some(l => l.account?.name === 'Main Cash Account')
             ).slice(0, 10);
         }
         if (selectedNode.type === 'vendor') {
             const vendorName = name.replace('VENDOR_', '');
-            return (journal || []).filter(tx => 
+            return txs.filter(tx => 
                 tx.toEntity === vendorName
             ).slice(0, 10);
         }
         if (selectedNode.type === 'external_source') {
             const extName = name.replace('EXT_', '');
-            return (journal || []).filter(tx => 
+            return txs.filter(tx => 
                 tx.lines?.some(l => l.account?.name === extName)
             ).slice(0, 10);
         }
-        return (journal || []).filter(tx => 
+        return txs.filter(tx => 
             tx.cashierName === name || tx.lines?.some(l => l.account?.name === name)
         ).slice(0, 10);
-    }, [selectedNode, journal]);
+    }, [selectedNode, journal, selectedPhaseId]);
 
     return (
         <div style={{ width: '100%', height: '800px', background: 'var(--background)', borderRadius: '16px', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden', display: 'flex' }}>
@@ -820,6 +882,39 @@ export default function FinancialMindMap({ onTransferRequest }) {
                                     Reset
                                 </button>
                             </div>
+
+                            {/* Phase filter dropdown select */}
+                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+                                    📁 Select Phase View
+                                </label>
+                                <select 
+                                    value={selectedPhaseId} 
+                                    onChange={e => setSelectedPhaseId(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.6rem 0.8rem',
+                                        borderRadius: '10px',
+                                        background: 'var(--surface-hover)',
+                                        border: '1px solid var(--border)',
+                                        color: 'var(--text-main)',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 600,
+                                        outline: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onFocus={e => e.target.style.borderColor = 'var(--primary)'}
+                                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                                >
+                                    <option value="">📁 All Phases (Whole Project)</option>
+                                    {project?.phases?.map(ph => (
+                                        <option key={ph.id} value={ph.id}>
+                                            {ph.isSettled ? '✅ ' : '⏳ '}{ph.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px' }}>
@@ -863,14 +958,21 @@ export default function FinancialMindMap({ onTransferRequest }) {
                     let showStats = true;
 
                     if (name === 'ROOT') {
-                        received = projectFinances?.received || 0;
-                        spent = projectFinances?.spent || 0;
-                        balance = projectFinances?.balance || 0;
+                        if (selectedPhaseId) {
+                            const pf = phaseFinances[selectedPhaseId] || { received: 0, spent: 0, balance: 0 };
+                            received = pf.received;
+                            spent = pf.spent;
+                            balance = pf.balance;
+                        } else {
+                            received = projectFinances?.received || 0;
+                            spent = projectFinances?.spent || 0;
+                            balance = projectFinances?.balance || 0;
+                        }
                     } else if (selectedNode.type === 'vendor' || selectedNode.type === 'external_source') {
                         showStats = false;
                         spent = selectedNode.data.amount;
                     } else {
-                        const cf = cashierFinances[name] || { received: 0, spent: 0, holding: 0 };
+                        const cf = activeCashierFinances[name] || { received: 0, spent: 0, holding: 0 };
                         received = cf.received;
                         spent = cf.spent;
                         balance = cf.holding;
