@@ -58,13 +58,15 @@ const GuideNode = ({ data, selected }) => <NodeWrapper {...data} icon={Crown} co
 const SubCashierNode = ({ data, selected }) => <NodeWrapper {...data} icon={Users} color="#14b8a6" role="Sub-Cashier" selected={selected} showBalance={true} />;
 const ProcuringNode = ({ data, selected }) => <NodeWrapper {...data} icon={Users} color="#f59e0b" role="Procuring Student" selected={selected} showBalance={true} />;
 const VendorNode = ({ data, selected }) => <NodeWrapper {...data} icon={Truck} color="#ef4444" role="Vendor" selected={selected} showBalance={false} />;
+const ExternalSourceNode = ({ data, selected }) => <NodeWrapper {...data} icon={Activity} color="#8b5cf6" role="External Source" selected={selected} showBalance={false} />;
 
 const nodeTypes = {
     root: RootNode,
     guide: GuideNode,
     sub_cashier: SubCashierNode,
     procuring_student: ProcuringNode,
-    vendor: VendorNode
+    vendor: VendorNode,
+    external_source: ExternalSourceNode
 };
 
 // === DAGRE LAYOUT ===
@@ -166,8 +168,14 @@ const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
                     <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
                         <div style={{
                             width: '40px', height: '40px', borderRadius: '50%',
-                            background: sender.type === 'root' ? 'rgba(99, 102, 241, 0.2)' : (sender.role === 'GUIDE' ? 'rgba(99, 102, 241, 0.2)' : (sender.role === 'STUDENT' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)')),
-                            color: sender.type === 'root' ? '#6366f1' : (sender.role === 'GUIDE' ? '#6366f1' : (sender.role === 'STUDENT' ? '#10b981' : '#f59e0b')),
+                            background: sender.type === 'root' ? 'rgba(16, 185, 129, 0.2)' : 
+                                        sender.type === 'external_source' ? 'rgba(139, 92, 246, 0.2)' : 
+                                        (sender.role === 'GUIDE' ? 'rgba(59, 130, 246, 0.2)' : 
+                                        (sender.role === 'STUDENT' ? 'rgba(20, 184, 166, 0.2)' : 'rgba(245, 158, 11, 0.2)')),
+                            color: sender.type === 'root' ? '#10b981' : 
+                                   sender.type === 'external_source' ? '#8b5cf6' : 
+                                   (sender.role === 'GUIDE' ? '#3b82f6' : 
+                                   (sender.role === 'STUDENT' ? '#14b8a6' : '#f59e0b')),
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             margin: '0 auto 0.4rem', fontWeight: 800, fontSize: '0.85rem'
                         }}>{sender.data.title.charAt(0)}</div>
@@ -213,8 +221,14 @@ const TransferModal = ({ sourceNode, targetNode, onConfirm, onCancel }) => {
                     <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
                         <div style={{
                             width: '40px', height: '40px', borderRadius: '50%',
-                            background: receiver.type === 'root' ? 'rgba(99, 102, 241, 0.2)' : (receiver.role === 'GUIDE' ? 'rgba(99, 102, 241, 0.2)' : (receiver.role === 'STUDENT' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)')),
-                            color: receiver.type === 'root' ? '#6366f1' : (receiver.role === 'GUIDE' ? '#6366f1' : (receiver.role === 'STUDENT' ? '#10b981' : '#f59e0b')),
+                            background: receiver.type === 'root' ? 'rgba(16, 185, 129, 0.2)' : 
+                                        receiver.type === 'external_source' ? 'rgba(139, 92, 246, 0.2)' : 
+                                        (receiver.role === 'GUIDE' ? 'rgba(59, 130, 246, 0.2)' : 
+                                        (receiver.role === 'STUDENT' ? 'rgba(20, 184, 166, 0.2)' : 'rgba(245, 158, 11, 0.2)')),
+                            color: receiver.type === 'root' ? '#10b981' : 
+                                   receiver.type === 'external_source' ? '#8b5cf6' : 
+                                   (receiver.role === 'GUIDE' ? '#3b82f6' : 
+                                   (receiver.role === 'STUDENT' ? '#14b8a6' : '#f59e0b')),
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             margin: '0 auto 0.4rem', fontWeight: 800, fontSize: '0.85rem'
                         }}>{receiver.data.title.charAt(0)}</div>
@@ -386,10 +400,14 @@ export default function FinancialMindMap({ onTransferRequest }) {
         let pendingCount = 0;
 
         journal.forEach(tx => {
-            const senders = [];
-            const receivers = [];
-            const expenses = [];
-            
+            const cashierCredits = [];
+            const cashierDebits = [];
+            let mainCashCredit = 0;
+            let mainCashDebit = 0;
+            const externalCredits = [];
+            const externalDebits = [];
+            const expenseDebits = [];
+
             (tx.lines || []).forEach(line => {
                 const amt = Number(line.amount) || 0;
                 const acctName = line.account?.name;
@@ -397,50 +415,136 @@ export default function FinancialMindMap({ onTransferRequest }) {
                 
                 const isMember = members.some(m => m.name === acctName);
                 
-                if (acctType === 'ASSET' && isMember) {
-                    if (line.type === 'CREDIT') senders.push({ name: acctName, amount: amt });
-                    if (line.type === 'DEBIT') receivers.push({ name: acctName, amount: amt });
-                } else if (acctType === 'EXPENSE' && line.type === 'DEBIT') {
-                    expenses.push({ amount: amt });
-                } else if (acctType === 'INCOME' && line.type === 'CREDIT') {
-                    // Explicit income source
+                if (acctType === 'ASSET') {
+                    if (isMember) {
+                        if (line.type === 'CREDIT') cashierCredits.push({ name: acctName, amount: amt });
+                        if (line.type === 'DEBIT') cashierDebits.push({ name: acctName, amount: amt });
+                    } else if (acctName && (acctName.toLowerCase().includes('cash') || acctName.toLowerCase().includes('bank'))) {
+                        if (line.type === 'CREDIT') mainCashCredit += amt;
+                        if (line.type === 'DEBIT') mainCashDebit += amt;
+                    } else if (acctName) {
+                        if (line.type === 'CREDIT') externalCredits.push({ name: acctName, amount: amt, type: acctType });
+                        if (line.type === 'DEBIT') externalDebits.push({ name: acctName, amount: amt, type: acctType });
+                    }
+                } else if (acctName && ['LIABILITY', 'REVENUE', 'INCOME', 'EQUITY'].includes(acctType)) {
+                    if (line.type === 'CREDIT') externalCredits.push({ name: acctName, amount: amt, type: acctType });
+                    if (line.type === 'DEBIT') externalDebits.push({ name: acctName, amount: amt, type: acctType });
+                } else if (acctType === 'EXPENSE') {
+                    if (line.type === 'DEBIT') expenseDebits.push({ name: acctName, amount: amt });
                 }
             });
 
-            // Funding (from ROOT to Receiver)
-            if (senders.length === 0 && receivers.length > 0) {
-                receivers.forEach(r => {
-                    addEdge('ROOT', r.name, r.amount);
-                    totalDistributed += r.amount;
-                });
-            }
-
-            // Internal Transfer
-            if (senders.length > 0 && receivers.length > 0) {
-                senders.forEach(s => {
-                    receivers.forEach(r => {
-                        const amount = Math.min(s.amount, r.amount);
-                        addEdge(s.name, r.name, amount);
+            // Flow Mapping:
+            
+            // 1. Cashier Debits (Cashier receives money)
+            if (cashierDebits.length > 0) {
+                if (cashierCredits.length > 0) {
+                    // Internal Transfer between cashiers
+                    cashierCredits.forEach(c => {
+                        cashierDebits.forEach(d => {
+                            const amount = Math.min(c.amount, d.amount);
+                            addEdge(c.name, d.name, amount);
+                        });
                     });
-                });
+                } else if (mainCashCredit > 0) {
+                    // Transfer from Main Cash/Bank to Cashier
+                    cashierDebits.forEach(d => {
+                        addEdge('ROOT', d.name, d.amount);
+                        totalDistributed += d.amount;
+                    });
+                } else if (externalCredits.length > 0) {
+                    // Collected from external source (Liability/Loan/Revenue)
+                    externalCredits.forEach(ext => {
+                        cashierDebits.forEach(d => {
+                            const amount = Math.min(ext.amount, d.amount);
+                            const extId = `EXT_${ext.name}`;
+                            if (!nodesMap.has(extId)) {
+                                addNode(extId, ext.name, 'external_source', amount, 0);
+                            } else {
+                                nodesMap.get(extId).data.amount += amount;
+                            }
+                            addEdge(extId, d.name, amount);
+                        });
+                    });
+                }
             }
 
-            // Vendor Payment
-            if (senders.length > 0 && expenses.length > 0) {
-                senders.forEach(s => {
-                    const vendorName = tx.toEntity || 'Unknown Vendor';
-                    const vendorId = `VENDOR_${vendorName}`;
-                    const amount = expenses.reduce((sum, e) => sum + e.amount, 0); 
-                    
-                    // Add vendor node (amounts accumulate for vendors)
+            // 2. Main Cash Debits (Main Cash receives money)
+            if (mainCashDebit > 0) {
+                if (cashierCredits.length > 0) {
+                    // Deposit from Cashier to Main Cash/Bank
+                    cashierCredits.forEach(c => {
+                        addEdge(c.name, 'ROOT', c.amount);
+                    });
+                } else if (externalCredits.length > 0) {
+                    // Deposit directly from external source (e.g. Sponsor/Loan to main cash/bank)
+                    externalCredits.forEach(ext => {
+                        const extId = `EXT_${ext.name}`;
+                        const amount = ext.amount;
+                        if (!nodesMap.has(extId)) {
+                            addNode(extId, ext.name, 'external_source', amount, 0);
+                        } else {
+                            nodesMap.get(extId).data.amount += amount;
+                        }
+                        addEdge(extId, 'ROOT', amount);
+                    });
+                }
+            }
+
+            // 3. Expense/Vendor Payments
+            if (expenseDebits.length > 0) {
+                const vendorName = tx.toEntity || 'Unknown Vendor';
+                const vendorId = `VENDOR_${vendorName}`;
+                const amount = expenseDebits.reduce((sum, e) => sum + e.amount, 0);
+                
+                if (cashierCredits.length > 0) {
+                    // Paid by Cashier
                     if (!nodesMap.has(vendorId)) {
                         addNode(vendorId, vendorName, 'vendor', amount, 0);
                     } else {
                         nodesMap.get(vendorId).data.amount += amount;
                     }
-                    
-                    addEdge(s.name, vendorId, amount);
+                    cashierCredits.forEach(c => {
+                        addEdge(c.name, vendorId, Math.min(c.amount, amount));
+                    });
                     totalVendors.add(vendorName);
+                } else if (mainCashCredit > 0) {
+                    // Paid directly from Main Cash/Bank
+                    if (!nodesMap.has(vendorId)) {
+                        addNode(vendorId, vendorName, 'vendor', amount, 0);
+                    } else {
+                        nodesMap.get(vendorId).data.amount += amount;
+                    }
+                    addEdge('ROOT', vendorId, amount);
+                    totalVendors.add(vendorName);
+                }
+            }
+
+            // 4. External Debits (Paying off liabilities or paying external entities)
+            if (externalDebits.length > 0) {
+                externalDebits.forEach(ext => {
+                    const extId = `EXT_${ext.name}`;
+                    const amount = ext.amount;
+                    
+                    if (cashierCredits.length > 0) {
+                        // Paid off by cashier
+                        if (!nodesMap.has(extId)) {
+                            addNode(extId, ext.name, 'external_source', amount, 0);
+                        } else {
+                            nodesMap.get(extId).data.amount += amount;
+                        }
+                        cashierCredits.forEach(c => {
+                            addEdge(c.name, extId, Math.min(c.amount, amount));
+                        });
+                    } else if (mainCashCredit > 0) {
+                        // Paid off directly from Main Cash/Bank
+                        if (!nodesMap.has(extId)) {
+                            addNode(extId, ext.name, 'external_source', amount, 0);
+                        } else {
+                            nodesMap.get(extId).data.amount += amount;
+                        }
+                        addEdge('ROOT', extId, amount);
+                    }
                 });
             }
 
@@ -576,6 +680,12 @@ export default function FinancialMindMap({ onTransferRequest }) {
                 tx.toEntity === vendorName
             ).slice(0, 10);
         }
+        if (selectedNode.type === 'external_source') {
+            const extName = name.replace('EXT_', '');
+            return (journal || []).filter(tx => 
+                tx.lines?.some(l => l.account?.name === extName)
+            ).slice(0, 10);
+        }
         return (journal || []).filter(tx => 
             tx.cashierName === name || tx.lines?.some(l => l.account?.name === name)
         ).slice(0, 10);
@@ -677,6 +787,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
                                 <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '10px', background: '#14b8a620', color: '#14b8a6' }}>Sub-Cashier</span>
                                 <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '10px', background: '#f59e0b20', color: '#f59e0b' }}>Procuring</span>
                                 <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '10px', background: '#ef444420', color: '#ef4444' }}>Vendor</span>
+                                <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '10px', background: '#8b5cf620', color: '#8b5cf6' }}>External</span>
                             </div>
                         </div>
                     </Panel>
@@ -693,7 +804,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
                         received = projectFinances?.received || 0;
                         spent = projectFinances?.spent || 0;
                         balance = projectFinances?.balance || 0;
-                    } else if (selectedNode.type === 'vendor') {
+                    } else if (selectedNode.type === 'vendor' || selectedNode.type === 'external_source') {
                         showStats = false;
                         spent = selectedNode.data.amount;
                     } else {
@@ -710,7 +821,9 @@ export default function FinancialMindMap({ onTransferRequest }) {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <div>
                                         <h4 style={{ margin: '0 0 0.25rem 0', color: 'var(--text-main)', fontSize: '1.15rem', fontWeight: 800 }}>
-                                            {name === 'ROOT' ? 'Main Cash Account' : (selectedNode.type === 'vendor' ? name.replace('VENDOR_', '') : name)}
+                                            {name === 'ROOT' ? 'Main Cash Account' : 
+                                             (selectedNode.type === 'vendor' ? name.replace('VENDOR_', '') : 
+                                              (selectedNode.type === 'external_source' ? name.replace('EXT_', '') : name))}
                                         </h4>
                                         <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'var(--surface-hover)', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
                                             {selectedNode.type.replace('_', ' ')}
@@ -738,7 +851,9 @@ export default function FinancialMindMap({ onTransferRequest }) {
                                         </>
                                     ) : (
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Total Procurement Paid</span>
+                                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+                                                {selectedNode.type === 'external_source' ? 'Total Collected' : 'Total Procurement Paid'}
+                                            </span>
                                             <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(spent)}</span>
                                         </div>
                                     )}
