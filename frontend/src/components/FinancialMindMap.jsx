@@ -16,49 +16,72 @@ const formatCurrency = (amount) => {
 
 // === CUSTOM NODES ===
 
-const NodeWrapper = ({ children, color, title, icon: Icon, amount, balance, role, selected, showBalance = true }) => (
+const NodeWrapper = ({ color, title, icon: Icon, amount, balance, role, selected, showBalance = true }) => (
     <div style={{
         background: 'var(--surface)',
-        border: `2px solid ${selected ? color : 'var(--border)'}`,
-        borderRadius: '12px',
-        padding: '1rem',
-        minWidth: '220px',
-        boxShadow: selected ? `0 0 15px ${color}40` : '0 4px 6px rgba(0,0,0,0.1)',
+        border: `1.5px solid ${selected ? color : 'var(--border)'}`,
+        borderRadius: '14px',
+        minWidth: '190px',
+        maxWidth: '200px',
+        overflow: 'hidden',
+        boxShadow: selected
+            ? `0 0 0 3px ${color}30, 0 8px 24px ${color}20`
+            : '0 2px 12px rgba(0,0,0,0.07)',
         transition: 'all 0.2s ease',
-        opacity: 0.95
+        fontFamily: 'inherit',
     }}>
-        <Handle type="target" position={Position.Top} style={{ background: color, border: '2px solid var(--surface)', width: '10px', height: '10px', cursor: 'crosshair' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `${color}20`, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={18} />
-            </div>
-            <div>
-                <p style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={title}>{title}</p>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{role}</p>
-            </div>
-        </div>
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Received:</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{formatCurrency(amount)}</span>
-            </div>
-            {showBalance && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Balance:</span>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 800, color: balance > 0 ? '#10b981' : 'var(--text-muted)' }}>{formatCurrency(balance || 0)}</span>
+        <Handle type="target" position={Position.Top} style={{ background: color, border: '2px solid var(--surface)', width: '9px', height: '9px', cursor: 'crosshair', top: -4 }} />
+        {/* Accent header strip */}
+        <div style={{ height: '3px', background: `linear-gradient(90deg, ${color}, ${color}88)` }} />
+        <div style={{ padding: '0.65rem 0.8rem 0.7rem' }}>
+            {/* Title row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.55rem' }}>
+                <div style={{
+                    width: '28px', height: '28px', borderRadius: '8px',
+                    background: `${color}18`, color, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <Icon size={15} />
                 </div>
-            )}
+                <div style={{ minWidth: 0 }}>
+                    <p style={{
+                        fontSize: '0.82rem', fontWeight: 700, margin: 0,
+                        color: 'var(--text-main)', whiteSpace: 'nowrap',
+                        overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '130px'
+                    }} title={title}>{title}</p>
+                    <p style={{
+                        fontSize: '0.62rem', color, margin: 0,
+                        textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700
+                    }}>{role}</p>
+                </div>
+            </div>
+            {/* Stats */}
+            <div style={{ borderTop: `1px solid ${color}20`, paddingTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Received</span>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(amount)}</span>
+                </div>
+                {showBalance && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>Balance</span>
+                        <span style={{
+                            fontSize: '0.8rem', fontWeight: 800,
+                            color: (balance || 0) > 0 ? '#10b981' : 'var(--text-muted)'
+                        }}>{formatCurrency(balance || 0)}</span>
+                    </div>
+                )}
+            </div>
         </div>
-        <Handle type="source" position={Position.Bottom} style={{ background: color, border: '2px solid var(--surface)', width: '10px', height: '10px', cursor: 'crosshair' }} />
+        <Handle type="source" position={Position.Bottom} style={{ background: color, border: '2px solid var(--surface)', width: '9px', height: '9px', cursor: 'crosshair', bottom: -4 }} />
     </div>
 );
 
 const RootNode = ({ data, selected }) => <NodeWrapper {...data} icon={Banknote} color="#10b981" role="Funding Source" selected={selected} showBalance={true} />;
 const GuideNode = ({ data, selected }) => <NodeWrapper {...data} icon={Crown} color="#3b82f6" role="Main Cashier" selected={selected} showBalance={true} />;
 const SubCashierNode = ({ data, selected }) => <NodeWrapper {...data} icon={Users} color="#14b8a6" role="Sub-Cashier" selected={selected} showBalance={true} />;
-const ProcuringNode = ({ data, selected }) => <NodeWrapper {...data} icon={Users} color="#f59e0b" role="Procuring Student" selected={selected} showBalance={true} />;
+const ProcuringNode = ({ data, selected }) => <NodeWrapper {...data} icon={Users} color="#f59e0b" role="Procuring" selected={selected} showBalance={true} />;
 const VendorNode = ({ data, selected }) => <NodeWrapper {...data} icon={Truck} color="#ef4444" role="Vendor" selected={selected} showBalance={false} />;
-const ExternalSourceNode = ({ data, selected }) => <NodeWrapper {...data} icon={Activity} color="#8b5cf6" role="External Source" selected={selected} showBalance={false} />;
+const ExternalSourceNode = ({ data, selected }) => <NodeWrapper {...data} icon={Activity} color="#8b5cf6" role="External" selected={selected} showBalance={false} />;
 
 const nodeTypes = {
     root: RootNode,
@@ -73,11 +96,14 @@ const nodeTypes = {
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
+const NODE_W = 200;
+const NODE_H = 100;
+
 const getLayoutedElements = (nodes, edges) => {
-    dagreGraph.setGraph({ rankdir: 'TB', nodesep: 100, ranksep: 120 });
+    dagreGraph.setGraph({ rankdir: 'TB', nodesep: 40, ranksep: 70, marginx: 20, marginy: 20 });
 
     nodes.forEach((node) => {
-        dagreGraph.setNode(node.id, { width: 250, height: 120 });
+        dagreGraph.setNode(node.id, { width: NODE_W, height: NODE_H });
     });
 
     edges.forEach((edge) => {
@@ -91,8 +117,8 @@ const getLayoutedElements = (nodes, edges) => {
         return {
             ...node,
             position: {
-                x: nodeWithPosition.x - 250 / 2,
-                y: nodeWithPosition.y - 120 / 2,
+                x: nodeWithPosition.x - NODE_W / 2,
+                y: nodeWithPosition.y - NODE_H / 2,
             },
         };
     });
@@ -792,55 +818,58 @@ export default function FinancialMindMap({ onTransferRequest }) {
 
     return (
         <div style={{ width: '100%', height: '800px', background: 'var(--background)', borderRadius: '16px', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden', display: 'flex' }}>
-            {/* Phase filter pill bar — top-center overlay */}
+            {/* Phase filter pill bar — full-width scrollable top strip */}
             {project?.phases?.length > 0 && (
                 <div style={{
                     position: 'absolute',
-                    top: '1rem',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
+                    top: 0,
+                    left: 0,
+                    right: 0,
                     zIndex: 200,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.4rem',
-                    background: 'rgba(15,15,25,0.82)',
-                    backdropFilter: 'blur(14px)',
-                    WebkitBackdropFilter: 'blur(14px)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '50px',
-                    padding: '0.35rem 0.5rem',
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
-                    flexWrap: 'wrap',
-                    maxWidth: 'calc(100% - 700px)',
-                    justifyContent: 'center',
+                    gap: '0.35rem',
+                    background: 'var(--surface)',
+                    borderBottom: '1px solid var(--border)',
+                    padding: '0.5rem 0.75rem',
+                    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    flexWrap: 'nowrap',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
                 }}>
                     {/* All Phases pill */}
                     <button
                         onClick={() => setSelectedPhaseId('')}
                         title="Show all phases"
                         style={{
-                            padding: '0.38rem 1rem',
-                            borderRadius: '50px',
-                            border: 'none',
+                            padding: '0.32rem 0.85rem',
+                            borderRadius: '20px',
+                            border: !selectedPhaseId ? 'none' : '1px solid var(--border)',
                             cursor: 'pointer',
                             fontWeight: 700,
-                            fontSize: '0.78rem',
+                            fontSize: '0.75rem',
                             letterSpacing: '0.01em',
                             transition: 'all 0.18s ease',
                             background: !selectedPhaseId
                                 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-                                : 'transparent',
+                                : 'var(--surface-hover)',
                             color: !selectedPhaseId ? '#fff' : 'var(--text-muted)',
-                            boxShadow: !selectedPhaseId ? '0 2px 12px rgba(99,102,241,0.45)' : 'none',
+                            boxShadow: !selectedPhaseId ? '0 2px 10px rgba(99,102,241,0.35)' : 'none',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.3rem',
                             whiteSpace: 'nowrap',
+                            flexShrink: 0,
                         }}
                     >
-                        <span style={{ fontSize: '0.85rem' }}>🗂️</span>
+                        <span style={{ fontSize: '0.8rem' }}>🗂️</span>
                         All Phases
                     </button>
+
+                    {/* Divider */}
+                    <div style={{ width: '1px', height: '20px', background: 'var(--border)', flexShrink: 0, margin: '0 0.1rem' }} />
 
                     {/* Individual phase pills */}
                     {project.phases.map((ph, idx) => {
@@ -861,38 +890,35 @@ export default function FinancialMindMap({ onTransferRequest }) {
                                 onClick={() => setSelectedPhaseId(isActive ? '' : ph.id)}
                                 title={ph.isSettled ? `${ph.name} (Settled)` : ph.name}
                                 style={{
-                                    padding: '0.38rem 1rem',
-                                    borderRadius: '50px',
-                                    border: isActive ? 'none' : `1px solid ${c1}44`,
+                                    padding: '0.32rem 0.85rem',
+                                    borderRadius: '20px',
+                                    border: isActive ? 'none' : `1px solid ${c1}33`,
                                     cursor: 'pointer',
                                     fontWeight: 700,
-                                    fontSize: '0.78rem',
+                                    fontSize: '0.75rem',
                                     transition: 'all 0.18s ease',
                                     background: isActive
                                         ? `linear-gradient(135deg, ${c1}, ${c2})`
-                                        : `${c1}18`,
+                                        : `${c1}12`,
                                     color: isActive ? '#fff' : c1,
-                                    boxShadow: isActive ? `0 2px 12px ${c1}55` : 'none',
+                                    boxShadow: isActive ? `0 2px 10px ${c1}40` : 'none',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.3rem',
                                     whiteSpace: 'nowrap',
-                                    maxWidth: '160px',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
+                                    flexShrink: 0,
                                 }}
                             >
-                                <span style={{ fontSize: '0.8rem', flexShrink: 0 }}>
+                                <span style={{ fontSize: '0.75rem', flexShrink: 0 }}>
                                     {ph.isSettled ? '✅' : '⏳'}
                                 </span>
-                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {ph.name}
-                                </span>
+                                {ph.name}
                             </button>
                         );
                     })}
                 </div>
             )}
+            <div style={{ position: 'absolute', top: project?.phases?.length > 0 ? 49 : 0, left: 0, right: 0, bottom: 0 }}>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -1142,6 +1168,7 @@ export default function FinancialMindMap({ onTransferRequest }) {
                     );
                 })()}
             </ReactFlow>
+            </div>
 
             {/* Transfer Modal */}
             {transferModal && (
