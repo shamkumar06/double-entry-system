@@ -792,6 +792,107 @@ export default function FinancialMindMap({ onTransferRequest }) {
 
     return (
         <div style={{ width: '100%', height: '800px', background: 'var(--background)', borderRadius: '16px', border: '1px solid var(--border)', position: 'relative', overflow: 'hidden', display: 'flex' }}>
+            {/* Phase filter pill bar — top-center overlay */}
+            {project?.phases?.length > 0 && (
+                <div style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 200,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    background: 'rgba(15,15,25,0.82)',
+                    backdropFilter: 'blur(14px)',
+                    WebkitBackdropFilter: 'blur(14px)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '50px',
+                    padding: '0.35rem 0.5rem',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+                    flexWrap: 'wrap',
+                    maxWidth: 'calc(100% - 700px)',
+                    justifyContent: 'center',
+                }}>
+                    {/* All Phases pill */}
+                    <button
+                        onClick={() => setSelectedPhaseId('')}
+                        title="Show all phases"
+                        style={{
+                            padding: '0.38rem 1rem',
+                            borderRadius: '50px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            fontSize: '0.78rem',
+                            letterSpacing: '0.01em',
+                            transition: 'all 0.18s ease',
+                            background: !selectedPhaseId
+                                ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                                : 'transparent',
+                            color: !selectedPhaseId ? '#fff' : 'var(--text-muted)',
+                            boxShadow: !selectedPhaseId ? '0 2px 12px rgba(99,102,241,0.45)' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            whiteSpace: 'nowrap',
+                        }}
+                    >
+                        <span style={{ fontSize: '0.85rem' }}>🗂️</span>
+                        All Phases
+                    </button>
+
+                    {/* Individual phase pills */}
+                    {project.phases.map((ph, idx) => {
+                        const isActive = selectedPhaseId === ph.id;
+                        const colors = [
+                            ['#3b82f6', '#2563eb'],
+                            ['#10b981', '#059669'],
+                            ['#f59e0b', '#d97706'],
+                            ['#ef4444', '#dc2626'],
+                            ['#14b8a6', '#0d9488'],
+                            ['#a855f7', '#9333ea'],
+                            ['#f97316', '#ea580c'],
+                        ];
+                        const [c1, c2] = colors[idx % colors.length];
+                        return (
+                            <button
+                                key={ph.id}
+                                onClick={() => setSelectedPhaseId(isActive ? '' : ph.id)}
+                                title={ph.isSettled ? `${ph.name} (Settled)` : ph.name}
+                                style={{
+                                    padding: '0.38rem 1rem',
+                                    borderRadius: '50px',
+                                    border: isActive ? 'none' : `1px solid ${c1}44`,
+                                    cursor: 'pointer',
+                                    fontWeight: 700,
+                                    fontSize: '0.78rem',
+                                    transition: 'all 0.18s ease',
+                                    background: isActive
+                                        ? `linear-gradient(135deg, ${c1}, ${c2})`
+                                        : `${c1}18`,
+                                    color: isActive ? '#fff' : c1,
+                                    boxShadow: isActive ? `0 2px 12px ${c1}55` : 'none',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: '160px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                }}
+                            >
+                                <span style={{ fontSize: '0.8rem', flexShrink: 0 }}>
+                                    {ph.isSettled ? '✅' : '⏳'}
+                                </span>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {ph.name}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -883,38 +984,22 @@ export default function FinancialMindMap({ onTransferRequest }) {
                                 </button>
                             </div>
 
-                            {/* Phase filter dropdown select */}
-                            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
-                                    📁 Select Phase View
-                                </label>
-                                <select 
-                                    value={selectedPhaseId} 
-                                    onChange={e => setSelectedPhaseId(e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.6rem 0.8rem',
-                                        borderRadius: '10px',
-                                        background: 'var(--surface-hover)',
-                                        border: '1px solid var(--border)',
-                                        color: 'var(--text-main)',
-                                        fontSize: '0.85rem',
-                                        fontWeight: 600,
-                                        outline: 'none',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onFocus={e => e.target.style.borderColor = 'var(--primary)'}
-                                    onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                                >
-                                    <option value="">📁 All Phases (Whole Project)</option>
-                                    {project?.phases?.map(ph => (
-                                        <option key={ph.id} value={ph.id}>
-                                            {ph.isSettled ? '✅ ' : '⏳ '}{ph.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            {/* Active phase indicator (compact, no dropdown – pills above) */}
+                            {selectedPhaseId && project?.phases?.length > 0 && (
+                                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'rgba(99,102,241,0.12)', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.25)' }}>
+                                        <span style={{ fontSize: '0.82rem' }}>🔍</span>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                            {project.phases.find(p => p.id === selectedPhaseId)?.name || 'Phase'}
+                                        </span>
+                                        <button
+                                            onClick={() => setSelectedPhaseId('')}
+                                            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1, padding: '0 2px' }}
+                                            title="Clear phase filter"
+                                        >×</button>
+                                    </div>
+                                </div>
+                            )}
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px' }}>
