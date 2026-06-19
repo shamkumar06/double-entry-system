@@ -139,11 +139,31 @@ app.use((_req, res) => {
 // --- Global error handler ---
 app.use(errorHandler);
 
+// --- Seed system accounts on startup ---
+async function seedSystemAccounts() {
+  const systemAccounts = [
+    { code: 1, name: 'Bank', type: 'ASSET' as const, description: 'Main bank / cash account', isSystem: true },
+    { code: 2, name: 'Settlement Amount', type: 'ASSET' as const, description: 'Tracks surplus returned to management', isSystem: true },
+    { code: 3, name: 'Reallocated Fund', type: 'LIABILITY' as const, description: 'Funds rolled over from a prior settled phase', isSystem: true },
+    { code: 4, name: 'Fund Received', type: 'EQUITY' as const, description: 'Source of funds allocated to a phase by management', isSystem: true },
+  ];
+
+  for (const acc of systemAccounts) {
+    await prisma.accountCategory.upsert({
+      where: { name: acc.name },
+      create: acc,
+      update: { isSystem: true }, // ensure flag is set even on legacy rows
+    });
+  }
+  console.log('✅ System accounts seeded.');
+}
+
 // --- Start ---
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`\n🚀 Server running at http://localhost:${PORT}`);
   console.log(`📊 Health: http://localhost:${PORT}/api/health`);
   console.log(`🌐 Frontend allowed: ${FRONTEND_URL}\n`);
+  await seedSystemAccounts();
 });
 
 export default app;

@@ -3,7 +3,7 @@ import { useSettings } from '../context/SettingsContext';
 import {
   User, Users, DollarSign, Save, Calendar, Layers,
   CheckCircle, XCircle, ShieldCheck, ShieldOff, Plus, RefreshCw, Loader,
-  Key, Trash2, UserPlus, Fingerprint, Crown
+  Key, Trash2, UserPlus, Fingerprint, Crown, Database
 } from 'lucide-react';
 import { useProjectData } from '../context/ProjectDataContext';
 import { accountingApi, authApi } from '../services/api';
@@ -48,6 +48,10 @@ export default function Settings({ activeProject, onUpdate, user }) {
   const [creatingUser, setCreatingUser] = useState(false);
   const [userError, setUserError] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
+
+  // ── Backfill state ───────────────────────────────
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
 
   // ── Custom Confirmation Dialog state ─────────────
   const [confirmDialog, setConfirmDialog] = useState({
@@ -265,6 +269,32 @@ export default function Settings({ activeProject, onUpdate, user }) {
         }
       }
     });
+  };
+
+  const handleBackfillAllocations = async () => {
+    setBackfillLoading(true);
+    setBackfillResult(null);
+    try {
+      const token = localStorage.getItem('token');
+      const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_URL}/system/backfill-allocations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setBackfillResult({ ok: true, data: json.data });
+      } else {
+        setBackfillResult({ ok: false, error: json.message || 'Unknown error' });
+      }
+    } catch (e) {
+      setBackfillResult({ ok: false, error: e?.message || 'Network error' });
+    } finally {
+      setBackfillLoading(false);
+    }
   };
 
   // ── Shared input style ────────────────────────────
@@ -689,6 +719,85 @@ export default function Settings({ activeProject, onUpdate, user }) {
           </div>
         </form>
       </div>
+
+      {/* ── Admin Tools (Admin Only) ── */}
+      {isAdmin && (
+        <div className="glass-panel settings-panel" style={{ border: '1px solid rgba(239,68,68,0.2)' }}>
+          <SectionHeader
+            icon={<Database size={20} />}
+            color="var(--danger)"
+            bg="rgba(239,68,68,0.1)"
+            title="Admin Tools"
+          />
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+            One-time data maintenance tools. Run the allocation backfill once to create journal entries
+            for all existing phases whose <code>receivedAmount</code> was never journalized.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '1rem 1.25rem', borderRadius: '12px',
+              background: 'var(--surface)', border: '1px solid var(--border)'
+            }}>
+              <div>
+                <p style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.2rem' }}>Backfill Phase Allocations</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Creates <strong>DEBIT Bank / CREDIT Fund Received</strong> journal entries for all phases
+                  with a receivedAmount that have no allocation journal yet. Safe to re-run — skips phases already backfilled.
+                </p>
+              </div>
+              <button
+                onClick={handleBackfillAllocations}
+                disabled={backfillLoading}
+                style={{
+                  marginLeft: '1.5rem', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  padding: '0.65rem 1.25rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 700,
+                  background: backfillLoading ? 'var(--surface-hover)' : 'rgba(239,68,68,0.1)',
+                  color: 'var(--danger)', border: '1.5px solid rgba(239,68,68,0.3)',
+                  cursor: backfillLoading ? 'wait' : 'pointer',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseOver={e => { if (!backfillLoading) { e.currentTarget.style.background = 'rgba(239,68,68,0.2)'; } }}
+                onMouseOut={e => { e.currentTarget.style.background = backfillLoading ? 'var(--surface-hover)' : 'rgba(239,68,68,0.1)'; }}
+              >
+                {backfillLoading
+                  ? <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Running…</>
+                  : <><Database size={14} /> Run Backfill</>}
+              </button>
+            </div>
+
+            {backfillResult && (
+              <div style={{
+                padding: '1rem 1.25rem', borderRadius: '12px',
+                background: backfillResult.ok ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+                border: `1px solid ${backfillResult.ok ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
+                fontSize: '0.82rem',
+              }}>
+                {backfillResult.ok ? (
+                  <div>
+                    <p style={{ fontWeight: 700, color: 'var(--success)', marginBottom: '0.5rem' }}>
+                      ✅ Backfill complete — {backfillResult.data?.processed} phase(s) processed
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '200px', overflowY: 'auto' }}>
+                      {backfillResult.data?.results?.map((r, i) => (
+                        <p key={i} style={{ color: r.status === 'created' ? 'var(--success)' : 'var(--text-muted)' }}>
+                          {r.status === 'created' ? '✔' : '—'} {r.phase}
+                          {r.amount ? ` · ₹${Number(r.amount).toLocaleString('en-IN')}` : ''}
+                          {' · '}<em>{r.status}</em>
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ color: 'var(--danger)', fontWeight: 600 }}>❌ Error: {backfillResult.error}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <ConfirmationDialog
         isOpen={confirmDialog.isOpen}

@@ -14,4 +14,7 @@ router.delete('/categories/:id', authenticate, requireAdmin, system.deleteCatego
 router.get('/settings', authenticate, system.getSettings);
 router.put('/settings', authenticate, requireAdmin, system.updateSettings);
 
+// One-time backfill: creates allocation journal entries for all existing phases
+router.post('/backfill-allocations', authenticate, requireAdmin, system.backfillAllocations);
+
 export default router;

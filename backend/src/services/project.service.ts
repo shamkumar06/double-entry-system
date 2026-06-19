@@ -241,22 +241,62 @@ export const createPhase = async (
     requestLetterUrl?: string;
   }
 ) => {
-  const phase = await prisma.phase.create({
-    data: {
-      projectId,
-      name: data.name,
-      description: data.description,
-      estimatedBudget: data.estimatedBudget,
-      receivedAmount: data.receivedAmount,
-      receivedFrom: data.receivedFrom,
-      receivedTo: data.receivedTo,
-      paymentMode: data.paymentMode,
-      reference: data.reference,
-      requestLetterUrl: data.requestLetterUrl,
-    }
-  });
+  // 1. Find system accounts needed for the allocation journal entry
+  const bankCategory = await prisma.accountCategory.findFirst({ where: { name: 'Bank' } });
+  const fundReceivedCategory = await prisma.accountCategory.findFirst({ where: { name: 'Fund Received' } });
 
-  return phase;
+  return prisma.$transaction(async (tx) => {
+    // 2. Create the phase record
+    const phase = await tx.phase.create({
+      data: {
+        projectId,
+        name: data.name,
+        description: data.description,
+        estimatedBudget: data.estimatedBudget,
+        receivedAmount: data.receivedAmount,
+        receivedFrom: data.receivedFrom,
+        receivedTo: data.receivedTo,
+        paymentMode: data.paymentMode,
+        reference: data.reference,
+        requestLetterUrl: data.requestLetterUrl,
+      },
+    });
+
+    // 3. If a received amount is set, auto-create the double-entry allocation journal
+    const received = Number(data.receivedAmount || 0);
+    if (received > 0 && bankCategory && fundReceivedCategory) {
+      await tx.transaction.create({
+        data: {
+          projectId,
+          phaseId: phase.id,
+          date: new Date(),
+          description: `SYSTEM AUTOMATED ALLOCATION: Funds received for ${data.name}`,
+          fromEntity: data.receivedFrom || 'College Management',
+          toEntity: data.receivedTo || phase.name,
+          paymentMode: data.paymentMode || 'AUTO',
+          reference: 'ALLOC-' + phase.id.slice(0, 8).toUpperCase(),
+          lines: {
+            create: [
+              {
+                // DEBIT Bank — cash flows in
+                accountId: bankCategory.id,
+                type: 'DEBIT',
+                amount: new Prisma.Decimal(received),
+              },
+              {
+                // CREDIT Fund Received — equity / source of funds
+                accountId: fundReceivedCategory.id,
+                type: 'CREDIT',
+                amount: new Prisma.Decimal(received),
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    return phase;
+  });
 };
 
 export const updatePhase = async (
@@ -279,6 +319,9 @@ export const updatePhase = async (
   if (!phase) throw new AppError('Phase not found.', 404);
 
   const isUnsettling = data.isSettled === false;
+  const receivedAmountChanged =
+    data.receivedAmount !== undefined &&
+    Number(data.receivedAmount) !== Number(phase.receivedAmount);
 
   // Build updateData — only include fields that were explicitly provided (not undefined)
   // This is critical when called from Settings with only { isSettled: false }
@@ -305,12 +348,69 @@ export const updatePhase = async (
     // Ledger records of partial returns should be preserved even when reopening a phase.
   }
 
-  const updatedPhase = await prisma.phase.update({
-    where: { id: phaseId },
-    data: updateData,
-  });
+  return prisma.$transaction(async (tx) => {
+    const updatedPhase = await tx.phase.update({
+      where: { id: phaseId },
+      data: updateData,
+    });
 
-  return updatedPhase;
+    // If receivedAmount changed, re-journal the allocation
+    if (receivedAmountChanged) {
+      const bankCategory = await tx.accountCategory.findFirst({ where: { name: 'Bank' } });
+      const fundReceivedCategory = await tx.accountCategory.findFirst({ where: { name: 'Fund Received' } });
+
+      if (bankCategory && fundReceivedCategory) {
+        // Soft-delete any prior allocation journal entries for this phase
+        const existingAllocTx = await tx.transaction.findMany({
+          where: {
+            phaseId,
+            projectId,
+            isDeleted: false,
+            description: { contains: 'SYSTEM AUTOMATED ALLOCATION' },
+          },
+        });
+        if (existingAllocTx.length > 0) {
+          await tx.transaction.updateMany({
+            where: { id: { in: existingAllocTx.map((t) => t.id) } },
+            data: { isDeleted: true, deletedAt: new Date() },
+          });
+        }
+
+        // Create new allocation journal if new amount > 0
+        const newReceived = Number(data.receivedAmount);
+        if (newReceived > 0) {
+          await tx.transaction.create({
+            data: {
+              projectId,
+              phaseId,
+              date: new Date(),
+              description: `SYSTEM AUTOMATED ALLOCATION: Funds received for ${updatedPhase.name}`,
+              fromEntity: data.receivedFrom || String(phase.receivedFrom || 'College Management'),
+              toEntity: data.receivedTo || String(phase.receivedTo || updatedPhase.name),
+              paymentMode: data.paymentMode || String(phase.paymentMode || 'AUTO'),
+              reference: 'ALLOC-' + phaseId.slice(0, 8).toUpperCase(),
+              lines: {
+                create: [
+                  {
+                    accountId: bankCategory.id,
+                    type: 'DEBIT',
+                    amount: new Prisma.Decimal(newReceived),
+                  },
+                  {
+                    accountId: fundReceivedCategory.id,
+                    type: 'CREDIT',
+                    amount: new Prisma.Decimal(newReceived),
+                  },
+                ],
+              },
+            },
+          });
+        }
+      }
+    }
+
+    return updatedPhase;
+  });
 };
 
 export const unsettlePhase = async (projectId: string, phaseId: string) => {
