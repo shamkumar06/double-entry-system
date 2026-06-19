@@ -227,6 +227,74 @@ export const listPhases = async (projectId: string) => {
   });
 };
 
+const detectCashAccount = async (
+  projectId: string,
+  phaseId?: string,
+  txClient: any = prisma
+) => {
+  if (phaseId) {
+    const creditLines = await txClient.transactionLine.findMany({
+      where: {
+        type: 'CREDIT',
+        transaction: {
+          phaseId,
+          projectId,
+          isDeleted: false,
+          description: { not: { contains: 'SYSTEM AUTOMATED' } },
+        },
+      },
+      include: { account: { select: { id: true, name: true, type: true } } },
+    });
+
+    const freq: Record<string, { id: string; name: string; count: number }> = {};
+    for (const line of creditLines) {
+      if (line.account.type === 'ASSET') {
+        const key = line.accountId;
+        if (!freq[key]) freq[key] = { id: line.account.id, name: line.account.name, count: 0 };
+        freq[key].count++;
+      }
+    }
+
+    const sorted = Object.values(freq).sort((a, b) => b.count - a.count);
+    if (sorted.length > 0) {
+      return sorted[0].id;
+    }
+  }
+
+  const projectCreditLines = await txClient.transactionLine.findMany({
+    where: {
+      type: 'CREDIT',
+      transaction: {
+        projectId,
+        isDeleted: false,
+        description: { not: { contains: 'SYSTEM AUTOMATED' } },
+      },
+    },
+    include: { account: { select: { id: true, name: true, type: true } } },
+  });
+
+  const freq: Record<string, { id: string; name: string; count: number }> = {};
+  for (const line of projectCreditLines) {
+    if (line.account.type === 'ASSET') {
+      const key = line.accountId;
+      if (!freq[key]) freq[key] = { id: line.account.id, name: line.account.name, count: 0 };
+      freq[key].count++;
+    }
+  }
+
+  const sorted = Object.values(freq).sort((a, b) => b.count - a.count);
+  if (sorted.length > 0) {
+    return sorted[0].id;
+  }
+
+  const fallback =
+    await txClient.accountCategory.findFirst({ where: { name: 'Cash', type: 'ASSET' } }) ||
+    await txClient.accountCategory.findFirst({ where: { name: 'Bank', type: 'ASSET' } }) ||
+    await txClient.accountCategory.findFirst({ where: { type: 'ASSET' } });
+
+  return fallback?.id || null;
+};
+
 export const createPhase = async (
   projectId: string,
   data: {
@@ -242,7 +310,6 @@ export const createPhase = async (
   }
 ) => {
   // 1. Find system accounts needed for the allocation journal entry
-  const bankCategory = await prisma.accountCategory.findFirst({ where: { name: 'Bank' } });
   const fundReceivedCategory = await prisma.accountCategory.findFirst({ where: { name: 'Fund Received' } });
 
   return prisma.$transaction(async (tx) => {
@@ -264,35 +331,38 @@ export const createPhase = async (
 
     // 3. If a received amount is set, auto-create the double-entry allocation journal
     const received = Number(data.receivedAmount || 0);
-    if (received > 0 && bankCategory && fundReceivedCategory) {
-      await tx.transaction.create({
-        data: {
-          projectId,
-          phaseId: phase.id,
-          date: new Date(),
-          description: `SYSTEM AUTOMATED ALLOCATION: Funds received for ${data.name}`,
-          fromEntity: data.receivedFrom || 'College Management',
-          toEntity: data.receivedTo || phase.name,
-          paymentMode: data.paymentMode || 'AUTO',
-          reference: 'ALLOC-' + phase.id.slice(0, 8).toUpperCase(),
-          lines: {
-            create: [
-              {
-                // DEBIT Bank — cash flows in
-                accountId: bankCategory.id,
-                type: 'DEBIT',
-                amount: new Prisma.Decimal(received),
-              },
-              {
-                // CREDIT Fund Received — equity / source of funds
-                accountId: fundReceivedCategory.id,
-                type: 'CREDIT',
-                amount: new Prisma.Decimal(received),
-              },
-            ],
+    if (received > 0 && fundReceivedCategory) {
+      const cashAccountId = await detectCashAccount(projectId, phase.id, tx);
+      if (cashAccountId) {
+        await tx.transaction.create({
+          data: {
+            projectId,
+            phaseId: phase.id,
+            date: new Date(),
+            description: `SYSTEM AUTOMATED ALLOCATION: Funds received for ${data.name}`,
+            fromEntity: data.receivedFrom || 'College Management',
+            toEntity: data.receivedTo || phase.name,
+            paymentMode: data.paymentMode || 'AUTO',
+            reference: 'ALLOC-' + phase.id.slice(0, 8).toUpperCase(),
+            lines: {
+              create: [
+                {
+                  // DEBIT Bank — cash flows in
+                  accountId: cashAccountId,
+                  type: 'DEBIT',
+                  amount: new Prisma.Decimal(received),
+                },
+                {
+                  // CREDIT Fund Received — equity / source of funds
+                  accountId: fundReceivedCategory.id,
+                  type: 'CREDIT',
+                  amount: new Prisma.Decimal(received),
+                },
+              ],
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     return phase;
@@ -356,10 +426,10 @@ export const updatePhase = async (
 
     // If receivedAmount changed, re-journal the allocation
     if (receivedAmountChanged) {
-      const bankCategory = await tx.accountCategory.findFirst({ where: { name: 'Bank' } });
       const fundReceivedCategory = await tx.accountCategory.findFirst({ where: { name: 'Fund Received' } });
+      const cashAccountId = await detectCashAccount(projectId, phaseId, tx);
 
-      if (bankCategory && fundReceivedCategory) {
+      if (fundReceivedCategory && cashAccountId) {
         // Soft-delete any prior allocation journal entries for this phase
         const existingAllocTx = await tx.transaction.findMany({
           where: {
@@ -392,7 +462,7 @@ export const updatePhase = async (
               lines: {
                 create: [
                   {
-                    accountId: bankCategory.id,
+                    accountId: cashAccountId,
                     type: 'DEBIT',
                     amount: new Prisma.Decimal(newReceived),
                   },
@@ -523,15 +593,17 @@ export const settlePhase = async (projectId: string, phaseId: string) => {
   const settlementCategory = await prisma.accountCategory.findFirst({
     where: { name: 'Settlement Amount' }
   });
-  const bankCategory = await prisma.accountCategory.findFirst({
-    where: { name: 'Bank' }
-  });
   
-  if (!settlementCategory || !bankCategory) {
-    throw new AppError('System categories for settlement (Settlement Amount or Bank) not seeded.', 500);
+  if (!settlementCategory) {
+    throw new AppError('System categories for settlement (Settlement Amount) not seeded.', 500);
   }
 
   return prisma.$transaction(async (tx) => {
+    const cashAccountId = await detectCashAccount(projectId, phaseId, tx);
+    if (!cashAccountId) {
+      throw new AppError('No ASSET account found for settlement.', 500);
+    }
+
     // 4. Update phase
     const updatedPhase = await tx.phase.update({
       where: { id: phaseId },
@@ -561,7 +633,7 @@ export const settlePhase = async (projectId: string, phaseId: string) => {
                 amount: new Prisma.Decimal(currentBalance),
               },
               {
-                accountId: bankCategory.id,
+                accountId: cashAccountId,
                 type: 'CREDIT',
                 amount: new Prisma.Decimal(currentBalance),
               }
@@ -634,15 +706,17 @@ export const reallocateSurplus = async (
   const reallocatedCategory = await prisma.accountCategory.findFirst({
     where: { name: 'Reallocated Fund' }
   });
-  const bankCategory = await prisma.accountCategory.findFirst({
-    where: { name: 'Bank' }
-  });
 
-  if (!reallocatedCategory || !bankCategory) {
-    throw new AppError('System categories for reallocation (Reallocated Fund or Bank) not seeded.', 500);
+  if (!reallocatedCategory) {
+    throw new AppError('System categories for reallocation (Reallocated Fund) not seeded.', 500);
   }
 
   return prisma.$transaction(async (tx) => {
+    const cashAccountId = await detectCashAccount(projectId, targetPhaseId, tx);
+    if (!cashAccountId) {
+      throw new AppError('No ASSET account found for reallocation.', 500);
+    }
+
     // 1. Update target phase
     const updatedTargetPhase = await tx.phase.update({
       where: { id: targetPhaseId },
@@ -665,7 +739,7 @@ export const reallocateSurplus = async (
         lines: {
           create: [
             {
-              accountId: bankCategory.id,
+              accountId: cashAccountId,
               type: 'DEBIT',
               amount: new Prisma.Decimal(surplus),
             },

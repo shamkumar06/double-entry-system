@@ -47,7 +47,7 @@ export const updateSettings = async (req: Request, res: Response, next: NextFunc
 
 export const backfillAllocations = async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    // Ensure "Fund Received" system equity account exists
+    // 1. Ensure "Fund Received" system equity account exists
     let fundReceivedCategory = await prisma.accountCategory.findFirst({ where: { name: 'Fund Received' } });
     if (!fundReceivedCategory) {
       const maxCode = await prisma.accountCategory.findFirst({ orderBy: { code: 'desc' } });
@@ -62,21 +62,16 @@ export const backfillAllocations = async (_req: Request, res: Response, next: Ne
       });
     }
 
-    const bankCategory = await prisma.accountCategory.findFirst({ where: { name: 'Bank' } });
-    if (!bankCategory) {
-      res.status(500).json({ success: false, message: '"Bank" account category not found. Seed it first.' });
-      return;
-    }
-
     const phases = await prisma.phase.findMany({
       where: { receivedAmount: { gt: 0 } },
       include: { project: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'asc' },
     });
 
-    const results: { phase: string; status: string; amount?: number }[] = [];
+    const results: { phase: string; status: string; amount?: number; account?: string; error?: string }[] = [];
 
     for (const phase of phases) {
+      // 2. Skip if allocation already exists
       const existing = await prisma.transaction.findFirst({
         where: {
           phaseId: phase.id,
@@ -84,12 +79,64 @@ export const backfillAllocations = async (_req: Request, res: Response, next: Ne
           description: { contains: 'SYSTEM AUTOMATED ALLOCATION' },
         },
       });
-
       if (existing) {
         results.push({ phase: `${phase.project.name} / ${phase.name}`, status: 'skipped (already exists)' });
         continue;
       }
 
+      // 3. Auto-detect the correct cash/asset account for this phase
+      //    Strategy: find the most-used CREDIT account in this phase's expense transactions
+      //    This matches the account that money actually flows out of (= the real cash account)
+      let cashAccountId: string | null = null;
+      let cashAccountName = '';
+
+      const creditLines = await prisma.transactionLine.findMany({
+        where: {
+          type: 'CREDIT',
+          transaction: {
+            phaseId: phase.id,
+            projectId: phase.projectId,
+            isDeleted: false,
+            description: { not: { contains: 'SYSTEM AUTOMATED' } },
+          },
+        },
+        include: { account: { select: { id: true, name: true, type: true } } },
+      });
+
+      // Count frequency of each credited ASSET account
+      const freq: Record<string, { id: string; name: string; count: number }> = {};
+      for (const line of creditLines) {
+        if (line.account.type === 'ASSET') {
+          const key = line.accountId;
+          if (!freq[key]) freq[key] = { id: line.account.id, name: line.account.name, count: 0 };
+          freq[key].count++;
+        }
+      }
+
+      const sorted = Object.values(freq).sort((a, b) => b.count - a.count);
+      if (sorted.length > 0) {
+        // Use the most-used credited ASSET account
+        cashAccountId = sorted[0].id;
+        cashAccountName = sorted[0].name;
+      } else {
+        // No existing transactions — fallback: Cash → Bank → first ASSET account
+        const fallback =
+          await prisma.accountCategory.findFirst({ where: { name: 'Cash', type: 'ASSET' } }) ||
+          await prisma.accountCategory.findFirst({ where: { name: 'Bank', type: 'ASSET' } }) ||
+          await prisma.accountCategory.findFirst({ where: { type: 'ASSET' } });
+
+        if (fallback) {
+          cashAccountId = fallback.id;
+          cashAccountName = fallback.name;
+        }
+      }
+
+      if (!cashAccountId) {
+        results.push({ phase: `${phase.project.name} / ${phase.name}`, status: 'error', error: 'No ASSET account found' });
+        continue;
+      }
+
+      // 4. Create the allocation journal entry
       const received = Number(phase.receivedAmount);
       await prisma.transaction.create({
         data: {
@@ -103,15 +150,16 @@ export const backfillAllocations = async (_req: Request, res: Response, next: Ne
           reference: 'ALLOC-' + phase.id.slice(0, 8).toUpperCase(),
           lines: {
             create: [
-              { accountId: bankCategory.id, type: 'DEBIT', amount: new Prisma.Decimal(received) },
+              { accountId: cashAccountId, type: 'DEBIT', amount: new Prisma.Decimal(received) },
               { accountId: fundReceivedCategory.id, type: 'CREDIT', amount: new Prisma.Decimal(received) },
             ],
           },
         },
       });
-      results.push({ phase: `${phase.project.name} / ${phase.name}`, status: 'created', amount: received });
+      results.push({ phase: `${phase.project.name} / ${phase.name}`, status: 'created', amount: received, account: cashAccountName });
     }
 
     res.json({ success: true, data: { processed: phases.length, results } });
   } catch (err) { next(err); }
 };
+
