@@ -244,6 +244,9 @@ export const accountingApi = {
 
   // --- Cashier Names (distinct from transactions) ---
   getCashierNames: (projectId) => api.get(`/accounting/cashiers?projectId=${projectId}`),
+
+  // --- Admin: one-time backfill for phase allocation journals ---
+  backfillAllocations: () => api.post('/system/backfill-allocations'),
 };
 
 export const procurementApi = {

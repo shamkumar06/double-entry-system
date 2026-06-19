@@ -275,23 +275,10 @@ export default function Settings({ activeProject, onUpdate, user }) {
     setBackfillLoading(true);
     setBackfillResult(null);
     try {
-      const token = localStorage.getItem('token');
-      const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
-      const res = await fetch(`${API_URL}/system/backfill-allocations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-      });
-      const json = await res.json();
-      if (json.success) {
-        setBackfillResult({ ok: true, data: json.data });
-      } else {
-        setBackfillResult({ ok: false, error: json.message || 'Unknown error' });
-      }
+      const data = await accountingApi.backfillAllocations();
+      setBackfillResult({ ok: true, data });
     } catch (e) {
-      setBackfillResult({ ok: false, error: e?.message || 'Network error' });
+      setBackfillResult({ ok: false, error: e?.message || e?.error || 'Network error' });
     } finally {
       setBackfillLoading(false);
     }
