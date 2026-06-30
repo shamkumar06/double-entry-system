@@ -706,8 +706,8 @@ export default function Reports({ projectId, projectName, phasesList, activePhas
                 flexShrink: 0,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginRight: 'auto' }}>
-                    <div style={{ background: 'linear-gradient(135deg, var(--primary), #6366f1)', padding: '0.45rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Download size={18} color="#fff" />
+                    <div style={{ background: 'var(--primary)', color: 'var(--btn-primary-text)', padding: '0.45rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Download size={18} color="currentColor" />
                     </div>
                     <div>
                         <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.2 }}>Export Center</h2>
