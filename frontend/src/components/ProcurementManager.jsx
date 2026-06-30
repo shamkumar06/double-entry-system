@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Plus, Trash2, Edit3, Image, FileText, CheckCircle, Package, Layers, DollarSign, Calendar, Info, Loader2, ArrowRight, FolderOpen, Download, ExternalLink, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { procurementApi } from '../services/api';
 import { useCurrency } from '../context/SettingsContext';
+import * as XLSX from 'xlsx';
 
 
 export default function ProcurementManager({ projectId, activePhase, phasesList, onPrefillExpense }) {
@@ -298,6 +299,60 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
     }, 0);
   const activeOrdersCount = items.filter(item => item.status === 'PLANNING' || item.status === 'ORDERED').length;
   const deliveredOrdersCount = items.filter(item => item.status === 'DELIVERED').length;
+
+  // Export to Excel
+  const exportToExcel = () => {
+    if (items.length === 0) return;
+
+    const rows = items.map(item => {
+      const cgstVal = parseFloat(item.cgst) || 0;
+      const sgstVal = parseFloat(item.sgst) || 0;
+      const igstVal = parseFloat(item.igst) || 0;
+      const discVal = parseFloat(item.discount) || 0;
+      const qty = parseFloat(item.quantity) || 0;
+      const estRate = parseFloat(item.estimatedRate) || 0;
+      const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+      const actRate = hasActual ? parseFloat(item.actualRate) : null;
+      const rate = actRate !== null ? actRate : estRate;
+      const baseAmount = rate * qty;
+      const totalCost = item.status === 'CANCELLED' ? 0 : baseAmount + cgstVal + sgstVal + igstVal - discVal;
+      const phaseName = phasesList.find(p => p.id === item.phaseId)?.name || 'Independent';
+
+      return {
+        'Material Name': item.materialName,
+        'Vendor': item.vendorName || '—',
+        'Phase': phaseName,
+        'Quantity': qty,
+        'Unit': item.unit,
+        'Estimated Rate': estRate,
+        'Actual Rate': actRate !== null ? actRate : '—',
+        'Base Amount': baseAmount,
+        'CGST': cgstVal || '—',
+        'SGST': sgstVal || '—',
+        'IGST': igstVal || '—',
+        'Discount': discVal || '—',
+        'Total Cost': totalCost,
+        'Status': item.status,
+        'Notes': item.notes || '—',
+        'Created': item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+
+    // Auto-size columns
+    const colWidths = Object.keys(rows[0]).map(key => ({
+      wch: Math.max(key.length, ...rows.map(r => String(r[key]).length)) + 2
+    }));
+    worksheet['!cols'] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Procurement');
+
+    const phaseName = filterPhaseId === 'all' ? 'All_Phases' : (phasesList.find(p => p.id === filterPhaseId)?.name || 'Phase').replace(/\s+/g, '_');
+    const date = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `Procurement_${phaseName}_${date}.xlsx`);
+  };
 
 
   return (
@@ -667,6 +722,43 @@ export default function ProcurementManager({ projectId, activePhase, phasesList,
                   <option key={p.id} value={p.id}>📂 {p.name}</option>
                 ))}
               </select>
+
+              <button 
+                onClick={exportToExcel} 
+                title="Export to Excel"
+                disabled={items.length === 0}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  width: '38px', 
+                  height: '38px', 
+                  borderRadius: '10px', 
+                  background: items.length === 0 ? 'rgba(255, 255, 255, 0.03)' : 'rgba(16, 185, 129, 0.1)', 
+                  border: items.length === 0 ? '1px solid var(--border)' : '1px solid rgba(16, 185, 129, 0.25)', 
+                  color: items.length === 0 ? 'var(--text-muted)' : '#10b981', 
+                  cursor: items.length === 0 ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  padding: 0,
+                  opacity: items.length === 0 ? 0.5 : 1
+                }}
+                onMouseEnter={e => {
+                  if (items.length > 0) {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)';
+                    e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (items.length > 0) {
+                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                    e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }
+                }}
+              >
+                <Download size={18} />
+              </button>
 
               <button 
                 onClick={handleOpenAdd} 
