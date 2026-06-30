@@ -184,7 +184,7 @@ function AppInner() {
           case 'j': e.preventDefault(); setActiveTab('Journal'); break;
           case 'l': e.preventDefault(); setActiveTab('Ledger'); break;
           case 't': e.preventDefault(); setActiveTab('Trial Balance'); break;
-          case 'r': e.preventDefault(); setActiveTab('Reports'); break;
+          case 'r': e.preventDefault(); setActiveTab('Export'); break;
           case 'a': e.preventDefault(); setActiveTab('Analytics'); break;
           case 'k': e.preventDefault(); setActiveTab('Cashier Tracker'); break;
           case 'n': 
@@ -807,7 +807,7 @@ function AppInner() {
             <button className="sidebar-nav-btn" style={navActive('Journal')} onClick={() => { setActiveTab('Journal'); setIsSidebarOpen(false); }}><Book size={18} /> <span className="nav-label">Journal</span></button>
             <button className="sidebar-nav-btn" style={navActive('Ledger')} onClick={() => { setActiveTab('Ledger'); setIsSidebarOpen(false); }}><Layers size={18} /> <span className="nav-label">Ledger</span></button>
             <button className="sidebar-nav-btn" style={navActive('Trial Balance')} onClick={() => { setActiveTab('Trial Balance'); setIsSidebarOpen(false); }}><Scale size={18} /> <span className="nav-label">Trial Balance</span></button>
-            <button className="sidebar-nav-btn" style={navActive('Reports')} onClick={() => { setActiveTab('Reports'); setIsSidebarOpen(false); }}><FileText size={18} /> <span className="nav-label">Reports</span></button>
+            <button className="sidebar-nav-btn" style={navActive('Export')} onClick={() => { setActiveTab('Export'); setIsSidebarOpen(false); }}><Download size={18} /> <span className="nav-label">Export</span></button>
             <button className="sidebar-nav-btn" style={navActive('Analytics')} onClick={() => { setActiveTab('Analytics'); setIsSidebarOpen(false); }}><PieChartIcon size={18} /> <span className="nav-label">Analytics</span></button>
             <button className="sidebar-nav-btn" style={navActive('Cashier Tracker')} onClick={() => { setActiveTab('Cashier Tracker'); setIsSidebarOpen(false); }}><Users size={18} /> <span className="nav-label">Cashier Tracker</span></button>
             <button className="sidebar-nav-btn" style={navActive('Attachments')} onClick={() => { setActiveTab('Attachments'); setIsSidebarOpen(false); }}><Image size={18} /> <span className="nav-label">Attachments</span></button>
@@ -1023,11 +1023,12 @@ function AppInner() {
                 key={`tb-${refreshKey}`} 
             />
         )}
-        {activeTab === 'Reports' && (
+        {activeTab === 'Export' && (
             <Reports 
                 projectId={activeProject?.id} 
                 projectName={activeProject?.name} 
-                phasesList={phasesList} 
+                phasesList={phasesList}
+                activePhase={activePhase}
                 key={`reports-${refreshKey}`} 
             />
         )}

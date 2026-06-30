@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Plus, Trash2, Check, Settings as SettingsIcon, Calendar, Type, Layout, Activity, Layers, ChevronDown, Edit3 } from 'lucide-react';
+import { Download, Plus, Trash2, Check, Settings as SettingsIcon, Calendar, Type, Layout, Activity, Layers, ChevronDown, Edit3, FileText, Package, Filter, Loader2 } from 'lucide-react';
 import { useSettings, useFormatting } from '../context/SettingsContext';
-import { accountingApi } from '../services/api';
+import { accountingApi, procurementApi } from '../services/api';
 import { parseDescription } from '../utils/descriptionParser';
+import * as XLSX from 'xlsx';
 
 const STUDIO_STYLES = `
     .report-studio-container {
@@ -101,7 +102,8 @@ const STUDIO_STYLES = `
     }
 `;
 
-export default function Reports({ projectId, projectName, phasesList }) {
+export default function Reports({ projectId, projectName, phasesList, activePhase }) {
+    const [exportSection, setExportSection] = useState('reports');
     const { settings, updateSettings } = useSettings();
     const { formatCurrency } = useFormatting();
     const config = {
@@ -573,8 +575,141 @@ export default function Reports({ projectId, projectName, phasesList }) {
         } catch (e) { alert("Failed to generate report: " + e.message); } finally { setDownloading(false); }
     };
 
+    // ── Procurement Export State ──
+    const [procItems, setProcItems] = useState([]);
+    const [procLoading, setProcLoading] = useState(false);
+    const [procFilterPhaseId, setProcFilterPhaseId] = useState(activePhase?.id || 'all');
+
+    useEffect(() => {
+        if (exportSection === 'procurement' && projectId) {
+            setProcLoading(true);
+            procurementApi.list(projectId, procFilterPhaseId === 'all' ? null : procFilterPhaseId)
+                .then(data => setProcItems(data || []))
+                .catch(e => console.error('Failed to load procurement for export:', e))
+                .finally(() => setProcLoading(false));
+        }
+    }, [exportSection, projectId, procFilterPhaseId]);
+
+    const procExportToExcel = () => {
+        if (procItems.length === 0) return;
+        const rows = procItems.map(item => {
+            const cgstVal = parseFloat(item.cgst) || 0;
+            const sgstVal = parseFloat(item.sgst) || 0;
+            const igstVal = parseFloat(item.igst) || 0;
+            const discVal = parseFloat(item.discount) || 0;
+            const qty = parseFloat(item.quantity) || 0;
+            const estRate = parseFloat(item.estimatedRate) || 0;
+            const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+            const actRate = hasActual ? parseFloat(item.actualRate) : null;
+            const rate = actRate !== null ? actRate : estRate;
+            const baseAmount = rate * qty;
+            const totalCost = item.status === 'CANCELLED' ? 0 : baseAmount + cgstVal + sgstVal + igstVal - discVal;
+            const phaseName = (phasesList || []).find(p => p.id === item.phaseId)?.name || 'Independent';
+            return {
+                'Material Name': item.materialName,
+                'Vendor': item.vendorName || '\u2014',
+                'Phase': phaseName,
+                'Quantity': qty,
+                'Unit': item.unit,
+                'Estimated Rate': estRate,
+                'Actual Rate': actRate !== null ? actRate : '\u2014',
+                'Base Amount': baseAmount,
+                'CGST': cgstVal || '\u2014',
+                'SGST': sgstVal || '\u2014',
+                'IGST': igstVal || '\u2014',
+                'Discount': discVal || '\u2014',
+                'Total Cost': totalCost,
+                'Status': item.status,
+                'Notes': item.notes || '\u2014',
+                'Created': item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '\u2014'
+            };
+        });
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const colWidths = Object.keys(rows[0]).map(key => ({
+            wch: Math.max(key.length, ...rows.map(r => String(r[key]).length)) + 2
+        }));
+        worksheet['!cols'] = colWidths;
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Procurement');
+        const phName = procFilterPhaseId === 'all' ? 'All_Phases' : ((phasesList || []).find(p => p.id === procFilterPhaseId)?.name || 'Phase').replace(/\s+/g, '_');
+        const date = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(workbook, `Procurement_${phName}_${date}.xlsx`);
+    };
+
+    // Procurement stats
+    const procTotalEstimated = procItems.filter(i => i.status !== 'CANCELLED').reduce((s, i) => s + (parseFloat(i.estimatedRate) * parseFloat(i.quantity) || 0), 0);
+    const procTotalActual = procItems.filter(i => i.status === 'DELIVERED').reduce((s, i) => {
+        const hasAct = i.actualRate !== null && i.actualRate !== undefined && i.actualRate !== '';
+        const rate = hasAct ? parseFloat(i.actualRate) : parseFloat(i.estimatedRate);
+        const base = rate * parseFloat(i.quantity) || 0;
+        return s + (base + (parseFloat(i.cgst)||0) + (parseFloat(i.sgst)||0) + (parseFloat(i.igst)||0) - (parseFloat(i.discount)||0));
+    }, 0);
+
     return (
-        <div className="report-studio-container">
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+            {/* ── Export Center Top Navigation ── */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.25rem',
+                background: 'var(--surface)',
+                borderBottom: '1px solid var(--border)',
+                borderRadius: '16px 16px 0 0',
+                flexShrink: 0,
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginRight: 'auto' }}>
+                    <div style={{ background: 'linear-gradient(135deg, var(--primary), #6366f1)', padding: '0.45rem', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Download size={18} color="#fff" />
+                    </div>
+                    <div>
+                        <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.2 }}>Export Center</h2>
+                        <p style={{ margin: 0, fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.5px' }}>REPORTS • PROCUREMENT • DATA</p>
+                    </div>
+                </div>
+
+                <div style={{
+                    display: 'flex',
+                    background: 'var(--background)',
+                    padding: '0.25rem',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                    gap: '0.2rem'
+                }}>
+                    {[
+                        { id: 'reports', label: 'Financial Reports', icon: <FileText size={14} /> },
+                        { id: 'procurement', label: 'Procurement', icon: <Package size={14} /> }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setExportSection(tab.id)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '8px',
+                                fontSize: '0.78rem',
+                                fontWeight: exportSection === tab.id ? 700 : 500,
+                                background: exportSection === tab.id ? 'var(--surface)' : 'transparent',
+                                color: exportSection === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+                                boxShadow: exportSection === tab.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            {tab.icon}
+                            <span>{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ── Section Content ── */}
+            {exportSection === 'reports' ? (
+            <div className="report-studio-container" style={{ flex: 1, borderRadius: '0 0 16px 16px' }}>
             <style>{STUDIO_STYLES}</style>
             
             {/* LEFT SIDE: STUDIO CONTROLS */}
@@ -1102,6 +1237,193 @@ export default function Reports({ projectId, projectName, phasesList }) {
                 ))}
 
             </div>
+            </div>
+            ) : (
+            /* ── Procurement Export Section ── */
+            <div style={{ flex: 1, overflow: 'auto', padding: '1.5rem 2rem', background: 'var(--background)', borderRadius: '0 0 16px 16px' }}>
+                {/* Header & Controls */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                        <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <Package size={24} color="var(--primary)" />
+                            Procurement Data Export
+                        </h3>
+                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            Filter, preview, and export procurement materials to Excel
+                        </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        <select
+                            value={procFilterPhaseId}
+                            onChange={e => setProcFilterPhaseId(e.target.value)}
+                            style={{
+                                padding: '0.55rem 1rem',
+                                background: 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '10px',
+                                color: 'var(--text-main)',
+                                fontWeight: 600,
+                                fontSize: '0.82rem',
+                                outline: 'none'
+                            }}
+                        >
+                            <option value="all">📁 All Phases</option>
+                            {(phasesList || []).map(p => (
+                                <option key={p.id} value={p.id}>📂 {p.name}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={procExportToExcel}
+                            disabled={procItems.length === 0}
+                            className="btn-primary"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '0.6rem 1.25rem',
+                                borderRadius: '10px',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                opacity: procItems.length === 0 ? 0.5 : 1,
+                                cursor: procItems.length === 0 ? 'not-allowed' : 'pointer'
+                            }}
+                        >
+                            <Download size={16} />
+                            Export to Excel
+                        </button>
+                    </div>
+                </div>
+
+                {/* Summary Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Items</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.25rem' }}>{procItems.length}</div>
+                    </div>
+                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Estimated Budget</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.25rem' }}>{formatCurrency(procTotalEstimated)}</div>
+                    </div>
+                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actual Spent</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.25rem' }}>{formatCurrency(procTotalActual)}</div>
+                    </div>
+                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Delivered</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.25rem' }}>
+                            {procItems.filter(i => i.status === 'DELIVERED').length} / {procItems.length}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Procurement Preview Table */}
+                {procLoading ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                        <Loader2 size={36} className="spin" color="var(--primary)" />
+                        <p style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading procurement data...</p>
+                    </div>
+                ) : procItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                        <Package size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>No Procurement Items</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', maxWidth: '360px', margin: '0.5rem auto 0 auto' }}>
+                            Add materials in the Procurement tab to see them here for export.
+                        </p>
+                    </div>
+                ) : (
+                    <div style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Material</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vendor</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phase</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Est. Rate</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Act. Rate</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tax & Disc.</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</th>
+                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {procItems.map((item, idx) => {
+                                    const cgstVal = parseFloat(item.cgst) || 0;
+                                    const sgstVal = parseFloat(item.sgst) || 0;
+                                    const igstVal = parseFloat(item.igst) || 0;
+                                    const discVal = parseFloat(item.discount) || 0;
+                                    const qty = parseFloat(item.quantity) || 0;
+                                    const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+                                    const rate = hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate);
+                                    const baseAmt = rate * qty;
+                                    const total = item.status === 'CANCELLED' ? 0 : baseAmt + cgstVal + sgstVal + igstVal - discVal;
+                                    const phaseName = (phasesList || []).find(p => p.id === item.phaseId)?.name || 'Independent';
+                                    const taxStr = [cgstVal > 0 ? `C:${formatCurrency(cgstVal)}` : null, sgstVal > 0 ? `S:${formatCurrency(sgstVal)}` : null, igstVal > 0 ? `I:${formatCurrency(igstVal)}` : null].filter(Boolean).join(' ');
+
+                                    return (
+                                        <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.015)'}
+                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
+                                            <td style={{ padding: '0.75rem 1rem' }}>
+                                                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{item.materialName}</div>
+                                                {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.15rem' }}>📝 {item.notes}</div>}
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-main)', fontWeight: 600 }}>{item.vendorName || '—'}</td>
+                                            <td style={{ padding: '0.75rem 1rem' }}>
+                                                <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', fontWeight: 600, color: 'var(--text-main)' }}>
+                                                    📁 {phaseName}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                                                {qty} <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.72rem' }}>{item.unit}</span>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-main)' }}>{formatCurrency(parseFloat(item.estimatedRate))}</td>
+                                            <td style={{ padding: '0.75rem 1rem', color: hasActual ? 'var(--success)' : 'var(--text-muted)' }}>
+                                                {hasActual ? formatCurrency(parseFloat(item.actualRate)) : '—'}
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                                                    {taxStr && <span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 600 }}>{taxStr}</span>}
+                                                    {discVal > 0 && <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>Disc: -{formatCurrency(discVal)}</span>}
+                                                    {!taxStr && discVal === 0 && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '0.75rem 1rem', fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(total)}</td>
+                                            <td style={{ padding: '0.75rem 1rem' }}>
+                                                <span style={{
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 800,
+                                                    padding: '0.25rem 0.5rem',
+                                                    borderRadius: '6px',
+                                                    letterSpacing: '0.04em',
+                                                    background:
+                                                        item.status === 'DELIVERED' ? 'rgba(16, 185, 129, 0.12)' :
+                                                        item.status === 'ORDERED' ? 'rgba(245, 158, 11, 0.12)' :
+                                                        item.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                                                    color:
+                                                        item.status === 'DELIVERED' ? '#10b981' :
+                                                        item.status === 'ORDERED' ? '#f59e0b' :
+                                                        item.status === 'CANCELLED' ? '#ef4444' : '#3b82f6',
+                                                    border:
+                                                        item.status === 'DELIVERED' ? '1px solid rgba(16, 185, 129, 0.2)' :
+                                                        item.status === 'ORDERED' ? '1px solid rgba(245, 158, 11, 0.2)' :
+                                                        item.status === 'CANCELLED' ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
+                                                }}>
+                                                    {item.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+            )}
         </div>
     );
 }
