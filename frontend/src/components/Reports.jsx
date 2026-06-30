@@ -579,6 +579,12 @@ export default function Reports({ projectId, projectName, phasesList, activePhas
     const [procItems, setProcItems] = useState([]);
     const [procLoading, setProcLoading] = useState(false);
     const [procFilterPhaseId, setProcFilterPhaseId] = useState(activePhase?.id || 'all');
+    const [procControlTab, setProcControlTab] = useState('filters');
+    const [procStatusFilter, setProcStatusFilter] = useState([]);
+    const [procExportTitle, setProcExportTitle] = useState(projectName ? `${projectName} - Procurement` : 'Procurement Export');
+    const [procIncludeSummary, setProcIncludeSummary] = useState(true);
+    const ALL_PROC_COLUMNS = ['Material Name','Vendor','Phase','Quantity','Unit','Estimated Rate','Actual Rate','Base Amount','CGST','SGST','IGST','Discount','Total Cost','Status','Notes','Created'];
+    const [procVisibleColumns, setProcVisibleColumns] = useState(['Material Name','Vendor','Phase','Quantity','Unit','Estimated Rate','Actual Rate','Total Cost','Status','Notes']);
 
     useEffect(() => {
         if (exportSection === 'procurement' && projectId) {
@@ -590,45 +596,86 @@ export default function Reports({ projectId, projectName, phasesList, activePhas
         }
     }, [exportSection, projectId, procFilterPhaseId]);
 
+    // Filtered items by status
+    const procFilteredItems = procStatusFilter.length === 0
+        ? procItems
+        : procItems.filter(i => procStatusFilter.includes(i.status));
+
+    const toggleProcColumn = (col) => {
+        setProcVisibleColumns(prev => prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]);
+    };
+
+    const toggleProcStatus = (status) => {
+        setProcStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]);
+    };
+
+    const computeProcRow = (item) => {
+        const cgstVal = parseFloat(item.cgst) || 0;
+        const sgstVal = parseFloat(item.sgst) || 0;
+        const igstVal = parseFloat(item.igst) || 0;
+        const discVal = parseFloat(item.discount) || 0;
+        const qty = parseFloat(item.quantity) || 0;
+        const estRate = parseFloat(item.estimatedRate) || 0;
+        const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
+        const actRate = hasActual ? parseFloat(item.actualRate) : null;
+        const rate = actRate !== null ? actRate : estRate;
+        const baseAmount = rate * qty;
+        const totalCost = item.status === 'CANCELLED' ? 0 : baseAmount + cgstVal + sgstVal + igstVal - discVal;
+        const phaseName = (phasesList || []).find(p => p.id === item.phaseId)?.name || 'Independent';
+        return { cgstVal, sgstVal, igstVal, discVal, qty, estRate, actRate, hasActual: actRate !== null, baseAmount, totalCost, phaseName };
+    };
+
     const procExportToExcel = () => {
-        if (procItems.length === 0) return;
-        const rows = procItems.map(item => {
-            const cgstVal = parseFloat(item.cgst) || 0;
-            const sgstVal = parseFloat(item.sgst) || 0;
-            const igstVal = parseFloat(item.igst) || 0;
-            const discVal = parseFloat(item.discount) || 0;
-            const qty = parseFloat(item.quantity) || 0;
-            const estRate = parseFloat(item.estimatedRate) || 0;
-            const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
-            const actRate = hasActual ? parseFloat(item.actualRate) : null;
-            const rate = actRate !== null ? actRate : estRate;
-            const baseAmount = rate * qty;
-            const totalCost = item.status === 'CANCELLED' ? 0 : baseAmount + cgstVal + sgstVal + igstVal - discVal;
-            const phaseName = (phasesList || []).find(p => p.id === item.phaseId)?.name || 'Independent';
-            return {
+        if (procFilteredItems.length === 0) return;
+        const worksheetData = [];
+        // Add title row if configured
+        if (procExportTitle) {
+            worksheetData.push([procExportTitle]);
+            worksheetData.push([]); // blank row
+        }
+        // Add summary if configured
+        if (procIncludeSummary) {
+            worksheetData.push(['Total Items', procFilteredItems.length]);
+            worksheetData.push(['Estimated Budget', procTotalEstimated]);
+            worksheetData.push(['Actual Spent', procTotalActual]);
+            worksheetData.push(['Delivered', procFilteredItems.filter(i => i.status === 'DELIVERED').length + ' / ' + procFilteredItems.length]);
+            worksheetData.push([]); // blank row
+        }
+        // Header row
+        worksheetData.push(procVisibleColumns);
+        // Data rows
+        procFilteredItems.forEach(item => {
+            const r = computeProcRow(item);
+            const allVals = {
                 'Material Name': item.materialName,
                 'Vendor': item.vendorName || '\u2014',
-                'Phase': phaseName,
-                'Quantity': qty,
+                'Phase': r.phaseName,
+                'Quantity': r.qty,
                 'Unit': item.unit,
-                'Estimated Rate': estRate,
-                'Actual Rate': actRate !== null ? actRate : '\u2014',
-                'Base Amount': baseAmount,
-                'CGST': cgstVal || '\u2014',
-                'SGST': sgstVal || '\u2014',
-                'IGST': igstVal || '\u2014',
-                'Discount': discVal || '\u2014',
-                'Total Cost': totalCost,
+                'Estimated Rate': r.estRate,
+                'Actual Rate': r.hasActual ? r.actRate : '\u2014',
+                'Base Amount': r.baseAmount,
+                'CGST': r.cgstVal || '\u2014',
+                'SGST': r.sgstVal || '\u2014',
+                'IGST': r.igstVal || '\u2014',
+                'Discount': r.discVal || '\u2014',
+                'Total Cost': r.totalCost,
                 'Status': item.status,
                 'Notes': item.notes || '\u2014',
                 'Created': item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '\u2014'
             };
+            worksheetData.push(procVisibleColumns.map(col => allVals[col]));
         });
-        const worksheet = XLSX.utils.json_to_sheet(rows);
-        const colWidths = Object.keys(rows[0]).map(key => ({
-            wch: Math.max(key.length, ...rows.map(r => String(r[key]).length)) + 2
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        // Auto-size columns
+        const maxCols = Math.max(...worksheetData.map(r => r.length));
+        worksheet['!cols'] = Array.from({ length: maxCols }, (_, i) => ({
+            wch: Math.max(12, ...worksheetData.filter(r => r[i] !== undefined).map(r => String(r[i] || '').length)) + 2
         }));
-        worksheet['!cols'] = colWidths;
+        // Merge title row across all columns
+        if (procExportTitle) {
+            worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: maxCols - 1 } }];
+        }
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Procurement');
         const phName = procFilterPhaseId === 'all' ? 'All_Phases' : ((phasesList || []).find(p => p.id === procFilterPhaseId)?.name || 'Phase').replace(/\s+/g, '_');
@@ -636,9 +683,9 @@ export default function Reports({ projectId, projectName, phasesList, activePhas
         XLSX.writeFile(workbook, `Procurement_${phName}_${date}.xlsx`);
     };
 
-    // Procurement stats
-    const procTotalEstimated = procItems.filter(i => i.status !== 'CANCELLED').reduce((s, i) => s + (parseFloat(i.estimatedRate) * parseFloat(i.quantity) || 0), 0);
-    const procTotalActual = procItems.filter(i => i.status === 'DELIVERED').reduce((s, i) => {
+    // Procurement stats (based on filtered items)
+    const procTotalEstimated = procFilteredItems.filter(i => i.status !== 'CANCELLED').reduce((s, i) => s + (parseFloat(i.estimatedRate) * parseFloat(i.quantity) || 0), 0);
+    const procTotalActual = procFilteredItems.filter(i => i.status === 'DELIVERED').reduce((s, i) => {
         const hasAct = i.actualRate !== null && i.actualRate !== undefined && i.actualRate !== '';
         const rate = hasAct ? parseFloat(i.actualRate) : parseFloat(i.estimatedRate);
         const base = rate * parseFloat(i.quantity) || 0;
@@ -1239,191 +1286,390 @@ export default function Reports({ projectId, projectName, phasesList, activePhas
             </div>
             </div>
             ) : (
-            /* ── Procurement Export Section ── */
-            <div style={{ flex: 1, overflow: 'auto', padding: '1.5rem 2rem', background: 'var(--background)', borderRadius: '0 0 16px 16px' }}>
-                {/* Header & Controls */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div>
-                        <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <Package size={24} color="var(--primary)" />
-                            Procurement Data Export
-                        </h3>
-                        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            Filter, preview, and export procurement materials to Excel
-                        </p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                        <select
-                            value={procFilterPhaseId}
-                            onChange={e => setProcFilterPhaseId(e.target.value)}
-                            style={{
-                                padding: '0.55rem 1rem',
-                                background: 'var(--surface)',
-                                border: '1px solid var(--border)',
-                                borderRadius: '10px',
-                                color: 'var(--text-main)',
-                                fontWeight: 600,
-                                fontSize: '0.82rem',
-                                outline: 'none'
-                            }}
-                        >
-                            <option value="all">📁 All Phases</option>
-                            {(phasesList || []).map(p => (
-                                <option key={p.id} value={p.id}>📂 {p.name}</option>
-                            ))}
-                        </select>
+            /* ── Procurement Export Section — Studio Layout ── */
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden', borderRadius: '0 0 16px 16px' }}>
+                {/* LEFT SIDE: PROCUREMENT CONTROLS */}
+                <div className="report-studio-controls">
+                    <style>{STUDIO_STYLES}</style>
+                    {/* HEADER */}
+                    <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', padding: '0.5rem', borderRadius: '10px' }}>
+                                    <Package size={18} />
+                                </div>
+                                <div>
+                                    <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-main)', margin: 0, lineHeight: 1.2 }}>Procurement Studio</h3>
+                                    <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, margin: 0, letterSpacing: '0.5px' }}>EXPORT CONFIGURATOR</p>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.25rem 0.65rem', borderRadius: '20px' }}>
+                                <div style={{ width: '6px', height: '6px', background: 'var(--success)', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--success)', letterSpacing: '0.5px' }}>{procFilteredItems.length} ITEMS</span>
+                            </div>
+                        </div>
+
+                        {/* Primary Export Button */}
                         <button
                             onClick={procExportToExcel}
-                            disabled={procItems.length === 0}
+                            disabled={procFilteredItems.length === 0}
                             className="btn-primary"
                             style={{
+                                width: '100%',
                                 display: 'flex',
                                 alignItems: 'center',
+                                justifyContent: 'center',
                                 gap: '0.5rem',
-                                padding: '0.6rem 1.25rem',
-                                borderRadius: '10px',
+                                padding: '0.8rem',
+                                borderRadius: '12px',
                                 fontWeight: 700,
-                                fontSize: '0.85rem',
-                                opacity: procItems.length === 0 ? 0.5 : 1,
-                                cursor: procItems.length === 0 ? 'not-allowed' : 'pointer'
+                                fontSize: '0.9rem',
+                                boxShadow: '0 4px 12px var(--btn-primary-shadow)',
+                                opacity: procFilteredItems.length === 0 ? 0.5 : 1,
+                                cursor: procFilteredItems.length === 0 ? 'not-allowed' : 'pointer'
                             }}
                         >
-                            <Download size={16} />
-                            Export to Excel
+                            <Download size={18} /> Export to Excel
                         </button>
-                    </div>
-                </div>
 
-                {/* Summary Stats */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Items</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.25rem' }}>{procItems.length}</div>
-                    </div>
-                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Estimated Budget</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.25rem' }}>{formatCurrency(procTotalEstimated)}</div>
-                    </div>
-                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actual Spent</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.25rem' }}>{formatCurrency(procTotalActual)}</div>
-                    </div>
-                    <div style={{ background: 'var(--glass-bg)', padding: '1rem 1.25rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Delivered</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '0.25rem' }}>
-                            {procItems.filter(i => i.status === 'DELIVERED').length} / {procItems.length}
+                        {/* Control Tabs */}
+                        <div style={{
+                            display: 'flex',
+                            background: 'var(--background)',
+                            padding: '0.25rem',
+                            borderRadius: '10px',
+                            marginTop: '1.25rem',
+                            border: '1px solid var(--border)'
+                        }}>
+                            {[
+                                { id: 'filters', label: 'Filters', icon: <Filter size={14} /> },
+                                { id: 'columns', label: 'Columns', icon: <Layout size={14} /> },
+                                { id: 'style', label: 'Style', icon: <Type size={14} /> }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setProcControlTab(tab.id)}
+                                    style={{
+                                        flex: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.35rem',
+                                        padding: '0.5rem 0.25rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: procControlTab === tab.id ? 700 : 500,
+                                        background: procControlTab === tab.id ? 'var(--surface)' : 'transparent',
+                                        color: procControlTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+                                        boxShadow: procControlTab === tab.id ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    {tab.icon}
+                                    <span>{tab.label}</span>
+                                </button>
+                            ))}
                         </div>
                     </div>
+
+                    {/* Scrollable Control Content */}
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                        {/* FILTERS TAB */}
+                        {procControlTab === 'filters' && (
+                            <>
+                                <div className="studio-section">
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Filter by Phase</label>
+                                    <div className="studio-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.75rem' }}>
+                                        <button
+                                            onClick={() => setProcFilterPhaseId('all')}
+                                            style={{
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '0.5rem 0.75rem',
+                                                borderRadius: '8px',
+                                                border: 'none',
+                                                background: procFilterPhaseId === 'all' ? 'var(--primary)' : 'var(--background)',
+                                                color: procFilterPhaseId === 'all' ? 'var(--btn-primary-text)' : 'var(--text-main)',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s ease'
+                                            }}
+                                        >
+                                            📁 All Phases
+                                        </button>
+                                        {(phasesList || []).map(p => (
+                                            <button
+                                                key={p.id}
+                                                onClick={() => setProcFilterPhaseId(p.id)}
+                                                style={{
+                                                    width: '100%',
+                                                    textAlign: 'left',
+                                                    padding: '0.5rem 0.75rem',
+                                                    borderRadius: '8px',
+                                                    border: 'none',
+                                                    background: procFilterPhaseId === p.id ? 'var(--secondary)' : 'var(--background)',
+                                                    color: procFilterPhaseId === p.id ? 'white' : 'var(--text-muted)',
+                                                    fontSize: '0.8rem',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.15s ease'
+                                                }}
+                                            >
+                                                📂 {p.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="studio-section">
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Filter by Status</label>
+                                    <div className="studio-card" style={{ padding: '0.75rem' }}>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                            {['PLANNING', 'ORDERED', 'DELIVERED', 'CANCELLED'].map(status => {
+                                                const isActive = procStatusFilter.includes(status);
+                                                const colors = {
+                                                    PLANNING: { bg: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' },
+                                                    ORDERED: { bg: 'rgba(245, 158, 11, 0.12)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)' },
+                                                    DELIVERED: { bg: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: 'rgba(16, 185, 129, 0.3)' },
+                                                    CANCELLED: { bg: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' }
+                                                };
+                                                const c = colors[status];
+                                                return (
+                                                    <button
+                                                        key={status}
+                                                        onClick={() => toggleProcStatus(status)}
+                                                        style={{
+                                                            padding: '0.35rem 0.65rem',
+                                                            borderRadius: '8px',
+                                                            fontSize: '0.7rem',
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer',
+                                                            background: isActive ? c.bg : 'var(--background)',
+                                                            color: isActive ? c.color : 'var(--text-muted)',
+                                                            border: isActive ? `2px solid ${c.border}` : '1px solid var(--border)',
+                                                            transition: 'all 0.15s ease',
+                                                            letterSpacing: '0.03em'
+                                                        }}
+                                                    >
+                                                        {status}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '0.5rem 0 0 0', fontStyle: 'italic' }}>Click to toggle. No selection = show all.</p>
+                                        {procStatusFilter.length > 0 && (
+                                            <button
+                                                onClick={() => setProcStatusFilter([])}
+                                                style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--danger)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                            >
+                                                ✕ Clear status filter
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Quick Stats */}
+                                <div className="studio-section">
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Summary</label>
+                                    <div className="studio-card" style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Showing</span>
+                                            <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>{procFilteredItems.length} of {procItems.length} items</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Est. Budget</span>
+                                            <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{formatCurrency(procTotalEstimated)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Actual Spent</span>
+                                            <span style={{ fontWeight: 800, color: 'var(--success)' }}>{formatCurrency(procTotalActual)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Delivered</span>
+                                            <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>{procFilteredItems.filter(i => i.status === 'DELIVERED').length} / {procFilteredItems.length}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* COLUMNS TAB */}
+                        {procControlTab === 'columns' && (
+                            <>
+                                <div className="studio-section">
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Visible Columns</label>
+                                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 0.75rem 0' }}>Toggle which columns appear in the table and exported Excel file.</p>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                        {ALL_PROC_COLUMNS.map(col => {
+                                            const isSelected = procVisibleColumns.includes(col);
+                                            return (
+                                                <label
+                                                    key={col}
+                                                    className="studio-card"
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.75rem',
+                                                        padding: '0.6rem 0.85rem',
+                                                        marginBottom: 0,
+                                                        cursor: 'pointer',
+                                                        borderLeft: isSelected ? '4px solid var(--primary)' : '1px solid var(--border)',
+                                                        transition: 'all 0.15s ease'
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleProcColumn(col)}
+                                                        style={{ width: '15px', height: '15px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                                                    />
+                                                    <span style={{ fontSize: '0.82rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--text-main)' : 'var(--text-muted)' }}>{col}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                        onClick={() => setProcVisibleColumns([...ALL_PROC_COLUMNS])}
+                                        style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-main)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                                    >
+                                        Select All
+                                    </button>
+                                    <button
+                                        onClick={() => setProcVisibleColumns(['Material Name','Vendor','Phase','Quantity','Total Cost','Status'])}
+                                        style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                                    >
+                                        Minimal
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* STYLE TAB */}
+                        {procControlTab === 'style' && (
+                            <>
+                                <div className="studio-section">
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Export Title</label>
+                                    <div className="studio-card">
+                                        <input
+                                            type="text"
+                                            value={procExportTitle}
+                                            onChange={e => setProcExportTitle(e.target.value)}
+                                            placeholder="Title for Excel sheet header..."
+                                            style={{
+                                                width: '100%',
+                                                padding: '0.75rem',
+                                                borderRadius: '10px',
+                                                border: '1px solid var(--border)',
+                                                background: 'var(--background)',
+                                                color: 'var(--text-main)',
+                                                fontWeight: 700,
+                                                fontSize: '0.9rem',
+                                                outline: 'none'
+                                            }}
+                                        />
+                                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '0.4rem 0 0 0', fontStyle: 'italic' }}>This title will appear as the first row in the exported Excel.</p>
+                                    </div>
+                                </div>
+
+                                <div className="studio-section">
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', display: 'block', letterSpacing: '0.5px' }}>Export Options</label>
+                                    <div className="studio-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={procIncludeSummary}
+                                                onChange={e => setProcIncludeSummary(e.target.checked)}
+                                                style={{ width: '15px', height: '15px', accentColor: 'var(--primary)' }}
+                                            />
+                                            Include Summary Stats in Excel
+                                        </label>
+                                        <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '-0.25rem 0 0 2rem', fontStyle: 'italic' }}>Adds total items, estimated budget, actual spent and delivered count above the table.</p>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                {/* Procurement Preview Table */}
-                {procLoading ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)' }}>
-                        <Loader2 size={36} className="spin" color="var(--primary)" />
-                        <p style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading procurement data...</p>
-                    </div>
-                ) : procItems.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)' }}>
-                        <Package size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>No Procurement Items</h3>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', maxWidth: '360px', margin: '0.5rem auto 0 auto' }}>
-                            Add materials in the Procurement tab to see them here for export.
-                        </p>
-                    </div>
-                ) : (
-                    <div style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Material</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vendor</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phase</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Est. Rate</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Act. Rate</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tax & Disc.</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total</th>
-                                    <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {procItems.map((item, idx) => {
-                                    const cgstVal = parseFloat(item.cgst) || 0;
-                                    const sgstVal = parseFloat(item.sgst) || 0;
-                                    const igstVal = parseFloat(item.igst) || 0;
-                                    const discVal = parseFloat(item.discount) || 0;
-                                    const qty = parseFloat(item.quantity) || 0;
-                                    const hasActual = item.actualRate !== null && item.actualRate !== undefined && item.actualRate !== '';
-                                    const rate = hasActual ? parseFloat(item.actualRate) : parseFloat(item.estimatedRate);
-                                    const baseAmt = rate * qty;
-                                    const total = item.status === 'CANCELLED' ? 0 : baseAmt + cgstVal + sgstVal + igstVal - discVal;
-                                    const phaseName = (phasesList || []).find(p => p.id === item.phaseId)?.name || 'Independent';
-                                    const taxStr = [cgstVal > 0 ? `C:${formatCurrency(cgstVal)}` : null, sgstVal > 0 ? `S:${formatCurrency(sgstVal)}` : null, igstVal > 0 ? `I:${formatCurrency(igstVal)}` : null].filter(Boolean).join(' ');
+                {/* RIGHT SIDE: PROCUREMENT TABLE PREVIEW */}
+                <div style={{ flex: 1, overflow: 'auto', padding: '1.5rem 2rem', background: 'var(--background)' }}>
+                    {procLoading ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+                            <Loader2 size={36} className="spin" color="var(--primary)" />
+                            <p style={{ marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading procurement data...</p>
+                        </div>
+                    ) : procFilteredItems.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                            <Package size={48} color="var(--text-muted)" style={{ marginBottom: '1rem', opacity: 0.5 }} />
+                            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>No Procurement Items</h3>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', maxWidth: '360px', margin: '0.5rem auto 0 auto' }}>
+                                {procItems.length > 0 ? 'No items match the current filters. Try adjusting status or phase filters.' : 'Add materials in the Procurement tab to see them here for export.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div style={{ overflowX: 'auto', background: 'var(--glass-bg)', borderRadius: '20px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid var(--border)', background: 'rgba(255, 255, 255, 0.02)' }}>
+                                        <th style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
+                                        {procVisibleColumns.map(col => (
+                                            <th key={col} style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{col}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {procFilteredItems.map((item, idx) => {
+                                        const r = computeProcRow(item);
+                                        const colValues = {
+                                            'Material Name': <><div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{item.materialName}</div>{item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.15rem' }}>📝 {item.notes}</div>}</>,
+                                            'Vendor': <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{item.vendorName || '—'}</span>,
+                                            'Phase': <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', fontWeight: 600, color: 'var(--text-main)' }}>📁 {r.phaseName}</span>,
+                                            'Quantity': <>{r.qty} <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.72rem' }}>{item.unit}</span></>,
+                                            'Unit': item.unit,
+                                            'Estimated Rate': formatCurrency(r.estRate),
+                                            'Actual Rate': <span style={{ color: r.hasActual ? 'var(--success)' : 'var(--text-muted)' }}>{r.hasActual ? formatCurrency(r.actRate) : '—'}</span>,
+                                            'Base Amount': formatCurrency(r.baseAmount),
+                                            'CGST': r.cgstVal > 0 ? <span style={{ fontSize: '0.72rem', color: '#3b82f6', fontWeight: 600 }}>{formatCurrency(r.cgstVal)}</span> : '—',
+                                            'SGST': r.sgstVal > 0 ? <span style={{ fontSize: '0.72rem', color: '#3b82f6', fontWeight: 600 }}>{formatCurrency(r.sgstVal)}</span> : '—',
+                                            'IGST': r.igstVal > 0 ? <span style={{ fontSize: '0.72rem', color: '#8b5cf6', fontWeight: 600 }}>{formatCurrency(r.igstVal)}</span> : '—',
+                                            'Discount': r.discVal > 0 ? <span style={{ fontSize: '0.72rem', color: '#ef4444', fontWeight: 600 }}>-{formatCurrency(r.discVal)}</span> : '—',
+                                            'Total Cost': <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(r.totalCost)}</span>,
+                                            'Status': <span style={{
+                                                fontSize: '0.65rem', fontWeight: 800, padding: '0.25rem 0.5rem', borderRadius: '6px', letterSpacing: '0.04em',
+                                                background: item.status === 'DELIVERED' ? 'rgba(16,185,129,0.12)' : item.status === 'ORDERED' ? 'rgba(245,158,11,0.12)' : item.status === 'CANCELLED' ? 'rgba(239,68,68,0.12)' : 'rgba(59,130,246,0.12)',
+                                                color: item.status === 'DELIVERED' ? '#10b981' : item.status === 'ORDERED' ? '#f59e0b' : item.status === 'CANCELLED' ? '#ef4444' : '#3b82f6',
+                                                border: item.status === 'DELIVERED' ? '1px solid rgba(16,185,129,0.2)' : item.status === 'ORDERED' ? '1px solid rgba(245,158,11,0.2)' : item.status === 'CANCELLED' ? '1px solid rgba(239,68,68,0.2)' : '1px solid rgba(59,130,246,0.2)'
+                                            }}>{item.status}</span>,
+                                            'Notes': item.notes || '—',
+                                            'Created': item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '—'
+                                        };
 
-                                    return (
-                                        <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.015)'}
-                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
-                                            <td style={{ padding: '0.75rem 1rem' }}>
-                                                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{item.materialName}</div>
-                                                {item.notes && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.15rem' }}>📝 {item.notes}</div>}
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-main)', fontWeight: 600 }}>{item.vendorName || '—'}</td>
-                                            <td style={{ padding: '0.75rem 1rem' }}>
-                                                <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', fontWeight: 600, color: 'var(--text-main)' }}>
-                                                    📁 {phaseName}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                                                {qty} <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: '0.72rem' }}>{item.unit}</span>
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem', color: 'var(--text-main)' }}>{formatCurrency(parseFloat(item.estimatedRate))}</td>
-                                            <td style={{ padding: '0.75rem 1rem', color: hasActual ? 'var(--success)' : 'var(--text-muted)' }}>
-                                                {hasActual ? formatCurrency(parseFloat(item.actualRate)) : '—'}
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                                                    {taxStr && <span style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 600 }}>{taxStr}</span>}
-                                                    {discVal > 0 && <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>Disc: -{formatCurrency(discVal)}</span>}
-                                                    {!taxStr && discVal === 0 && <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                                                </div>
-                                            </td>
-                                            <td style={{ padding: '0.75rem 1rem', fontWeight: 800, color: 'var(--text-main)' }}>{formatCurrency(total)}</td>
-                                            <td style={{ padding: '0.75rem 1rem' }}>
-                                                <span style={{
-                                                    fontSize: '0.65rem',
-                                                    fontWeight: 800,
-                                                    padding: '0.25rem 0.5rem',
-                                                    borderRadius: '6px',
-                                                    letterSpacing: '0.04em',
-                                                    background:
-                                                        item.status === 'DELIVERED' ? 'rgba(16, 185, 129, 0.12)' :
-                                                        item.status === 'ORDERED' ? 'rgba(245, 158, 11, 0.12)' :
-                                                        item.status === 'CANCELLED' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
-                                                    color:
-                                                        item.status === 'DELIVERED' ? '#10b981' :
-                                                        item.status === 'ORDERED' ? '#f59e0b' :
-                                                        item.status === 'CANCELLED' ? '#ef4444' : '#3b82f6',
-                                                    border:
-                                                        item.status === 'DELIVERED' ? '1px solid rgba(16, 185, 129, 0.2)' :
-                                                        item.status === 'ORDERED' ? '1px solid rgba(245, 158, 11, 0.2)' :
-                                                        item.status === 'CANCELLED' ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)'
-                                                }}>
-                                                    {item.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                                        return (
+                                            <tr key={item.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s' }}
+                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.015)'}
+                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                                <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 600 }}>{idx + 1}</td>
+                                                {procVisibleColumns.map(col => (
+                                                    <td key={col} style={{ padding: '0.75rem 1rem' }}>{colValues[col]}</td>
+                                                ))}
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
             </div>
             )}
         </div>
     );
 }
+
